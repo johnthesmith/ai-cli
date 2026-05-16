@@ -83,21 +83,33 @@ impl Ai
                 .and_then(|cfg| cfg["help"].as_bool())
                 .unwrap_or( false );
             
-
+            /* History request */
+            let history = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg["history"].as_bool())
+                .unwrap_or( false );
+            
             if help_mode
             {
                 self.help();
             }
             else
             {
-                if clear_history
+                if history
                 {
-                    self.clear_history();
+                    self.show_history();
                 }
                 else
                 {
-                    self.write_history("user", &self.get_user_prompt());
-                    self.request();
+                    if clear_history
+                    {
+                        self.clear_history();
+                    }
+                    else
+                    {
+                        self.write_history("user", &self.get_user_prompt());
+                        self.request();
+                    }
                 }
             }
         }
@@ -520,6 +532,17 @@ impl Ai
 
 
 
+    fn show_history(&mut self) -> &mut Self 
+    {
+        let history = self.get_history();
+        if history.is_empty() {
+            println!("No history");
+        } else {
+            println!("{}", history);
+        }
+        self
+    }
+
     /*******************************************************************8******
         Chat
     */
@@ -579,6 +602,7 @@ impl Ai
         println!("Options:");
         println!("  --chat <id>                 Switch to chat <id>, default id is default");
         println!("  --clear                     Clear current chat history");
+        println!("  --history                   Show history for current chat");
         println!("  --help                      Show this help");
         self
     }
