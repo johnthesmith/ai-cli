@@ -25,6 +25,6 @@ application:
       model: openai/gpt-4o-mini
       token: ~/.config/ai/%profile%/token.txt
     # Optional proxy settings
-    proxy: socks5://127.0.0.1:1080
+    # proxy: socks5://127.0.0.1:1080
 
 
