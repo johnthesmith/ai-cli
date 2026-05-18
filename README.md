@@ -6,6 +6,15 @@
     0. `1 create hello-world folder` - direct query to AI;
     0. `1` - interactive query input;
 
+
+# How it works
+
+1. User provides input via arguments or pipeline
+2. AI generates a response
+3. The utility **types the response into your terminal** (X11 keyboard emulation)
+4. You can **edit the command** freely using standard line editing keys
+5. Press Enter to execute the final command
+
 ```
 user@comp:~$ 1 hello
 Hello! How can I assist you today?
