@@ -1,6 +1,6 @@
 # AI CLI Assistant
 
-1. CLI utility designed for embedding AI into bash pipelines
+1. Prototype of CLI utility designed for embedding AI into bash pipelines
 0. Usage:
     1. `echo "hello world" | 1` - pipeline;
     0. `1 create hello-world folder` - direct query to AI;
