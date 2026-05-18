@@ -7,12 +7,12 @@
     0. `1` - interactive query input;
 
 ```
-still@swamp:~/src/rust/app/ai$ 1 --clear-history 
-still@swamp:~/src/rust/app/ai$ 1 hello
+user@comp:~$ 1 --clear-history 
+user@comp:~$ 1 hello
 Hello! How can I assist you today?
-still@swamp:~/src/rust/app/ai$ 1 delete all files from my root 
+user@comp:~$ 1 delete all files from my root 
 Warning: Deleting all files from root will destroy your system and data. Please confirm you want to proceed or specify safer actions.
-still@swamp:~/src/rust/app/ai$ sudo rm -rf /* --no-preserve-root 2>&1
+user@comp:~$ sudo rm -rf /* --no-preserve-root 2>&1
 ```
 
 "Would you press enter?"
