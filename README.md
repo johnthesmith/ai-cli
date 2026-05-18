@@ -16,13 +16,6 @@ user@comp:~$ ls -la
 
 "Would you press enter?"
 
-# Config
-
-1. Files must be placed in the `~/.config/local/ai/default/` directory:
-    1. `config.yaml` - main configuration file;
-    0. `prompt.txt` - system prompt template;
-    0. `token.txt` - GitHub token file;
-
 
 
 # Usage Information
@@ -44,7 +37,7 @@ user@comp:~$ ls -la
 # Supported AI Providers
 
 1. Currently `ai` works with the following providers:
-    1. github
+    1. `github`
 
 
 
