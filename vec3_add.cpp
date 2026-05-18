@@ -1,0 +1,1 @@
+#include <iostream>\nstruct Vec3 {\n    float x, y, z;\n    Vec3 operator+(const Vec3 &other) const {\n        return {x + other.x, y + other.y, z + other.z};\n    }\n};\nint main() {\n    Vec3 a{1, 2, 3}, b{4, 5, 6}, c{7, 8, 9};\n    Vec3 result = a + b + c;\n    std::cout << "Result: (" << result.x << ", " << result.y << ", " << result.z << ")\n";\n    return 0;\n}
