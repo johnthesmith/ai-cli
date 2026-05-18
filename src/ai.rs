@@ -1,13 +1,13 @@
-use core::expand_path;
-use core::Moment;
-use serde_json;
-
-/* sudo apt install libxdo-dev */
-use enigo::{Enigo, Keyboard, Settings};
-
 /*
     Main AI module
 */
+
+use core::{expand_path, ensure_directory };
+use enigo::{ Enigo, Keyboard, Settings };
+use core::Color;
+use serde_json;
+use regex::Regex;
+use core::State;
 use core::Application;
 
 
@@ -16,8 +16,17 @@ use core::Application;
 */
 pub struct Ai 
 {
+    /* Application structure */
     pub application: Application,
-    pub kbd_response: String
+
+    /* Ai state structure */
+    state: State,
+
+    /* Keyboard buffer for final typing */
+    kbd_response: String,
+
+    /* Profile */
+    profile: String
 }
 
 
@@ -27,94 +36,218 @@ pub struct Ai
 */
 impl Ai 
 {
-
+    /*
+        Create and return AI
+    */
     pub fn create() -> Self 
     {
         Self 
         {
             application: Application::create(),
             kbd_response: String::new(),
+            profile: String::new(),
+            state: State::ok(),
         }
     }
 
 
 
+    /*
+        Help utility
+    */
+    fn help(&mut self) -> &mut Self
+    {
+        println!( "AI CLI Utility 2026" );
+        println!( "" );
+        println!( "Usage:" );
+        println!( "  ai                          Interactive keyboard input");
+        println!( "  ai <question>               Ask a question" );
+        println!( "  echo <text> | ai            Read from stdin" );
+        println!( "  ai --help                   Show this help" );
+        println!( "" );
+        println!( "Options:" );
+        println!( "  --help                      This information" );
+        println!( "  --no-prompt                 Suppress input prompt" );
+        println!( "  --show-runtime              Show current runtime values (profile, chat, log, config)");
+        println!( "  --show-chat                 Show current chat id" );
+        println!( "  --switch-chat=<id>          Switch to chat <id>, default id is default" );
+        println!( "  --show-history              Show history for current chat" );
+        println!( "  --clear-history             Remove history for current chat" );
+        println!( "  --profile=<name>            Use profile for current session only" );
+        println!( "  --switch-profile=<name>     Switch and save profile" );
+        println!( "" );
+        println!( "Recommendations:" );
+        println!( "  alias                       Set `alias 1=ai`" );
+        println!( "" );
+        println!( "Author:" );
+        println!( "  Still Swamp (still@itserv.ru) Powered by deepseek" );
+        self
+    }
+
+
+
+    /*
+        Main run method
+    */
     pub fn run
     (
         &mut self
     ) 
     -> &mut Self 
     {
+        /* Read cli arguments */
+        self.application.read_cli();
+
+        /*
+            Profile section
+        */
+
+        /* Set profile */
+        if let Some( profile ) = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg[ "switch-profile" ].as_str())
+        {
+            self.switch_profile( &profile.to_string() );
+        }
+
+        /* Set profile for current session */
+        if let Some( profile ) = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["profile"].as_str())
+        {
+            self.set_profile( &profile.to_string() );
+        }
+        else
+        {
+            self.read_profile();
+        }
+
+        /*
+            Config section
+        */
+
         /* Get default config path */
-        let path = std::env::var("HOME").unwrap() + "/.config/ai/default/config.yaml";
+        let path = 
+        expand_path( "~/.config/ai/%profile%/config.yaml" )
+        .replace( "%profile%", &self.get_profile() );
+
         /* Read config */
-        self.application.read_config( &path ).read_cli().dump_config();
+        self.application.read_config( &path ).read_cli();
+
+
+
+        /*
+            Log section
+        */
+
+        /* Set log file */
+        if let Some(file) = self.application.config.as_ref()
+            .and_then(|c| c["application"]["log"]["file"].as_str())
+        {
+            let file = expand_path(file).replace( "%profile%", &self.get_profile() );
+            self.application.get_log().set_file_path(&file);
+        }
 
         /* First log message */
-        self.application.get_log().begin( "Ai started" );
+        self.application.get_log().begin
+        (
+            "=== Ai started =================================================="
+        );
+        self.application.dump_config();
 
-      
+
+        /*
+            Main section
+        */
 
         /* Check config */
         if self.application.state.is_ok()
         {
-            /* Let chat id */
-            let chat_id = self.get_chat_id();
+            /* No prompt mode */
+            let mut no_prompt = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg["no-prompt"].as_bool())
+                .unwrap_or( false );
+
+            /* Switch chat if requested */
             let new_chat_id = self.application.config
                 .as_ref()
-                .and_then(|cfg| cfg[ "chat" ].as_str())
-                .unwrap_or( &chat_id )
-                .to_string();
-                
-            if chat_id != new_chat_id
+                .and_then(|cfg| cfg["switch-chat"].as_str())
+                .map(|s| s.to_string());
+
+            if let Some(new_chat_id) = new_chat_id 
             {
-                self.switch_chat_id( &new_chat_id );
+                no_prompt = true;
+                self.switch_chat_id(&new_chat_id);
+            }
+
+            /* Switch profile mode */
+            if let Some(_) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["switch-profile"].as_str())
+            {
+                no_prompt = true;
+            }
+
+            /* Help mode */
+            if let Some(_) = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg["help"].as_bool())
+            {
+                no_prompt = true;
+                self.help();
             }
 
             /* Check clear-history flag */
-            let clear_history = self.application.config
-                .as_ref()
-                .and_then(|cfg| cfg["clear"].as_bool())
-                .unwrap_or(false);
-
-            /* Help mode */
-            let help_mode = self.application.config
-                .as_ref()
-                .and_then(|cfg| cfg["help"].as_bool())
-                .unwrap_or( false );
+            if let Some(_) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["clear-history"].as_bool())
+            {
+                no_prompt = true;
+                self.clear_history();
+            }
             
             /* History request */
-            let history = self.application.config
-                .as_ref()
-                .and_then(|cfg| cfg["history"].as_bool())
-                .unwrap_or( false );
-            
-            if help_mode
+            if let Some(_) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["show-history"].as_bool())
             {
-                self.help();
+                no_prompt = true;
+                self.show_history();
             }
-            else
+
+            if let Some(_) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["show-runtime"].as_bool())
             {
-                if history
-                {
-                    self.show_history();
-                }
-                else
-                {
-                    if clear_history
-                    {
-                        self.clear_history();
-                    }
-                    else
-                    {
-                        self.write_history("user", &self.get_user_prompt());
-                        self.request();
-                    }
-                }
+                println!("Profile: {}", self.get_profile());
+                println!("Chat: {}", self.get_chat_id());
+                println!("Log: {}", self.application.get_log().get_file_path());
+                println!("Config: ~/.config/ai/{}/config.yaml", self.get_profile());
+                no_prompt = true;
+            }
+           
+            if let Some(_) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["show-chat"].as_bool())
+            {
+                no_prompt = true;
+                self.show_chat();
+            }
+
+            if !no_prompt
+            {
+                let system_prompt = self.read_prompt();
+                let history = self.get_history();
+                let user_prompt = self.get_user_prompt();
+                let chat = self.get_chat_id();                          
+
+                let prompt = system_prompt
+                .replace( "%chat%", &chat )
+                .replace( "%history%", &history )
+                .replace( "%user-prompt%", &user_prompt );
+
+                self.write_history( "USER", &user_prompt );
+                self.request( prompt );
             }
         }
 
-        self.application.get_log().end( "" ).eol();
+        self.application.get_log().end( "End of ai" ).eol();
 
         /* Final output leyboard */
         if !self.kbd_response.is_empty() 
@@ -130,9 +263,8 @@ impl Ai
                 Err(e) => 
                 {
                     self.application.get_log()
-                        .error("Failed to init enigo")
-                        .prm("error", &e.to_string())
-                        .eol();
+                        .error( "Failed to init enigo" )
+                        .prm("error", &e.to_string());
                 }
             }
             println!();
@@ -161,15 +293,17 @@ impl Ai
         {
             Some(path) => 
             {
-                let full_path = expand_path(&path);
-                match std::fs::read_to_string(&full_path) {
+                let full_path = expand_path(&path)
+                .replace("%profile%", &self.get_profile());
+                
+                match std::fs::read_to_string(&full_path) 
+                {
                     Ok( content ) => content,
                     Err(_) => 
                     {
                         self.application.get_log()
                         .warning( "Cannot read prompt file, using default" )
-                        .prm("path", full_path)
-                        .eol();
+                        .prm("path", full_path);
 
                         default_prompt
                     }
@@ -180,58 +314,50 @@ impl Ai
     }
 
 
-
     /*
-        Return user prompt from first argument
+        Return user prompt from command line arguments (all non-flag arguments)
     */
-    fn get_user_prompt(&self) -> String 
+    fn get_user_prompt(&self) -> String
     {
-        /* Reading from config */
-        if let Some(prompt) = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["_0"].as_str())
-        {
-            return prompt.to_string();
-        }
+        /* Collect all non-flag arguments */
+        let args: Vec<String> = std::env::args().skip(1)
+            .filter(|arg| !arg.starts_with('-'))
+            .collect();
         
+        if !args.is_empty() {
+            return args.join(" ");
+        }
+
         /* else from stdin */
         use std::io::Read;
-        
+        use std::io::IsTerminal;
+
         let mut buffer = String::new();
         let mut stdin = std::io::stdin();
-        
+
+        /* Check if stdin is empty (no pipe) */
+        if stdin.is_terminal()
+        {
+            println!("Enter your prompt (Ctrl+D to finish or Ctrl+C to cancel):");
+        }
+
         if stdin.read_to_string(&mut buffer).unwrap_or(0) > 0
         {
-            println!();       
+            println!();
             buffer.trim().to_string()
         }
         else
         {
-            println!();       
+            println!();
             String::new()
         }
     }
 
 
 
-    fn prepare_prompt(&mut self) -> String 
-    {
-        let system_prompt = self.read_prompt();
-        let history = self.get_history();
-        let user_prompt = self.get_user_prompt();
-        let chat = self.get_chat_id();
-        
-        system_prompt
-            .replace("%chat%", &chat)
-            .replace("%history%", &history)
-            .replace("%user-prompt%", &user_prompt)
-    }
-
-
     /**************************************************************************
         Request
     */
-
 
     /*
         Return current provider
@@ -240,18 +366,21 @@ impl Ai
     -> String
     {
         self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["provider"].as_str())
-            .unwrap_or("unknown")
-            .to_string()
+        .as_ref()
+        .and_then(|cfg| cfg[ "application" ][ "ai" ][ "provider" ].as_str())
+        .unwrap_or( "github" )
+        .to_string()
     }
-
 
 
     /*
         Request and return result
     */
-    fn request( &mut self )
+    fn request
+    (
+        &mut self,
+        prompt: String
+    )
     -> &mut Self
     {
         let provider_type = self.get_provider();
@@ -260,39 +389,73 @@ impl Ai
         .application.get_log()
         .begin( "Request" )
         .prm( "provider-type", &provider_type );
-        
+
+        let mut in_cmd = String::new();
+        let mut out_msg = String::new();
+        let mut buffer = String::new();
+        let mut prompt_tokens = 0;
+        let mut answer_tokens = 0;
+        let mut model = String::new();
+
+        /* Provider adapters */
         match provider_type.as_str() 
         {
             "github" => 
             {
-                let response = self.request_github();
-                let (in_cmd, out_msg, prompt_tokens, answer_tokens ) = self.answer_github( response );
-
-                /* Write answer in to history */
-                self.write_history("ai", &format!("{}\n{}", out_msg, in_cmd));
-
-                /* Output result in to stdout */
-                println!("{}", out_msg);
-
-                /* Set keyboard input with chek enter */
-                self.kbd_response = in_cmd
-                    .replace( ['\n', '\r'], " ")
-                    .trim()
-                    .to_string();
-
-                self.application.get_log()
-                    .trace( "Success answer" )
-                    .prm("prompt-tokens", prompt_tokens)
-                    .prm("answer-tokens", answer_tokens)
-                    .eol();
+                /* Request */
+                let response = self.request_github( prompt );
+                /* Responce */
+                (
+                    in_cmd, 
+                    out_msg, 
+                    buffer, 
+                    prompt_tokens, 
+                    answer_tokens,
+                    model
+                ) = self.answer_github( response );
             }
             _ =>
             {
                 self.application.get_log()
                     .warning( "Unknown provider" )
-                    .prm("type", &provider_type)
-                    .eol();
+                    .prm("type", &provider_type);
             }
+        }
+
+        /* Answer processing */
+        if !in_cmd.is_empty() || !out_msg.is_empty() || !buffer.is_empty()
+        {
+            self.write_history( "AI", &format!("{}\n{}", out_msg, in_cmd));
+
+            println!( "{}", model );
+            println!( "{}", out_msg );
+
+            /* Write buffer to file */
+            if !buffer.is_empty()
+            {
+                let path = self.get_buffer_path();
+                if let Err(e) = std::fs::write(&path, &buffer)
+                {
+                    self.application.get_log()
+                        .error( "Failed to write buffer" )
+                        .prm( "error", &e.to_string() )
+                        .eol();
+                }
+            }
+
+            /* Store command to keyboard buffer */
+            let buffer_path = self.get_buffer_path();
+            self.kbd_response = in_cmd
+                /* SECURE!!! Remove enter from command */
+                .replace(['\n', '\r'], " ")
+                .replace("%buffer%", &buffer_path)
+                .trim()
+                .to_string();
+            
+            self.application.get_log()
+                .trace("Success answer")
+                .prm("prompt-tokens", prompt_tokens)
+                .prm("answer-tokens", answer_tokens);
         }
 
         self.application.get_log().end( "" );
@@ -302,58 +465,108 @@ impl Ai
 
 
 
+
     /* 
         GitHub AI request
     */
-    fn request_github( &mut self ) -> String 
+    fn request_github
+    (
+        &mut self,
+        /* Prompt */
+        prompt: String
+    ) -> String
     {
         let api = self.application.config
             .as_ref()
             .and_then(|cfg| cfg["application"]["ai"]["params"]["api"].as_str())
-            .unwrap_or("")
+            .unwrap_or( "https://models.github.ai/inference/chat/completions" )
             .to_string();
-        
+
+        /* Retrive token */
         let token_path = self.application.config
             .as_ref()
             .and_then(|cfg| cfg["application"]["ai"]["params"]["token"].as_str())
-            .unwrap_or("");
-        
-        let token = if let Ok(content) = std::fs::read_to_string(expand_path(token_path)) {
+            .map(|s| expand_path(s).replace("%profile%", &self.get_profile()))
+            .unwrap_or_else(|| "".to_string());
+
+        let token = if let Ok(content) = std::fs::read_to_string(token_path)
+        {
             content.trim().to_string()
         }
-        else 
+        else
         {
             String::new()
         };
-        
+
         let model = self.application.config
             .as_ref()
             .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
             .unwrap_or("openai/gpt-4o-mini")
             .to_string();
-        
-        let prompt = self.prepare_prompt();
-        
-        let response = ureq::post(&api)
-            .set("Authorization", &format!("Bearer {}", token))
-            .set("Content-Type", "application/json")
-            .send_json(serde_json::json!({
-                "messages": [{"role": "user", "content": prompt}],
-                "model": model
-            }));
-        
-        match response 
+
+
+        /* Build reqwest client with proxy from config */
+        let mut client_builder = reqwest::blocking::Client::builder();
+
+        if let Some(proxy_url) = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["proxy"].as_str())
         {
-            Ok(resp) => 
-            {
-                resp.into_string().unwrap_or_default()
+            if let Ok(proxy) = reqwest::Proxy::all(proxy_url) {
+                client_builder = client_builder.proxy(proxy);
             }
-            Err(e) => 
+        }
+
+        let client = client_builder.build().unwrap();
+
+
+        let payload = serde_json::json!
+        (
+            {
+                "messages": [{ "role": "user", "content": prompt }],
+                "model": model
+            }
+        );
+
+        let response = client.post(&api)
+            .bearer_auth(&token)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send();
+
+        if let Ok(resp) = &response
+        {
+            self.application.get_log().begin("GitHub response headers");
+
+            for (name, value) in resp.headers().iter()
             {
                 self.application.get_log()
+                    .trace("")
+                    .prm(name.as_str(), value.to_str().unwrap_or("N/A"));
+            }
+
+            self.application.get_log().end("");
+        }
+
+        match response
+        {
+            Ok(resp) =>
+            {
+                resp.text().unwrap_or_default()
+            }
+            Err(e) =>
+            {
+                println!
+                (
+                    "{}{} {}{}",
+                    Color::Red.to_str(),
+                    "GitHub API error",
+                    &e.to_string(),
+                    Color::Default.to_str()
+                );
+                self.application.get_log()
                     .error("GitHub API error")
-                    .prm("error", &e.to_string())
-                    .eol();
+                    .prm("error", &e.to_string());
                 String::new()
             }
         }
@@ -361,33 +574,42 @@ impl Ai
 
 
 
-
     /*
-        Github AI responce
+        Github AI response
     */
     fn answer_github
     (
         &mut self,
-        /* String with responce after request_github */
+        /* String with response after request_github */
         response: String
     )
     ->
     (
         /* In for tty input */
         String,
-        /* Out for std out */
+        /* Out for stdout */
+        String,
+        /* Buffers content */
         String,
         /* Prompt tokens count */
         u64,
         /* Completion tokens count */
-        u64
+        u64,
+        /* Model name */
+        String
     )
     {
-        let json: serde_json::Value = serde_json::from_str(&response).unwrap_or(serde_json::json!({}));
-        
+        let response_clean = Regex::new(r"(?s)<think>.*?</think>")
+            .unwrap()
+            .replace_all(&response, "")
+            .to_string();
+
+        let json: serde_json::Value = serde_json::from_str(&response_clean)
+            .unwrap_or(serde_json::json!({}));
+
         let prompt_tokens = json["usage"]["prompt_tokens"].as_u64().unwrap_or(0);
         let completion_tokens = json["usage"]["completion_tokens"].as_u64().unwrap_or(0);
-        
+
         let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("");
         let content = content
             .trim()
@@ -395,28 +617,55 @@ impl Ai
             .trim_start_matches("```")
             .trim_end_matches("```");
 
-        // Пробуем распарсить как JSON
+        let model = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
+            .unwrap_or("openai/gpt-4o-mini")
+            .to_string();     
+
+        /* Try to parse as JSON */
         match serde_json::from_str::<serde_json::Value>(content)
         {
             Ok(ai_json) =>
             {
                 let out_msg = ai_json["out"].as_str().unwrap_or("").to_string();
                 let in_cmd = ai_json["in"].as_str().unwrap_or("").to_string();
-
-                if out_msg.is_empty() && in_cmd.is_empty()
+                let buffer = ai_json["buffer"].as_str().unwrap_or("").to_string();
+                if out_msg.is_empty() && in_cmd.is_empty() && buffer.is_empty()
                 {
-                    // Не структурирован, но может быть чистый JSON без полей in/out
-                    (String::new(), content.to_string(), prompt_tokens, completion_tokens)
+                    /* Return empty result */
+                    (
+                        String::new(), 
+                        content.to_string(), 
+                        String::new(), 
+                        prompt_tokens, 
+                        completion_tokens, 
+                        model
+                    )
                 }
                 else
                 {
-                    (in_cmd, out_msg, prompt_tokens, completion_tokens)
+                    (
+                        in_cmd, 
+                        out_msg, 
+                        buffer, 
+                        prompt_tokens, 
+                        completion_tokens, 
+                        model
+                    )
                 }
             }
             Err(_) =>
             {
-                // Не структурирован — весь content в out
-                (String::new(), content.to_string(), prompt_tokens, completion_tokens)
+                /* Unstructured response */
+                (
+                    String::new(), 
+                    content.to_string(), 
+                    String::new(), 
+                    prompt_tokens, 
+                    completion_tokens, 
+                    model 
+                )
             }
         }
     }
@@ -426,28 +675,27 @@ impl Ai
         History
     */
 
-
-    fn get_history_file_path(&mut self) -> Option<String>
+    fn get_history_file_path(&mut self) -> String 
     {
         let history_dir = self.application.config
             .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["history"].as_str())
-            .map(|s| expand_path(s));
-        
+            .and_then(|cfg| cfg[ "application"]["ai"]["history"].as_str())
+            .map(|s| expand_path( s ))
+            .unwrap_or_else(|| expand_path( "~/.config/ai/%profile%/history/" ))
+            .replace( "%profile%", &self.get_profile() );
+
         let chat_id = self.get_chat_id();
-        
-        history_dir.map(|dir| format!("{}{}.txt", dir, chat_id))
+
+        format!("{}{}.txt", history_dir, chat_id)
     }
+
 
 
     fn get_history(&mut self) -> String 
     {
-        let history_path = match self.get_history_file_path() {
-            Some(path) => path,
-            None => return String::new(),
-        };
-        
-        match std::fs::read_to_string(&history_path) {
+        let history_path = self.get_history_file_path();       
+        match std::fs::read_to_string(&history_path) 
+        {
             Ok(content) => content,
             Err(_) => String::new(),
         }
@@ -460,32 +708,36 @@ impl Ai
     */
     fn write_history
     (
-        &mut self, 
-        role: &str, 
+        &mut self,
+        role: &str,
         text: &str
-    ) 
+    )
     {
         let history_path = self.get_history_file_path();
+        
+        // Создаём родительскую директорию
+        if let Err(e) = ensure_directory(&history_path)
+        {
+            self.application.get_log()
+            .error( "Failed to ensure history directory" )
+            .prm( "error", &e );
 
-        if let Some(path) = history_path {
-            use std::fs::OpenOptions;
-            use std::io::Write;
-
-            let mut now = Moment::create();
-            now.now();
-            let micros = now.get();
-
-            let line = format!("@LINE\n{}\n{}\n{}\n\n", role, micros, text);
-
-            if let Ok(mut file) = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&path) {
-                let _ = file.write_all(line.as_bytes());
-            }
+            return;
+        }
+        
+        use std::fs::OpenOptions;
+        use std::io::Write;
+        
+        let line = format!( "@FROM_{}\n{}\n\n", role, text );
+        
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&history_path)
+        {
+            let _ = file.write_all(line.as_bytes());
         }
     }
-
 
 
     /*
@@ -494,36 +746,21 @@ impl Ai
     fn clear_history( &mut self )
     -> &mut Self
     {
-        let history_path = self.get_history_file_path();
-        
-        match history_path
+        let history_path = self.get_history_file_path();      
+        match std::fs::write( &history_path, "" )
         {
-            Some(path) =>
-            {
-                match std::fs::write(&path, "")
-                {
-                    Ok(_) =>
-                    {
-                        self.application.get_log()
-                            .info("History cleared")
-                            .prm("path", &path)
-                            .eol();
-                    }
-                    Err(e) =>
-                    {
-                        self.application.get_log()
-                            .warning("Failed to clear history")
-                            .prm("path", &path)
-                            .prm("error", &e.to_string())
-                            .eol();
-                    }
-                }
-            }
-            None =>
+            Ok(_) =>
             {
                 self.application.get_log()
-                    .warning("No history file configured")
-                    .eol();
+                .info("History cleared")
+                .prm("path", &history_path);
+            }
+            Err(e) =>
+            {
+                self.application.get_log()
+                    .warning("Failed to clear history")
+                    .prm("path", &history_path)
+                    .prm("error", &e.to_string());
             }
         }
         
@@ -532,36 +769,77 @@ impl Ai
 
 
 
-    fn show_history(&mut self) -> &mut Self 
+    fn show_history(&mut self)
+    -> &mut Self 
     {
         let history = self.get_history();
-        if history.is_empty() {
-            println!("No history");
-        } else {
-            println!("{}", history);
+        if history.is_empty() 
+        {
+            println!( "No history" );
+        } 
+        else
+        {
+            println!( "{}", history );
         }
         self
     }
 
+
+
+    /*******************************************************************8******
+        Buffers
+    */
+
+
+    /*
+        Return buffer file  
+    */
+    fn get_buffer_path(&self) 
+    -> String
+    {
+        expand_path
+        (
+            &self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg[ "application" ][ "ai" ][ "buffers" ].as_str() )
+            .unwrap_or_else(|| "~/.local/share/ai/%profile%/buffer")
+            .to_string()
+            .replace("%profile%", &self.get_profile())
+        )
+    }
+
+    
     /*******************************************************************8******
         Chat
     */
 
-    fn get_chat_file_path(&self) -> Option<String> 
+    /*
+        Return file for curren chat id 
+    */
+    fn get_chat_file_path( &self )
+    -> String 
     {
         self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["chat-file"].as_str())
-            .map(|s| expand_path(s))
+        .as_ref()
+        .and_then(|cfg| cfg["application"]["ai"]["chat-file"].as_str())
+        .map(|s| expand_path(s))
+        .unwrap_or_else(|| expand_path( "~/.local/share/ai/%profile%/chat.txt" ))
+        .replace("%profile%", &self.get_profile())
     }
 
-    fn get_chat_id(&self) -> String {
-        if let Some(path) = self.get_chat_file_path() {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                let id = content.trim().to_string();
-                if !id.is_empty() {
-                    return id;
-                }
+
+
+    fn get_chat_id( &self )
+    -> String 
+    {
+        let path = self.get_chat_file_path();
+
+        if let Ok(content) = std::fs::read_to_string( &path ) 
+        {
+            let id = content.trim().to_string();
+            if !id.is_empty() 
+            {
+                return id;
             }
         }
         "default".to_string()
@@ -569,43 +847,166 @@ impl Ai
 
 
 
-    fn switch_chat_id(&mut self, new_id: &str) -> &mut Self {
-        if let Some(path) = self.get_chat_file_path() {
-            if let Err(e) = std::fs::write(&path, new_id) {
-                self.application.get_log()
-                    .error("Failed to switch chat")
-                    .prm("path", &path)
-                    .prm("error", &e.to_string())
-                    .eol();
-            } else {
-                self.application.get_log()
-                    .info("Chat switched")
-                    .prm("id", new_id)
-                    .eol();
-            }
-        }
-        self
-    }
-
-
-
-    fn help(&mut self) 
-    -> &mut Self
+    /*
+        Change current chat id
+    */
+    fn switch_chat_id
+    (
+        &mut self,
+        new_id: &str
+    ) -> &mut Self
     {
-        println!("AI CLI Utility");
-        println!("");
-        println!("Usage:");
-        println!("  ai <question>               Ask a question");
-        println!("  echo <text> | ai            Read from stdin");
-        println!("  ai --help                   Show this help");
-        println!("");
-        println!("Options:");
-        println!("  --chat <id>                 Switch to chat <id>, default id is default");
-        println!("  --clear                     Clear current chat history");
-        println!("  --history                   Show history for current chat");
-        println!("  --help                      Show this help");
+        let file_path = self.get_chat_file_path();
+        
+        if let Err(e) = ensure_directory( &file_path )
+        {
+            self.application.get_log()
+                .error("Failed to ensure chat directory")
+                .prm("error", &e);
+            return self;
+        }
+        
+        if let Err(e) = std::fs::write(&file_path, new_id) {
+            self.application.get_log()
+                .error("Failed to switch chat")
+                .prm("path", &file_path)
+                .prm("error", &e.to_string());
+        } else {
+            self.application.get_log()
+                .trace("Chat switched")
+                .prm("id", new_id);
+        }
+        
         self
     }
+
+
+
+    fn show_chat( &mut self )
+    -> &mut Self 
+    {
+        let chat_id = self.get_chat_id();
+        println!( "Current chat: {}", chat_id );
+        self
+    }
+
+
+    /**************************************************************************
+        Profile
+    */
+
+
+    /*
+        Return profile file
+    */
+    fn get_profile_file_path(&self) -> String 
+    {
+        expand_path( "~/.local/share/ai/profile" )
+    }
+
+
+    /*
+        Set profile
+    */
+    fn set_profile
+    (
+        &mut self, 
+        /* Profile name */
+        name: &str
+    )
+    -> &mut Self 
+    {
+        self.profile = name.to_string();
+        self
+    }
+
+
+
+    /*
+        Return profile
+    */
+    fn get_profile( &self ) 
+    -> &str
+    {
+        &self.profile
+    }
+
+
+
+    /*
+        Read and return profile
+    */
+    fn read_profile(&mut self) -> &mut Self
+    {
+        let path = self.get_profile_file_path();
+        
+        let profile = std::fs::read_to_string(&path)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "default".to_string());
+        
+        self.set_profile(&profile);
+        self
+    }
+
+
+    /*
+        Write profile in to file
+    */
+    fn write_profile
+    (
+        &mut self, 
+        name: &str
+    ) -> &mut Self 
+    {
+        let path = self.get_profile_file_path();
+        
+        if let Err(e) = std::fs::write( &path, name ) 
+        {
+            /* Set state for application */
+            self.state.set_state
+            (
+                "PROFILE_WRITE_ERROR",
+                serde_json::json!
+                (
+                    {
+                        "path": path,
+                        "error": e.to_string()
+                    }
+                )
+            );
+            /* Write in to log */
+            self.application.get_log()
+            .error("Failed to write profile")
+            .prm("path", &path)
+            .prm("error", &e.to_string());
+        } 
+        else
+        {
+            self.application.get_log()
+            .trace( "Profile saved" )
+            .prm("name", name);
+        }
+        
+        self
+    }
+
+
+
+    /*
+        Switch profile 
+    */
+    fn switch_profile
+    (
+        &mut self,
+        /* Profile name */ 
+        name: &str
+    )
+    -> &mut Self 
+    {
+        self.write_profile( name );
+        self.profile = name.to_string();
+        self
+    }    
 }
-
-

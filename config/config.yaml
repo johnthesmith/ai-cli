@@ -1,0 +1,30 @@
+# AI util config file
+application:
+  # Log settings
+  log:
+    file: ~/.local/share/ai/%profile%/log.txt
+    enabled: true
+  # AI application
+  ai:
+    # Provider id 
+    #  supported
+    #    github
+    provider: github
+    # Prompt template file
+    prompt: ~/.config/ai/%profile%/prompt.txt
+    # Chat file. This chat contins chat id
+    chat-file: ~/.local/share/ai/%profile%/chat.txt
+    # History file
+    history: ~/.local/share/ai/%profile%/history/
+    # Buffer path
+    buffers: ~/.local/share/ai/%profile%/buffer
+    params:
+      api: https://models.github.ai/inference/chat/completions
+      # deepseek/deepseek-v3-0324
+      # deepseek/deepseek-r1-0528
+      model: openai/gpt-4o-mini
+      token: ~/.config/ai/%profile%/token.txt
+    # Optional proxy settings
+    proxy: socks5://127.0.0.1:1080
+
+
