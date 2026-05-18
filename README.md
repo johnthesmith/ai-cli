@@ -9,9 +9,9 @@
 ```
 user@comp:~$ 1 hello
 Hello! How can I assist you today?
-user@comp:~$ 1 delete all files from my root 
-Warning: Deleting all files from root will destroy your system and data. Please confirm you want to proceed or specify safer actions.
-user@comp:~$ sudo rm -rf /* --no-preserve-root 2>&1
+user@comp:~$ 1 show me files in current directory
+Here are the files and directories in the current directory:
+user@comp:~$ ls -la
 ```
 
 "Would you press enter?"
