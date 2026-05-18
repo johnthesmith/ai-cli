@@ -95,6 +95,8 @@ mkdir -p ~/.local/bin
 cp target/release/ai ~/.local/bin/ai
 alias 1='~/.local/bin/ai'
 alias ai='~/.local/bin/ai'
+complete -W "--help --show-info --show-chat --switch-chat --show-history --clear-history --profile --switch-profile=" 1
+complete -W "--help --show-info --show-chat --switch-chat --show-history --clear-history --profile --switch-profile=" ai
 ```
 
 ## Config
