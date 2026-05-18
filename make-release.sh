@@ -1,2 +1,4 @@
-cargo build --release && cp target/release/ai ~/.local/bin/ai
+cargo build --release && \
+mkdir -p ~/.local/bin && \
+cp target/release/ai ~/.local/bin/ai
 
