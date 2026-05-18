@@ -395,7 +395,12 @@ impl Ai
         let mut buffer = String::new();
         let mut prompt_tokens = 0;
         let mut answer_tokens = 0;
-        let mut model = String::new();
+
+        let model = self.application.config
+        .as_ref()
+        .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
+        .unwrap_or("openai/gpt-4o-mini")
+        .to_string();
 
         /* Provider adapters */
         match provider_type.as_str() 
@@ -403,16 +408,15 @@ impl Ai
             "github" => 
             {
                 /* Request */
-                let response = self.request_github( prompt );
+                let response = self.request_github( &model, &prompt );
                 /* Responce */
                 (
                     in_cmd, 
                     out_msg, 
                     buffer, 
                     prompt_tokens, 
-                    answer_tokens,
-                    model
-                ) = self.answer_github( response );
+                    answer_tokens
+                ) = self.answer_github( &model, &response );
             }
             _ =>
             {
@@ -472,8 +476,10 @@ impl Ai
     fn request_github
     (
         &mut self,
+        /* Model id */
+        model: &str,
         /* Prompt */
-        prompt: String
+        prompt: &str
     ) -> String
     {
         let api = self.application.config
@@ -497,13 +503,6 @@ impl Ai
         {
             String::new()
         };
-
-        let model = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
-            .unwrap_or("openai/gpt-4o-mini")
-            .to_string();
-
 
         /* Build reqwest client with proxy from config */
         let mut client_builder = reqwest::blocking::Client::builder();
@@ -580,8 +579,10 @@ impl Ai
     fn answer_github
     (
         &mut self,
+        /* Model */
+        _model: &str,
         /* String with response after request_github */
-        response: String
+        response: &str
     )
     ->
     (
@@ -594,80 +595,51 @@ impl Ai
         /* Prompt tokens count */
         u64,
         /* Completion tokens count */
-        u64,
-        /* Model name */
-        String
+        u64
     )
     {
+        /* Remove think section if exists */
         let response_clean = Regex::new(r"(?s)<think>.*?</think>")
             .unwrap()
             .replace_all(&response, "")
             .to_string();
 
-        let json: serde_json::Value = serde_json::from_str(&response_clean)
-            .unwrap_or(serde_json::json!({}));
+        /* Get json */
+        let json: serde_json::Value = serde_json::from_str( &response_clean )
+            .unwrap_or( serde_json::json!({}));
 
-        let prompt_tokens = json["usage"]["prompt_tokens"].as_u64().unwrap_or(0);
-        let completion_tokens = json["usage"]["completion_tokens"].as_u64().unwrap_or(0);
-
+        /* Retrive content */
         let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("");
+
+        /* Join all lines */
+        let content = content
+            .lines()
+            .map(|l| l.trim())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        /* Extract json source */
         let content = content
             .trim()
             .trim_start_matches("```json")
             .trim_start_matches("```")
             .trim_end_matches("```");
+            
+        /* Retrive tokens count */
+        let prompt_tokens = json[ "usage" ][ "prompt_tokens" ].as_u64().unwrap_or(0);
+        let completion_tokens = json[ "usage" ][ "completion_tokens" ].as_u64().unwrap_or(0);
+        let mut out_msg = content.to_string();
+        let mut in_cmd = String::new();
+        let mut buffer = String::new();
 
-        let model = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
-            .unwrap_or("openai/gpt-4o-mini")
-            .to_string();     
-
-        /* Try to parse as JSON */
-        match serde_json::from_str::<serde_json::Value>(content)
+        if let Ok(ai_json) = serde_json::from_str::<serde_json::Value>(content)
         {
-            Ok(ai_json) =>
-            {
-                let out_msg = ai_json["out"].as_str().unwrap_or("").to_string();
-                let in_cmd = ai_json["in"].as_str().unwrap_or("").to_string();
-                let buffer = ai_json["buffer"].as_str().unwrap_or("").to_string();
-                if out_msg.is_empty() && in_cmd.is_empty() && buffer.is_empty()
-                {
-                    /* Return empty result */
-                    (
-                        String::new(), 
-                        content.to_string(), 
-                        String::new(), 
-                        prompt_tokens, 
-                        completion_tokens, 
-                        model
-                    )
-                }
-                else
-                {
-                    (
-                        in_cmd, 
-                        out_msg, 
-                        buffer, 
-                        prompt_tokens, 
-                        completion_tokens, 
-                        model
-                    )
-                }
-            }
-            Err(_) =>
-            {
-                /* Unstructured response */
-                (
-                    String::new(), 
-                    content.to_string(), 
-                    String::new(), 
-                    prompt_tokens, 
-                    completion_tokens, 
-                    model 
-                )
-            }
+            out_msg = ai_json[ "out" ].as_str().unwrap_or(&out_msg).to_string().replace("\\n", "\n");
+            in_cmd = ai_json[ "in" ].as_str().unwrap_or("").to_string();
+            buffer = ai_json[ "buffer" ].as_str().unwrap_or("").to_string().replace("\\n", "\n");
         }
+
+        (in_cmd, out_msg, buffer, prompt_tokens, completion_tokens )
     }
 
 

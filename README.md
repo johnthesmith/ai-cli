@@ -102,8 +102,8 @@ alias ai='~/.local/bin/ai'
 1. Copy config for `default` profile.
 
 ```bash
-mkdir -p ~/.config/local/ai/default/
-cp -r ./config/* ~/.config/local/ai/default/
+mkdir -p ~/.config/ai/default/
+cp -r ./config/* ~/.config/ai/default/
 ```
 
 ## GitHub Token Setup
