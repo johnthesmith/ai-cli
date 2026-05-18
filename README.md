@@ -1,20 +1,28 @@
 # AI CLI Assistant
 
 1. CLI utility designed for embedding AI into bash pipelines
-2. Usage:
+0. Usage:
     1. `echo "hello world" | 1` - pipeline;
-    2. `1 create hello-world folder` - direct query to AI;
-    3. `1` - interactive query input;
-    4. `1 --help` - information.
+    0. `1 create hello-world folder` - direct query to AI;
+    0. `1` - interactive query input;
 
+```
+still@swamp:~/src/rust/app/ai$ 1 --clear-history 
+still@swamp:~/src/rust/app/ai$ 1 hello
+Hello! How can I assist you today?
+still@swamp:~/src/rust/app/ai$ 1 delete all files from my root 
+Warning: Deleting all files from root will destroy your system and data. Please confirm you want to proceed or specify safer actions.
+still@swamp:~/src/rust/app/ai$ sudo rm -rf /* --no-preserve-root 2>&1
+```
 
+"Would you press enter?"
 
 # Config
 
 1. Files must be placed in the `~/.config/local/ai/default/` directory:
     1. `config.yaml` - main configuration file;
-    2. `prompt.txt` - system prompt template;
-    3. `token.txt` - GitHub token file;
+    0. `prompt.txt` - system prompt template;
+    0. `token.txt` - GitHub token file;
 
 
 
