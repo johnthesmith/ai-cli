@@ -1,4 +1,4 @@
-# AI Utility
+# AI CLI Assistant
 
 1. CLI utility designed for embedding AI into bash pipelines
 2. Usage:
@@ -124,5 +124,3 @@ cp -r ./config/* ~/.config/local/ai/default/
 ```bash
 1 your question
 ```
-
-
