@@ -7,7 +7,6 @@
     0. `1` - interactive query input;
 
 ```
-user@comp:~$ 1 --clear-history 
 user@comp:~$ 1 hello
 Hello! How can I assist you today?
 user@comp:~$ 1 delete all files from my root 
