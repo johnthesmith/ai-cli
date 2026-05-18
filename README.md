@@ -2,10 +2,10 @@
 
 1. CLI utility designed for embedding AI into bash pipelines
 2. Usage:
-    1. `echo "hello world" | ai` - pipeline;
-    2. `ai create hello-world folder` - direct query to AI;
-    3. `ai` - interactive query input;
-    4. `ai --help` - information.
+    1. `echo "hello world" | 1` - pipeline;
+    2. `1 create hello-world folder` - direct query to AI;
+    3. `1` - interactive query input;
+    4. `1 --help` - information.
 
 
 
@@ -31,13 +31,6 @@
 --profile=<name> - Use profile for current session only
 --switch-profile=<name> - Switch and save profile
 ```
-
-
-
-# Recommendations
-
-1. Set alias `1=<path to ai>`
-2. This allows you to simply use commands like `1 create hello world`
 
 
 
