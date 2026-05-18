@@ -23,7 +23,7 @@
 ```
 --help - information
 --no-prompt - Suppress input prompt
---show-runtime - Show current runtime values (profile, chat, log, config)
+--show-info - Show current runtime values (profile, chat, log, config)
 --show-chat - Show current chat id
 --switch-chat=<id> - Switch to chat <id>, default id is default
 --show-history - Show history for current chat

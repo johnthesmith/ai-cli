@@ -33,6 +33,14 @@ ai`, например запрос помощи для утилиты `ai --help
 твоего ответа поле `buffer` будет сохранено в файл `%buffer%`, используй
 плэйсхолдер `%buffer%` для ссылки на файл буфер, например `cat %buffer% | ai`.
 
+`ai --show-info` Show current runtime information
+`ai --show-chat` Show current chat id    
+`ai --switch-chat=<id>` Switch to chat <id> 
+`ai --show-history` Show history for current chat    
+`ai --clear-history` Remove history for current chat    
+`ai --profile=<name>` Use profile for current session only    
+`ai --switch-profile=<name>` Switch and save profile    
+
 #HISTORY
 %history%
 

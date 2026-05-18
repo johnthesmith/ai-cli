@@ -68,7 +68,7 @@ impl Ai
         println!( "Options:" );
         println!( "  --help                      This information" );
         println!( "  --no-prompt                 Suppress input prompt" );
-        println!( "  --show-runtime              Show current runtime values (profile, chat, log, config)");
+        println!( "  --show-info                 Show current runtime information (profile, chat, log, config)");
         println!( "  --show-chat                 Show current chat id" );
         println!( "  --switch-chat=<id>          Switch to chat <id>, default id is default" );
         println!( "  --show-history              Show history for current chat" );
@@ -214,13 +214,10 @@ impl Ai
             }
 
             if let Some(_) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["show-runtime"].as_bool())
+                .and_then(|cfg| cfg["show-info"].as_bool())
             {
-                println!("Profile: {}", self.get_profile());
-                println!("Chat: {}", self.get_chat_id());
-                println!("Log: {}", self.application.get_log().get_file_path());
-                println!("Config: ~/.config/ai/{}/config.yaml", self.get_profile());
                 no_prompt = true;
+                self.show_info();
             }
            
             if let Some(_) = self.application.config.as_ref()
@@ -431,7 +428,6 @@ impl Ai
         {
             self.write_history( "AI", &format!("{}\n{}", out_msg, in_cmd));
 
-            println!( "{}", model );
             println!( "{}", out_msg );
 
             /* Write buffer to file */
@@ -981,4 +977,27 @@ impl Ai
         self.profile = name.to_string();
         self
     }    
+
+
+
+    /*
+        Show runtime information
+    */
+    fn show_info(&mut self) -> &mut Self
+    {
+        let model = self.application.config
+        .as_ref()
+        .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
+        .unwrap_or("openai/gpt-4o-mini")
+        .to_string();
+    
+
+        println!("Profile: {}", self.get_profile());
+        println!("Chat: {}", self.get_chat_id());
+        println!("Log: {}", self.application.get_log().get_file_path());
+        println!("Config: ~/.config/ai/{}/config.yaml", self.get_profile());
+        println!("Model: {}", model);
+                
+        self
+    }
 }

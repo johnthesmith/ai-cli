@@ -35,6 +35,15 @@ In the `buffer` field place data and code blocks larger than 240 characters.
 When processed, `buffer` is saved into `%buffer%`. Use `%buffer%` as reference,
 e.g. `cat %buffer% | ai`.
 
+`ai --show-info` Show current runtime information
+`ai --show-chat` Show current chat id    
+`ai --switch-chat=<id>` Switch to chat <id> 
+`ai --show-history` Show history for current chat    
+`ai --clear-history` Remove history for current chat    
+`ai --profile=<name>` Use profile for current session only    
+`ai --switch-profile=<name>` Switch and save profile    
+
+
 #HISTORY
 %history%
 
