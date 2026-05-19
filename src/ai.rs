@@ -1,4 +1,9 @@
 /*
+    SPDX-License-Identifier: MIT
+    SPDX-FileCopyrightText: 2026 Still Swamp
+*/
+
+/*
     Main AI module
 */
 
@@ -827,7 +832,6 @@ impl Ai
         .unwrap_or_else(|| expand_path( "~/.local/share/ai/%profile%/chat.txt" ))
         .replace("%profile%", &self.get_profile())
     }
-
 
 
     fn get_chat_id( &self )
