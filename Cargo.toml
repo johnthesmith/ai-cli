@@ -1,7 +1,11 @@
 [package]
 name = "ai"
-version = "1.0.0"
-edition = "2024"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Still Swamp <still@itserv.ru>"]
+description = "CLI utility for embedding AI into bash pipelines"
+repository = "https://github.com/johnthesmith/ai-cli"
 
 [dependencies]
 #core = { path = "../../lib/core" }
