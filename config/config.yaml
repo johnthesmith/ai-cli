@@ -22,9 +22,28 @@ application:
       api: https://models.github.ai/inference/chat/completions
       # deepseek/deepseek-v3-0324
       # deepseek/deepseek-r1-0528
-      model: openai/gpt-4o-mini
+      # openai/gpt-4.1
+      # openai/gpt-4.1-mini
+      model: openai/gpt-4.1
       token: ~/.config/ai/%profile%/token.txt
     # Optional proxy settings
-    # proxy: socks5://127.0.0.1:1080
-
-
+    proxy: socks5://127.0.0.1:1080
+    # Input mode configuration for AI `in` answer
+    # This is direct input for your bash
+    input:
+      # stdout -  Print command to stdout (default, works everywhere)
+      # command - Execute external command for insertion
+      # file    - Save command to file
+      # tiocsti - Direct TTY input WARNING SECURITY RISK.
+      #           Requires: sudo sysctl -w dev.tty.legacy_tiocsti=1` 
+      mode: command
+      # Command template for 'command' mode. Use %in% as command placeholder
+      # X11 input       xdotool type "%in%"
+      # X11 copy-paste  echo -n "%in%" | xclip -selection clipboard
+      # Wayland input   ydotool type "%in%"
+      # macOS           osascript -e 'tell app "System Events" to keystroke "%in%"'
+      command: xdotool type "%in%"
+      # File path for 'file' mode
+      file: ~/.local/share/ai/%profile%/in
+      # TTY device for 'tiocsti' mode
+      tty_device: /dev/tty
