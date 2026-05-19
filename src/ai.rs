@@ -3,7 +3,6 @@
 */
 
 use core::{expand_path, ensure_directory };
-use enigo::{ Enigo, Keyboard, Settings };
 use core::Color;
 use serde_json;
 use regex::Regex;
@@ -246,27 +245,25 @@ impl Ai
 
         self.application.get_log().end( "End of ai" ).eol();
 
-        /* Final output leyboard */
-        if !self.kbd_response.is_empty() 
-        {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            match Enigo::new(&Settings::default()) 
-            {
-                Ok( mut enigo ) => 
-                {
-                    let _ = enigo.text(&self.kbd_response);
-                    // let _ = enigo.text("\n");
-                }
-                Err(e) => 
-                {
-                    self.application.get_log()
-                        .error( "Failed to init enigo" )
-                        .prm("error", &e.to_string());
-                }
-            }
-            println!();
-        }
 
+
+        /* Final output leyboard */
+        if !self.kbd_response.is_empty()
+        {
+            let cmd = self.kbd_response.clone();
+            let config = &self.application.config;
+            let mode = config
+                .as_ref()
+                .and_then(|cfg| cfg["application"]["ai"]["input"]["mode"].as_str())
+                .unwrap_or("stdout");
+            match mode 
+            {
+                "command" => self.input_command( &cmd ),
+                "file" => self.input_file( &cmd ),
+                "tiocsti" => self.input_tiocsti( &cmd ),
+                _ => self.input_stdout( &cmd ),
+            }
+        }
         self
     }
 
@@ -406,6 +403,9 @@ impl Ai
             {
                 /* Request */
                 let response = self.request_github( &model, &prompt );
+
+                self.application.get_log().dump( "response", &response );
+                
                 /* Responce */
                 (
                     in_cmd, 
@@ -446,7 +446,7 @@ impl Ai
             /* Store command to keyboard buffer */
             let buffer_path = self.get_buffer_path();
             self.kbd_response = in_cmd
-                /* SECURE!!! Remove enter from command */
+                /* SECURE!!! REMOVE_ENTER from command */
                 .replace(['\n', '\r'], " ")
                 .replace("%buffer%", &buffer_path)
                 .trim()
@@ -594,6 +594,12 @@ impl Ai
         u64
     )
     {
+        let mut out_msg = response.to_string();
+        let mut in_cmd = String::new();
+        let mut buffer = String::new();
+        let mut prompt_tokens = 0;
+        let mut completion_tokens = 0;
+
         /* Remove think section if exists */
         let response_clean = Regex::new(r"(?s)<think>.*?</think>")
             .unwrap()
@@ -601,38 +607,66 @@ impl Ai
             .to_string();
 
         /* Get json */
-        let json: serde_json::Value = serde_json::from_str( &response_clean )
-            .unwrap_or( serde_json::json!({}));
-
-        /* Retrive content */
-        let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("");
-
-        /* Join all lines */
-        let content = content
-            .lines()
-            .map(|l| l.trim())
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        /* Extract json source */
-        let content = content
-            .trim()
-            .trim_start_matches("```json")
-            .trim_start_matches("```")
-            .trim_end_matches("```");
-            
-        /* Retrive tokens count */
-        let prompt_tokens = json[ "usage" ][ "prompt_tokens" ].as_u64().unwrap_or(0);
-        let completion_tokens = json[ "usage" ][ "completion_tokens" ].as_u64().unwrap_or(0);
-        let mut out_msg = content.to_string();
-        let mut in_cmd = String::new();
-        let mut buffer = String::new();
-
-        if let Ok(ai_json) = serde_json::from_str::<serde_json::Value>(content)
+        match serde_json::from_str::<serde_json::Value>(&response_clean)
         {
-            out_msg = ai_json[ "out" ].as_str().unwrap_or(&out_msg).to_string().replace("\\n", "\n");
-            in_cmd = ai_json[ "in" ].as_str().unwrap_or("").to_string();
-            buffer = ai_json[ "buffer" ].as_str().unwrap_or("").to_string().replace("\\n", "\n");
+            Err( e ) =>
+            {
+                out_msg = response.to_string();
+                self.application.get_log()
+                .error("Failed to parse GitHub response")
+                .prm("error", &e.to_string());
+            }
+            Ok( json ) =>
+            {
+                /* Retrive content */
+                let content = json["choices"][0]["message"]["content"]
+                .as_str().unwrap_or( "" );
+
+                /* Join all lines */
+                let content = content
+                    .lines()
+                    .map(|l| l.trim())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                /* Extract json source */
+                let content = content
+                    .trim()
+                    .trim_start_matches("```json")
+                    .trim_start_matches("```")
+                    .trim_end_matches("```");
+            
+                /* Retrive tokens count */
+                prompt_tokens = json[ "usage" ][ "prompt_tokens" ]
+                .as_u64()
+                .unwrap_or(0);
+
+                completion_tokens = json[ "usage" ][ "completion_tokens" ]
+                .as_u64()
+                .unwrap_or(0);
+
+                match serde_json::from_str::<serde_json::Value>( content )
+                {
+                    Ok( ai_json ) =>
+                    {
+                        out_msg = ai_json[ "out" ].as_str().unwrap_or(&out_msg).to_string().replace("\\n", "\n");
+                        in_cmd = ai_json[ "in" ].as_str().unwrap_or("").to_string();
+                        buffer = ai_json[ "buffer" ].as_str().unwrap_or("").to_string().replace("\\n", "\n");
+                    }
+                    Err( _ ) =>
+                    {
+                        /* If JSON parsing fails, return raw content as out_msg */
+                        out_msg = if content.trim().is_empty() 
+                        {
+                            response.to_string()
+                        }
+                        else
+                        {
+                            content.to_string()
+                        };
+                    }           
+                }
+            }
         }
 
         (in_cmd, out_msg, buffer, prompt_tokens, completion_tokens )
@@ -999,5 +1033,184 @@ impl Ai
         println!("Model: {}", model);
                 
         self
+    }
+
+
+
+    /**************************************************************************
+        Profile
+    */
+    fn input_stdout( &self, cmd: &str ) 
+    {
+        println!("{}", cmd);
+    }
+
+
+
+    /*
+        Execute external command to insert the AI-generated text.
+        Uses command template from config with %in% placeholder replaced by the actual command.
+        Examples:
+            xdotool type "%in%"
+            echo -n "%in%" | xclip -selection clipboard
+            tmux send-keys -t session "%in%"
+
+        Falls back to stdout if command execution fails.
+    */
+    fn input_command
+    (
+        &mut self, 
+        cmd: &str
+    ) 
+    {
+        // Clone to release immutable borrow
+        let command_template = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["input"]["command"].as_str())
+            .unwrap_or("echo -n '%in%'")
+            .to_string();
+        
+        let full_command = command_template.replace("%in%", cmd);
+        
+        // Log after releasing the borrow
+        self.application.get_log()
+            .info("Executing input command")
+            .prm("template", &command_template)
+            .prm("cmd", cmd);
+        
+        match std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&full_command)
+            .status()
+        {
+            Ok(status) if status.success() => 
+            {
+                self.application.get_log()
+                    .info("Input command executed successfully");
+            }
+            Ok(status) => 
+            {
+                self.application.get_log()
+                    .warning("Input command failed")
+                    .prm("exit_code", status.code().unwrap_or(-1));
+                // Fallback to stdout
+                println!("{}", cmd);
+            }
+            Err(e) => 
+            {
+                self.application.get_log()
+                    .error("Failed to execute input command")
+                    .prm("error", &e.to_string());
+                // Fallback to stdout
+                println!("{}", cmd);
+            }
+        }
+    }
+
+
+
+    /*
+        Write the AI-generated command to a file instead of typing it directly.
+    */
+    fn input_file
+    (
+        &mut self, 
+        cmd: &str
+    ) 
+    {
+        let file_path = self.application.config
+        .as_ref()
+        .and_then(|cfg| cfg["application"]["ai"]["input"]["file"].as_str())
+        .map(|s| expand_path(s).replace("%profile%", &self.get_profile()))
+        .unwrap_or_else(|| format!( "/tmp/ai-{}.sh", std::process::id()));
+        
+        if let Some(parent) = std::path::Path::new(&file_path).parent() 
+        {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        
+        match std::fs::write(&file_path, cmd) 
+        {
+            Ok(_) => 
+            {
+                self.application.get_log()
+                    .info("Command saved to file")
+                    .prm("path", &file_path);
+            }
+            Err(e) => {
+                self.application.get_log()
+                    .error("Failed to write command file")
+                    .prm("path", &file_path)
+                    .prm("error", &e.to_string());
+                // Fallback to stdout
+                println!("{}", cmd);
+            }
+        }
+    }
+
+
+    /*
+        Inject command directly into TTY input buffer using TIOCSTI ioctl.
+
+        This makes the command appear in the user's terminal prompt as if typed.
+        Does NOT press Enter - user can edit before executing.
+
+        # Security Warning
+        Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels.
+        Disabled by default due to security risks (CVE-2016-7545, CVE-2017-5223).
+        Only use in trusted environments.
+
+        # Arguments
+        * `cmd` - Command string to inject (without newline)
+    */
+    fn input_tiocsti
+    (
+        &mut self, 
+        cmd: &str
+    )
+    {
+        // Clone the config value to avoid borrowing self
+        let tty_device = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["input"]["tty_device"].as_str())
+            .unwrap_or("/dev/tty")
+            .to_string();  // Clone to release immutable borrow
+        
+        match std::fs::OpenOptions::new().write(true).open(&tty_device)
+        {
+            Ok(fd) =>
+            {
+                use std::os::unix::io::AsRawFd;
+                let fd_raw = fd.as_raw_fd();
+                
+                for byte in cmd.bytes()
+                {
+                    let ret = unsafe {
+                        libc::ioctl(fd_raw, libc::TIOCSTI, &byte)
+                    };
+                    if ret != 0 {
+                        self.application.get_log()
+                            .error("TIOCSTI ioctl failed")
+                            .prm("byte", &byte.to_string())
+                            .prm("error", &std::io::Error::last_os_error().to_string());
+                        break;
+                    }
+                }
+                
+                self.application.get_log()
+                    .info("Command injected via TIOCSTI")
+                    .prm("tty", &tty_device)
+                    .prm("length", cmd.len());
+            }
+            Err(e) => 
+            {
+                self.application.get_log()
+                    .error("Failed to open TTY device")
+                    .prm("device", &tty_device)
+                    .prm("error", &e.to_string());
+                // Fallback to stdout
+                println!("{}", cmd);
+            }
+        }
     }
 }
