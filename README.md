@@ -164,11 +164,11 @@ in the prompt file:
 
 ## Field Summary
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `out` | `string` | Human-readable response to user (STDOUT) |
-| `in` | `string` | Bash command for terminal (optional) |
-| `buffer` | `string` | Data/code, saved to file |
+| Field     | Type      | Purpose |
+|-|-|-|
+| `out`     | `string`  | Human-readable response to user (STDOUT) |
+| `in`      | `string`  | Bash command for terminal (optional) |
+| `buffer`  | `string`  | Data/code, saved to file |
 
 ## Main Rules
 

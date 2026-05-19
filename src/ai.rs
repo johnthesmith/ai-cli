@@ -134,7 +134,6 @@ impl Ai
         self.application.read_config( &path ).read_cli();
 
 
-
         /*
             Log section
         */
@@ -245,8 +244,6 @@ impl Ai
 
         self.application.get_log().end( "End of ai" ).eol();
 
-
-
         /* Final output leyboard */
         if !self.kbd_response.is_empty()
         {
@@ -308,6 +305,7 @@ impl Ai
     }
 
 
+
     /*
         Return user prompt from command line arguments (all non-flag arguments)
     */
@@ -365,6 +363,7 @@ impl Ai
         .unwrap_or( "github" )
         .to_string()
     }
+
 
 
     /*
@@ -462,7 +461,6 @@ impl Ai
 
         self
     }
-
 
 
 
@@ -671,6 +669,7 @@ impl Ai
 
         (in_cmd, out_msg, buffer, prompt_tokens, completion_tokens )
     }
+
 
 
     /**************************************************************************
@@ -893,10 +892,10 @@ impl Ai
     }
 
 
+
     /**************************************************************************
         Profile
     */
-
 
     /*
         Return profile file
@@ -951,6 +950,7 @@ impl Ai
         self.set_profile(&profile);
         self
     }
+
 
 
     /*
@@ -1171,10 +1171,10 @@ impl Ai
     {
         // Clone the config value to avoid borrowing self
         let tty_device = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["input"]["tty_device"].as_str())
-            .unwrap_or("/dev/tty")
-            .to_string();  // Clone to release immutable borrow
+        .as_ref()
+        .and_then(|cfg| cfg["application"]["ai"]["input"]["tty_device"].as_str())
+        .unwrap_or("/dev/tty")
+        .to_string();  // Clone to release immutable borrow
         
         match std::fs::OpenOptions::new().write(true).open(&tty_device)
         {
