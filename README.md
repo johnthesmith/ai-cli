@@ -105,10 +105,8 @@ cd ai-cli
 mkdir -p ~/.local/bin
 cp target/release/ai ~/.local/bin/ai
 ```
-2. Add to your `.bashrc`
+2. Add to your `~/.bashrc`
 ```
-
-
 # AI settings
 export PATH="$HOME/.local/bin:$PATH"
 ln -sf ~/.local/bin/ai ~/.local/bin/1
