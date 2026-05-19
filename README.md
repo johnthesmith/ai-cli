@@ -26,12 +26,11 @@ user@comp:~$ ls -la
 "Would you press enter?"
 
 ```mermaid
-flowchart TD
+flowchart LR
     User((User CLI)) --> AI_CLI[ai-cli утилита]
     AI_CLI -->|HTTP API| AI_Assistant[AI-ассистент]
-    AI_Assistant-->|Ответ JSON
-или команды|AI_CLI
-    AI_CLI -->|STDOUT/Команды| User
+    AI_Assistant-->|JSON answer or commands|AI_CLI
+    AI_CLI -->|STDOUT/commands| User
 ```
 
 
