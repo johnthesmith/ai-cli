@@ -102,11 +102,7 @@ flowchart LR
 ## Prerequisites
 
 1. Linux (Ubuntu 20.04+ or Debian 11+) — or newer
-2. Install system dependencies
-```bash
-sudo apt install libxdo-dev pkg-config
-```
-3. Install Rust and Cargo:
+2. Install Rust and Cargo:
  
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
