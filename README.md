@@ -204,13 +204,13 @@ in the prompt file:
 | Field     | Type      | Purpose |
 |-|-|-|
 | `out`     | `string`  | Human-readable response to user (STDOUT) |
-| `in`      | `string`  | Bash command for terminal (optional) |
+| `command` | `string`  | Bash command for terminal (optional) |
 | `buffer`  | `string`  | Data/code, saved to file |
 
 ## Main Rules
 
 - `out` — brief response, max 80 chars per line;
-- `in` — command is **NOT executed automatically**, only appears in input line. No `\n`, no code blocks;
+- `command` — command is **NOT executed automatically**, only appears in input line. No `\n`, no code blocks;
 - `buffer` — for large data. Reference via `%buffer%`;
 - `| ai` — only for non-interactive commands with predictable output.
 
@@ -219,7 +219,7 @@ in the prompt file:
 ```json
 {
   "out": "Listing files in current directory",
-  "in": "ls -la",
+  "command": "ls -la",
   "buffer": ""
 }
 ```
