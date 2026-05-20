@@ -7,6 +7,7 @@
     0. `1` - interactive query input;
 
 
+
 # How it works
 
 1. User provides input via arguments or pipeline
@@ -27,10 +28,46 @@ user@comp:~$ ls -la
 
 ```mermaid
 flowchart LR
-    User((User CLI)) --> AI_CLI[ai-cli утилита]
-    AI_CLI -->|HTTP API| AI_Assistant[AI-ассистент]
-    AI_Assistant-->|JSON answer or commands|AI_CLI
-    AI_CLI -->|STDOUT/commands| User
+    subgraph UserSide["User Side"]
+        subgraph FS["User's Filesystem"]
+            prompt[("User \n prompt \n file")]
+            history[("Chat \n history \n file")]
+            buffer_file[("Buffer \n file")]
+        end
+        
+        stdin["User stdin"]
+        param["User CLI param"]
+        keyboard["User \n keyboard \n input"]
+        stdout["User stdout"]
+        
+        subgraph AICLI["ai-cli"]
+            req["Request"]
+            resp["Response"]
+            split{"Split"}
+        end
+    end
+    
+    subgraph World["External"]
+        llm["LLM"]
+    end
+    
+    %% Input flow
+    history --> req
+    prompt --> req
+    stdin --> req
+    param --> req
+    
+    req -->|HTTP API| llm
+    llm -->|JSON| resp
+    
+    %% Output flow
+    resp --> split
+    
+    split -->|out| stdout
+    split -->|in| keyboard   
+    split -->|buffer| buffer_file
+    
+    resp -->|write| history
 ```
 
 
@@ -213,6 +250,3 @@ using this tool at your own risk.
 
 1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs) 
 label REMOVE_ENTER.
-
-
-

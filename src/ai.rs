@@ -13,6 +13,8 @@ use serde_json;
 use regex::Regex;
 use core::State;
 use core::Application;
+use std::io::Read;
+use std::io::Write;
 
 
 /*
@@ -79,6 +81,10 @@ impl Ai
         println!( "  --clear-history             Remove history for current chat" );
         println!( "  --profile=<name>            Use profile for current session only" );
         println!( "  --switch-profile=<name>     Switch and save profile" );
+        println!( "  --write-buffer              Write stdin to buffer file (see buffer_path in config)");
+        println!( "  --tiocsti                   Inject input directly into TTY input buffer for keyboard" );
+        println!( "                              Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
+        println!( "                              on modern kernels. Only use in trusted environments." );
         println!( "" );
         println!( "Recommendations:" );
         println!( "  alias                       Set `alias 1=ai`" );
@@ -207,7 +213,43 @@ impl Ai
                 no_prompt = true;
                 self.clear_history();
             }
-            
+
+            /* Check write-buffer flag */
+            if let Some(true) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["write-buffer"].as_bool())
+            {
+                no_prompt = true;
+                
+                let mut input = String::new();
+                if let Ok(_) = std::io::stdin().read_to_string(&mut input) {
+                    self.write_buffer( &input ); 
+                }
+            }
+
+            /* Check tiocsti flag */
+            if let Some(true) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["tiocsti"].as_bool())
+            {
+                no_prompt = true;
+                /* Read from stdin */
+                let mut input = String::new();
+                match std::io::stdin().read_to_string(&mut input)
+                {
+                    Ok(0) => {
+                        self.application.get_log()
+                            .warning("tiocsti: stdin is empty");
+                    }
+                    Ok(_) => {
+                        self.input_tiocsti(&input);
+                    }
+                    Err(e) => {
+                        self.application.get_log()
+                            .error("tiocsti: failed to read stdin")
+                            .prm("error", &e.to_string());
+                    }
+                }
+            }
+
             /* History request */
             if let Some(_) = self.application.config.as_ref()
                 .and_then(|cfg| cfg["show-history"].as_bool())
@@ -253,18 +295,12 @@ impl Ai
         if !self.kbd_response.is_empty()
         {
             let cmd = self.kbd_response.clone();
-            let config = &self.application.config;
-            let mode = config
+            let command = self.application.config
                 .as_ref()
-                .and_then(|cfg| cfg["application"]["ai"]["input"]["mode"].as_str())
-                .unwrap_or("stdout");
-            match mode 
-            {
-                "command" => self.input_command( &cmd ),
-                "file" => self.input_file( &cmd ),
-                "tiocsti" => self.input_tiocsti( &cmd ),
-                _ => self.input_stdout( &cmd ),
-            }
+                .and_then(|cfg| cfg["application"]["ai"]["destination"]["in"].as_str())
+                .unwrap_or("")
+                .to_string();
+            self.run_command( &cmd, &command );
         }
         self
     }
@@ -427,43 +463,59 @@ impl Ai
             }
         }
 
-        /* Answer processing */
-        if !in_cmd.is_empty() || !out_msg.is_empty() || !buffer.is_empty()
+        /* 
+            Answer processing
+        */
+
+        /* OUT */
+        if !out_msg.is_empty() 
         {
-            self.write_history( "AI", &format!("{}\n{}", out_msg, in_cmd));
+            let out_cmd = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg["application"]["ai"]["destination"]["out"].as_str())
+                .unwrap_or("")
+                .to_string();
+            self.run_command(&out_msg, &out_cmd);
+        }
 
-            println!( "{}", out_msg );
+        /* BUFFER */
+        if !buffer.is_empty() 
+        {
+            let buffer_cmd = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg["application"]["ai"]["destination"]["buffer"].as_str())
+                .unwrap_or("ai --write-buffer")
+                .to_string();
+            self.run_command(&buffer, &buffer_cmd);
+        }
 
-            /* Write buffer to file */
-            if !buffer.is_empty()
-            {
-                let path = self.get_buffer_path();
-                if let Err(e) = std::fs::write(&path, &buffer)
-                {
-                    self.application.get_log()
-                        .error( "Failed to write buffer" )
-                        .prm( "error", &e.to_string() )
-                        .eol();
-                }
-            }
-
-            /* Store command to keyboard buffer */
+        /* IN */
+        if !in_cmd.is_empty() 
+        {
             let buffer_path = self.get_buffer_path();
             self.kbd_response = in_cmd
-                /* SECURE!!! REMOVE_ENTER from command */
                 .replace(['\n', '\r'], " ")
                 .replace("%buffer%", &buffer_path)
                 .trim()
                 .to_string();
-            
+        }
+
+        /* Succes */
+        let has_output = !out_msg.is_empty() || !buffer.is_empty() || !in_cmd.is_empty();
+        if has_output 
+        {
+            /* Write history */
+            self.write_history( "AI", &format!("{}\n{}", out_msg, in_cmd ));
             self.application.get_log()
                 .trace("Success answer")
                 .prm("prompt-tokens", prompt_tokens)
-                .prm("answer-tokens", answer_tokens);
+                .prm("answer-tokens", answer_tokens)
+                .prm("out_len", out_msg.len())
+                .prm("in_len", in_cmd.len())
+                .prm("buffer_len", buffer.len());
+
         }
-
         self.application.get_log().end( "" );
-
         self
     }
 
@@ -814,6 +866,31 @@ impl Ai
         )
     }
 
+
+
+    fn write_buffer(&mut self, data: &str)
+    {
+        let buffer_path = self.get_buffer_path();
+        if let Some(parent) = std::path::Path::new(&buffer_path).parent() 
+        {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        
+        match std::fs::write(&buffer_path, data) {
+            Ok(_) => {
+                self.application.get_log()
+                    .info("Buffer written to file")
+                    .prm("path", &buffer_path);
+            }
+            Err(e) => {
+                self.application.get_log()
+                    .error("Failed to write buffer")
+                    .prm("path", &buffer_path)
+                    .prm("error", &e.to_string());
+            }
+        }
+    }
+
     
     /*******************************************************************8******
         Chat
@@ -1044,113 +1121,68 @@ impl Ai
     /**************************************************************************
         Profile
     */
-    fn input_stdout( &self, cmd: &str ) 
-    {
-        println!("{}", cmd);
-    }
-
-
 
     /*
         Execute external command to insert the AI-generated text.
-        Uses command template from config with %in% placeholder replaced by the actual command.
-        Examples:
-            xdotool type "%in%"
-            echo -n "%in%" | xclip -selection clipboard
-            tmux send-keys -t session "%in%"
-
         Falls back to stdout if command execution fails.
     */
-    fn input_command
+    fn run_command
     (
         &mut self, 
-        cmd: &str
-    ) 
+        data: &str, 
+        command: &str
+    )
     {
-        // Clone to release immutable borrow
-        let command_template = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["input"]["command"].as_str())
-            .unwrap_or("echo -n '%in%'")
-            .to_string();
-        
-        let full_command = command_template.replace("%in%", cmd);
-        
-        // Log after releasing the borrow
-        self.application.get_log()
-            .info("Executing input command")
-            .prm("template", &command_template)
-            .prm("cmd", cmd);
-        
-        match std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&full_command)
-            .status()
+        if command.is_empty() 
         {
-            Ok(status) if status.success() => 
+            println!( "{}", data );
+        }
+        else
+        {      
+            match std::process::Command::new("bash")
+                .arg("-c")
+                .arg(command)
+                .stdin(std::process::Stdio::piped())
+                .spawn()
             {
-                self.application.get_log()
-                    .info("Input command executed successfully");
-            }
-            Ok(status) => 
-            {
-                self.application.get_log()
-                    .warning("Input command failed")
-                    .prm("exit_code", status.code().unwrap_or(-1));
-                // Fallback to stdout
-                println!("{}", cmd);
-            }
-            Err(e) => 
-            {
-                self.application.get_log()
-                    .error("Failed to execute input command")
-                    .prm("error", &e.to_string());
-                // Fallback to stdout
-                println!("{}", cmd);
+                Ok(mut child) => 
+                {
+                    let data_len = data.len();
+                    
+                    if let Some(mut stdin) = child.stdin.take() {
+                        let _ = stdin.write_all(data.as_bytes());
+                        let _ = stdin.flush();
+                    }
+                    
+                    match child.wait() {
+                        Ok(exit_status) => {
+                            self.application.get_log()
+                                .info("Command executed successfully")
+                                .prm("command", command)
+                                .prm("data_bytes", data_len)
+                                .prm("exit_code", exit_status.code().unwrap_or(-1));
+                        }
+                        Err(e) => {
+                            self.application.get_log()
+                                .warning("Failed to wait for command")
+                                .prm("command", command)
+                                .prm("error", &e.to_string());
+                        }
+                    }
+                }
+                Err(e) => 
+                {
+                    self.application.get_log()
+                        .error("Failed to execute command")
+                        .prm("command", command)
+                        .prm("data_bytes", data.len())
+                        .prm("error", &e.to_string());
+                    println!("{}", data);
+                }            
             }
         }
     }
 
-
-
-    /*
-        Write the AI-generated command to a file instead of typing it directly.
-    */
-    fn input_file
-    (
-        &mut self, 
-        cmd: &str
-    ) 
-    {
-        let file_path = self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg["application"]["ai"]["input"]["file"].as_str())
-        .map(|s| expand_path(s).replace("%profile%", &self.get_profile()))
-        .unwrap_or_else(|| format!( "/tmp/ai-{}.sh", std::process::id()));
-        
-        if let Some(parent) = std::path::Path::new(&file_path).parent() 
-        {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        
-        match std::fs::write(&file_path, cmd) 
-        {
-            Ok(_) => 
-            {
-                self.application.get_log()
-                    .info("Command saved to file")
-                    .prm("path", &file_path);
-            }
-            Err(e) => {
-                self.application.get_log()
-                    .error("Failed to write command file")
-                    .prm("path", &file_path)
-                    .prm("error", &e.to_string());
-                // Fallback to stdout
-                println!("{}", cmd);
-            }
-        }
-    }
 
 
     /*
@@ -1160,9 +1192,9 @@ impl Ai
         Does NOT press Enter - user can edit before executing.
 
         # Security Warning
-        Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels.
-        Disabled by default due to security risks (CVE-2016-7545, CVE-2017-5223).
-        Only use in trusted environments.
+        Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels. 
+        Disabled by default due to security risks. Only use in trusted 
+        environments.
 
         # Arguments
         * `cmd` - Command string to inject (without newline)
