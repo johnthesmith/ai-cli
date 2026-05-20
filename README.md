@@ -30,15 +30,16 @@ user@comp:~$ ls -la
 flowchart LR
     subgraph UserSide["User Side"]
         subgraph FS["User's Filesystem"]
-            prompt[("User \n prompt \n file")]
-            history[("Chat \n history \n file")]
-            buffer_file[("Buffer \n file")]
+            prompt[("User \n prompt")]
+            history[("Chat \n history")]
+            buffer[("Buffer \n & clipboard")]
+            log[("Log")]
         end
         
-        stdin["User stdin"]
-        param["User CLI param"]
-        keyboard["User \n keyboard \n input"]
-        stdout["User stdout"]
+        stdin{{"User stdin"}}
+        param{{"User CLI param"}}
+        command{{"bash"}}
+        stdout{{"User stdout"}}
         
         subgraph AICLI["ai-cli"]
             req["Request"]
@@ -46,28 +47,26 @@ flowchart LR
             split{"Split"}
         end
     end
-    
+
     subgraph World["External"]
         llm["LLM"]
     end
-    
-    %% Input flow
-    history --> req
-    prompt --> req
+
+    prompt --> |txt| req
     stdin --> req
+    history --> |txt| req
     param --> req
     
-    req -->|HTTP API| llm
-    llm -->|JSON| resp
+    req -->|HTTP \n request| llm
+    llm --> |HTTP \n responce| resp
+       
+    split -->|info| stdout
+    split -->|command| command    
+    split -->|data| buffer     
     
-    %% Output flow
-    resp --> split
-    
-    split -->|out| stdout
-    split -->|in| keyboard   
-    split -->|buffer| buffer_file
-    
+    resp --> |json| split 
     resp -->|write| history
+    resp --> |all| log
 ```
 
 
