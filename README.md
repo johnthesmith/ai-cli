@@ -83,7 +83,7 @@ flowchart LR
 --profile=<name>            Use profile for current session only
 --switch-profile=<name>     Switch and save profile
 --write-buffer              Write stdin to buffer file (see buffer_path in config
---tiocsti                   Inject input directly into TTY input buffer for keyboard
+--tiocsti                   Inject input directly into TTY input buffer for ssh
 ```
 
 
