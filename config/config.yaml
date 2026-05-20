@@ -24,13 +24,13 @@ application:
       # deepseek/deepseek-r1-0528
       # openai/gpt-4.1
       # openai/gpt-4.1-mini
-      model: openai/gpt-4.1-mini
+      model: openai/gpt-4.1
       token: ~/.config/ai/%profile%/token.txt
 
     # Optional proxy settings
     # proxy: socks5://127.0.0.1:1080
 
-    # Output destinations for AI response fields (in, out, buffer)
+    # Output destinations for AI response fields (command, out, buffer)
     # Recommended to use only:
     #   - BusyBox built-ins: tee, cat, printf, etc.
     #   - ai built-in commands: ai --write-buffer, ai --tiocsti
@@ -40,37 +40,33 @@ application:
     #
     # Examples:
     #
-    # TTY input (inject into terminal):
-    #   in: "xdotool type --clearmodifiers --file -"  X11
-    #   in: "ydotool type --file -"                   Wayland
-    #   in: "ai --tiocsti"                            built-in TIOCSTI
+    # TTY input (inject into terminal for user input emuulation):
+    #  `xdotool type --clearmodifiers --file -`   X11
+    #  `ydotool type --file -`                    Wayland
+    #  `ai --tiocsti`                             for ssh
     #     Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels.
     #     Disabled by default due to security risks 
     #     Only use in trusted environments.
     #
-    # Clipboard (copy):
-    #   buffer: "xclip -selection clipboard"          X11
-    #   buffer: "wl-copy"                             Wayland
-    #   buffer: "pbcopy"                              macOS
+    # Clipboard:
+    #  `xclip -selection clipboard"               X11
+    #  `wl-copy`                                  Wayland
+    #  `pbcopy`                                   macOS
     #
     # File output:
-    #   out: "cat > ~/.local/share/ai/%profile%/out.log"   # write
-    #   out: "cat >> ~/.local/share/ai/%profile%/out.log"  # append
-    #   buffer: "cat > ~/.local/share/ai/%profile%/buffer"
+    #  `cat && echo`
+    #  `ai --write-buffer`
     #
     # Multiple actions (using tee):
-    #   in: "tee >(xclip -sel clip) | xdotool type --file -"
-    #   out: "tee -a /tmp/ai.log"
-    #   buffer: "tee >(wl-copy) | cat >> ~/buffer.log"
-    #
-    # Default behaviors (if omitted):
-    #   in:     built-in TIOCSTI (safe, works in TTY/SSH)
-    #   out:    print to stdout
-    #   buffer: save to file (~/.local/share/ai/%profile%/buffer)
+    #  `tee >(ai --write-buffer) | xclip -selection clipboard`
     destination:
       # Pipeline for command processing
-      in: "xdotool type --clearmodifiers --file -"
+      command: "xdotool type --clearmodifiers --file -"
       # Pipeline for information out processing
       out: "cat && echo"
       # Pipeline for buffer processing
       buffer: "tee >(ai --write-buffer) | xclip -selection clipboard"
+
+
+
+

@@ -297,7 +297,7 @@ impl Ai
             let cmd = self.kbd_response.clone();
             let command = self.application.config
                 .as_ref()
-                .and_then(|cfg| cfg["application"]["ai"]["destination"]["in"].as_str())
+                .and_then(|cfg| cfg["application"]["ai"]["destination"]["command"].as_str())
                 .unwrap_or("")
                 .to_string();
             self.run_command( &cmd, &command );
@@ -425,7 +425,7 @@ impl Ai
         .begin( "Request" )
         .prm( "provider-type", &provider_type );
 
-        let mut in_cmd = String::new();
+        let mut command = String::new();
         let mut out_msg = String::new();
         let mut buffer = String::new();
         let mut prompt_tokens = 0;
@@ -449,7 +449,7 @@ impl Ai
                 
                 /* Responce */
                 (
-                    in_cmd, 
+                    command, 
                     out_msg, 
                     buffer, 
                     prompt_tokens, 
@@ -468,6 +468,9 @@ impl Ai
             Answer processing
         */
 
+        /* Retrive buffer path placeholder for %buffer% */
+        let buffer_path = self.get_buffer_path();
+
         /* OUT */
         if !out_msg.is_empty() 
         {
@@ -476,7 +479,8 @@ impl Ai
                 .and_then(|cfg| cfg["application"]["ai"]["destination"]["out"].as_str())
                 .unwrap_or("")
                 .to_string();
-            self.run_command(&out_msg, &out_cmd);
+            out_msg = out_msg.replace("%buffer%", &buffer_path );
+            self.run_command( &out_msg, &out_cmd );
         }
 
         /* BUFFER */
@@ -490,11 +494,10 @@ impl Ai
             self.run_command(&buffer, &buffer_cmd);
         }
 
-        /* IN */
-        if !in_cmd.is_empty() 
+        /* COMMAND */
+        if !command.is_empty() 
         {
-            let buffer_path = self.get_buffer_path();
-            self.kbd_response = in_cmd
+            self.kbd_response = command
                 .replace(['\n', '\r'], " ")
                 .replace("%buffer%", &buffer_path)
                 .trim()
@@ -502,18 +505,18 @@ impl Ai
         }
 
         /* Succes */
-        let has_output = !out_msg.is_empty() || !buffer.is_empty() || !in_cmd.is_empty();
+        let has_output = !out_msg.is_empty() || !buffer.is_empty() || !command.is_empty();
         if has_output 
         {
             /* Write history */
-            self.write_history( "AI", &format!("{}\n{}", out_msg, in_cmd ));
+            self.write_history( "AI", &format!("{}\n{}", out_msg, command ));
             self.application.get_log()
                 .trace("Success answer")
-                .prm("prompt-tokens", prompt_tokens)
-                .prm("answer-tokens", answer_tokens)
-                .prm("out_len", out_msg.len())
-                .prm("in_len", in_cmd.len())
-                .prm("buffer_len", buffer.len());
+                .prm( "prompt-tokens", prompt_tokens)
+                .prm( "answer-tokens", answer_tokens)
+                .prm( "out-len", out_msg.len())
+                .prm( "command-len", command.len())
+                .prm( "buffer-len", buffer.len());
 
         }
         self.application.get_log().end( "" );
@@ -651,7 +654,7 @@ impl Ai
     )
     {
         let mut out_msg = response.to_string();
-        let mut in_cmd = String::new();
+        let mut command = String::new();
         let mut buffer = String::new();
         let mut prompt_tokens = 0;
         let mut completion_tokens = 0;
@@ -706,7 +709,7 @@ impl Ai
                     Ok( ai_json ) =>
                     {
                         out_msg = ai_json[ "out" ].as_str().unwrap_or(&out_msg).to_string().replace("\\n", "\n");
-                        in_cmd = ai_json[ "in" ].as_str().unwrap_or("").to_string();
+                        command = ai_json[ "command" ].as_str().unwrap_or("").to_string();
                         buffer = ai_json[ "buffer" ].as_str().unwrap_or("").to_string().replace("\\n", "\n");
                     }
                     Err( _ ) =>
@@ -725,7 +728,7 @@ impl Ai
             }
         }
 
-        (in_cmd, out_msg, buffer, prompt_tokens, completion_tokens )
+        (command, out_msg, buffer, prompt_tokens, completion_tokens )
     }
 
 
