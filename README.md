@@ -75,15 +75,16 @@ flowchart LR
 # Usage Information
 
 ```
---help - information
---no-prompt - Suppress input prompt
---show-info - Show current runtime values (profile, chat, log, config)
---show-chat - Show current chat id
---switch-chat=<id> - Switch to chat <id>, default id is default
---show-history - Show history for current chat
---clear-history - Remove history for current chat
---profile=<name> - Use profile for current session only
---switch-profile=<name> - Switch and save profile
+--no-prompt                 Suppress input prompt
+--show-info                 Show current runtime information (profile, chat, log, config
+--show-chat                 Show current chat id
+--switch-chat=<id>          Switch to chat <id>, default id is default
+--show-history              Show history for current chat
+--clear-history             Remove history for current chat
+--profile=<name>            Use profile for current session only
+--switch-profile=<name>     Switch and save profile
+--write-buffer              Write stdin to buffer file (see buffer_path in config
+--tiocsti                   Inject input directly into TTY input buffer for keyboard
 ```
 
 
