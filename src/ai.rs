@@ -357,7 +357,8 @@ impl Ai
             .filter(|arg| !arg.starts_with('-'))
             .collect();
         
-        if !args.is_empty() {
+        if !args.is_empty() 
+        {
             return args.join(" ");
         }
 
@@ -558,11 +559,12 @@ impl Ai
         /* Build reqwest client with proxy from config */
         let mut client_builder = reqwest::blocking::Client::builder();
 
-        if let Some(proxy_url) = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["proxy"].as_str())
+        if let Some( proxy_url ) = self.application.config
+        .as_ref()
+        .and_then(|cfg| cfg["application"]["ai"]["proxy"].as_str())
         {
-            if let Ok(proxy) = reqwest::Proxy::all(proxy_url) {
+            if let Ok(proxy) = reqwest::Proxy::all(proxy_url)
+            {
                 client_builder = client_builder.proxy(proxy);
             }
         }
@@ -584,11 +586,10 @@ impl Ai
             .json(&payload)
             .send();
 
-        if let Ok(resp) = &response
+        if let Ok( resp ) = &response
         {
-            self.application.get_log().begin("GitHub response headers");
-
-            for (name, value) in resp.headers().iter()
+            self.application.get_log().begin( "GitHub response headers" );
+            for( name, value ) in resp.headers().iter()
             {
                 self.application.get_log()
                     .trace("")
@@ -600,11 +601,11 @@ impl Ai
 
         match response
         {
-            Ok(resp) =>
+            Ok( resp ) =>
             {
                 resp.text().unwrap_or_default()
             }
-            Err(e) =>
+            Err( e ) =>
             {
                 println!
                 (
@@ -615,8 +616,8 @@ impl Ai
                     Color::Default.to_str()
                 );
                 self.application.get_log()
-                    .error("GitHub API error")
-                    .prm("error", &e.to_string());
+                .error("GitHub API error")
+                .prm("error", &e.to_string());
                 String::new()
             }
         }
@@ -656,25 +657,25 @@ impl Ai
         let mut completion_tokens = 0;
 
         /* Remove think section if exists */
-        let response_clean = Regex::new(r"(?s)<think>.*?</think>")
-            .unwrap()
-            .replace_all(&response, "")
-            .to_string();
+        let response_clean = Regex::new( r"(?s)<think>.*?</think>" )
+        .unwrap()
+        .replace_all(&response, "")
+        .to_string();
 
         /* Get json */
-        match serde_json::from_str::<serde_json::Value>(&response_clean)
+        match serde_json::from_str::<serde_json::Value>( &response_clean )
         {
             Err( e ) =>
             {
                 out_msg = response.to_string();
                 self.application.get_log()
-                .error("Failed to parse GitHub response")
-                .prm("error", &e.to_string());
+                .error( "Failed to parse GitHub response" )
+                .prm( "error", &e.to_string() );
             }
             Ok( json ) =>
             {
                 /* Retrive content */
-                let content = json["choices"][0]["message"]["content"]
+                let content = json[ "choices" ][ 0 ][ "message" ][ "content" ]
                 .as_str().unwrap_or( "" );
 
                 /* Join all lines */
@@ -1157,10 +1158,10 @@ impl Ai
                     match child.wait() {
                         Ok(exit_status) => {
                             self.application.get_log()
-                                .info("Command executed successfully")
-                                .prm("command", command)
-                                .prm("data_bytes", data_len)
-                                .prm("exit_code", exit_status.code().unwrap_or(-1));
+                            .info( "Command executed successfully" )
+                            .prm( "command", command )
+                            .prm( "data_bytes", data_len )
+                            .prm( "exit_code", exit_status.code().unwrap_or(-1) );
                         }
                         Err(e) => {
                             self.application.get_log()
@@ -1209,19 +1210,19 @@ impl Ai
         let tty_device = self.application.config
         .as_ref()
         .and_then(|cfg| cfg["application"]["ai"]["input"]["tty_device"].as_str())
-        .unwrap_or("/dev/tty")
-        .to_string();  // Clone to release immutable borrow
+        .unwrap_or( "/dev/tty" )
+        .to_string();
         
-        match std::fs::OpenOptions::new().write(true).open(&tty_device)
+        match std::fs::OpenOptions::new().write( true ).open( &tty_device )
         {
             Ok(fd) =>
             {
                 use std::os::unix::io::AsRawFd;
-                let fd_raw = fd.as_raw_fd();
-                
+                let fd_raw = fd.as_raw_fd();               
                 for byte in cmd.bytes()
                 {
-                    let ret = unsafe {
+                    let ret = unsafe 
+                    {
                         libc::ioctl(fd_raw, libc::TIOCSTI, &byte)
                     };
                     if ret != 0 {
@@ -1234,17 +1235,16 @@ impl Ai
                 }
                 
                 self.application.get_log()
-                    .info("Command injected via TIOCSTI")
-                    .prm("tty", &tty_device)
-                    .prm("length", cmd.len());
+                .info("Command injected via TIOCSTI")
+                .prm("tty", &tty_device)
+                .prm("length", cmd.len());
             }
             Err(e) => 
             {
                 self.application.get_log()
-                    .error("Failed to open TTY device")
-                    .prm("device", &tty_device)
-                    .prm("error", &e.to_string());
-                // Fallback to stdout
+                .error("Failed to open TTY device")
+                .prm("device", &tty_device)
+                .prm("error", &e.to_string());
                 println!("{}", cmd);
             }
         }

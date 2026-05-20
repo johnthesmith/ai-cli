@@ -41,17 +41,17 @@ application:
     # Examples:
     #
     # TTY input (inject into terminal):
-    #   in: "xdotool type --clearmodifiers --file -"   X11
-    #   in: "ydotool type --file -"                    Wayland
-    #   in: "ai --in tiocsti"                          built-in TIOCSTI
+    #   in: "xdotool type --clearmodifiers --file -"  X11
+    #   in: "ydotool type --file -"                   Wayland
+    #   in: "ai --tiocsti"                            built-in TIOCSTI
     #     Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels.
     #     Disabled by default due to security risks 
     #     Only use in trusted environments.
     #
     # Clipboard (copy):
-    #   buffer: "xclip -selection clipboard"           X11
-    #   buffer: "wl-copy"                               Wayland
-    #   buffer: "pbcopy"                                macOS
+    #   buffer: "xclip -selection clipboard"          X11
+    #   buffer: "wl-copy"                             Wayland
+    #   buffer: "pbcopy"                              macOS
     #
     # File output:
     #   out: "cat > ~/.local/share/ai/%profile%/out.log"   # write
