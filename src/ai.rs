@@ -437,16 +437,20 @@ impl Ai
         .unwrap_or("openai/gpt-4o-mini")
         .to_string();
 
-        /* Provider adapters */
+        /* 
+            PROVIDE_ADAPTER
+            Dispatch to the appropriate AI provider based on configuration. 
+            Currently supports "github". Additional providers can be added here. 
+            This is the main entry point for sending prompts to the LLM and 
+            parsing responses.
+         */
         match provider_type.as_str() 
         {
             "github" => 
             {
                 /* Request */
                 let response = self.request_github( &model, &prompt );
-
-                self.application.get_log().dump( "response", &response );
-                
+                self.application.get_log().dump( "response", &response );                              
                 /* Responce */
                 (
                     command, 
@@ -523,213 +527,6 @@ impl Ai
         self
     }
 
-
-
-    /* 
-        GitHub AI request
-    */
-    fn request_github
-    (
-        &mut self,
-        /* Model id */
-        model: &str,
-        /* Prompt */
-        prompt: &str
-    ) -> String
-    {
-        let api = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["params"]["api"].as_str())
-            .unwrap_or( "https://models.github.ai/inference/chat/completions" )
-            .to_string();
-
-        /* Retrive token */
-        let token_path = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["params"]["token"].as_str())
-            .map(|s| expand_path(s).replace("%profile%", &self.get_profile()))
-            .unwrap_or_else(|| "".to_string());
-
-        let token = if let Ok(content) = std::fs::read_to_string(token_path)
-        {
-            content.trim().to_string()
-        }
-        else
-        {
-            String::new()
-        };
-
-        /* Build reqwest client with proxy from config */
-        let mut client_builder = reqwest::blocking::Client::builder();
-
-        if let Some( proxy_url ) = self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg["application"]["ai"]["proxy"].as_str())
-        {
-            if let Ok(proxy) = reqwest::Proxy::all(proxy_url)
-            {
-                client_builder = client_builder.proxy(proxy);
-            }
-        }
-
-        let client = client_builder.build().unwrap();
-
-
-        let payload = serde_json::json!
-        (
-            {
-                "messages": [{ "role": "user", "content": prompt }],
-                "model": model
-            }
-        );
-
-        let response = client.post(&api)
-            .bearer_auth(&token)
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send();
-
-        if let Ok( resp ) = &response
-        {
-            self.application.get_log().begin( "GitHub response headers" );
-            for( name, value ) in resp.headers().iter()
-            {
-                self.application.get_log()
-                    .trace("")
-                    .prm(name.as_str(), value.to_str().unwrap_or("N/A"));
-            }
-
-            self.application.get_log().end("");
-        }
-
-        match response
-        {
-            Ok( resp ) =>
-            {
-                resp.text().unwrap_or_default()
-            }
-            Err( e ) =>
-            {
-                println!
-                (
-                    "{}{} {}{}",
-                    Color::Red.to_str(),
-                    "GitHub API error",
-                    &e.to_string(),
-                    Color::Default.to_str()
-                );
-                self.application.get_log()
-                .error("GitHub API error")
-                .prm("error", &e.to_string());
-                String::new()
-            }
-        }
-    }
-
-
-
-    /*
-        Github AI response
-    */
-    fn answer_github
-    (
-        &mut self,
-        /* Model */
-        _model: &str,
-        /* String with response after request_github */
-        response: &str
-    )
-    ->
-    (
-        /* In for tty input */
-        String,
-        /* Out for stdout */
-        String,
-        /* Buffers content */
-        String,
-        /* Prompt tokens count */
-        u64,
-        /* Completion tokens count */
-        u64
-    )
-    {
-        let mut out_msg = response.to_string();
-        let mut command = String::new();
-        let mut buffer = String::new();
-        let mut prompt_tokens = 0;
-        let mut completion_tokens = 0;
-
-        /* Remove think section if exists */
-        let response_clean = Regex::new( r"(?s)<think>.*?</think>" )
-        .unwrap()
-        .replace_all(&response, "")
-        .to_string();
-
-        /* Get json */
-        match serde_json::from_str::<serde_json::Value>( &response_clean )
-        {
-            Err( e ) =>
-            {
-                out_msg = response.to_string();
-                self.application.get_log()
-                .error( "Failed to parse GitHub response" )
-                .prm( "error", &e.to_string() );
-            }
-            Ok( json ) =>
-            {
-                /* Retrive content */
-                let content = json[ "choices" ][ 0 ][ "message" ][ "content" ]
-                .as_str().unwrap_or( "" );
-
-                /* Join all lines */
-                let content = content
-                    .lines()
-                    .map(|l| l.trim())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-
-                /* Extract json source */
-                let content = content
-                    .trim()
-                    .trim_start_matches("```json")
-                    .trim_start_matches("```")
-                    .trim_end_matches("```");
-            
-                /* Retrive tokens count */
-                prompt_tokens = json[ "usage" ][ "prompt_tokens" ]
-                .as_u64()
-                .unwrap_or(0);
-
-                completion_tokens = json[ "usage" ][ "completion_tokens" ]
-                .as_u64()
-                .unwrap_or(0);
-
-                match serde_json::from_str::<serde_json::Value>( content )
-                {
-                    Ok( ai_json ) =>
-                    {
-                        out_msg = ai_json[ "out" ].as_str().unwrap_or(&out_msg).to_string().replace("\\n", "\n");
-                        command = ai_json[ "command" ].as_str().unwrap_or("").to_string();
-                        buffer = ai_json[ "buffer" ].as_str().unwrap_or("").to_string().replace("\\n", "\n");
-                    }
-                    Err( _ ) =>
-                    {
-                        /* If JSON parsing fails, return raw content as out_msg */
-                        out_msg = if content.trim().is_empty() 
-                        {
-                            response.to_string()
-                        }
-                        else
-                        {
-                            content.to_string()
-                        };
-                    }           
-                }
-            }
-        }
-
-        (command, out_msg, buffer, prompt_tokens, completion_tokens )
-    }
 
 
 
@@ -1252,4 +1049,217 @@ impl Ai
             }
         }
     }
+
+
+
+    /**************************************************************************
+        Providers methods
+    */
+
+    /* 
+        GitHub AI request
+    */
+    fn request_github
+    (
+        &mut self,
+        /* Model id */
+        model: &str,
+        /* Prompt */
+        prompt: &str
+    ) -> String
+    {
+        let api = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["params"]["api"].as_str())
+            .unwrap_or( "https://models.github.ai/inference/chat/completions" )
+            .to_string();
+
+        /* Retrive token */
+        let token_path = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["params"]["token"].as_str())
+            .map(|s| expand_path(s).replace("%profile%", &self.get_profile()))
+            .unwrap_or_else(|| "".to_string());
+
+        let token = if let Ok(content) = std::fs::read_to_string(token_path)
+        {
+            content.trim().to_string()
+        }
+        else
+        {
+            String::new()
+        };
+
+        /* Build reqwest client with proxy from config */
+        let mut client_builder = reqwest::blocking::Client::builder();
+
+        if let Some( proxy_url ) = self.application.config
+        .as_ref()
+        .and_then(|cfg| cfg["application"]["ai"]["proxy"].as_str())
+        {
+            if let Ok(proxy) = reqwest::Proxy::all(proxy_url)
+            {
+                client_builder = client_builder.proxy(proxy);
+            }
+        }
+
+        let client = client_builder.build().unwrap();
+
+
+        let payload = serde_json::json!
+        (
+            {
+                "messages": [{ "role": "user", "content": prompt }],
+                "model": model
+            }
+        );
+
+        let response = client.post(&api)
+            .bearer_auth(&token)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send();
+
+        if let Ok( resp ) = &response
+        {
+            self.application.get_log().begin( "GitHub response headers" );
+            for( name, value ) in resp.headers().iter()
+            {
+                self.application.get_log()
+                    .trace("")
+                    .prm(name.as_str(), value.to_str().unwrap_or("N/A"));
+            }
+
+            self.application.get_log().end("");
+        }
+
+        match response
+        {
+            Ok( resp ) =>
+            {
+                resp.text().unwrap_or_default()
+            }
+            Err( e ) =>
+            {
+                println!
+                (
+                    "{}{} {}{}",
+                    Color::Red.to_str(),
+                    "GitHub API error",
+                    &e.to_string(),
+                    Color::Default.to_str()
+                );
+                self.application.get_log()
+                .error("GitHub API error")
+                .prm("error", &e.to_string());
+                String::new()
+            }
+        }
+    }
+
+
+
+    /*
+        Github AI response
+    */
+    fn answer_github
+    (
+        &mut self,
+        /* Model */
+        _model: &str,
+        /* String with response after request_github */
+        response: &str
+    )
+    ->
+    (
+        /* In for tty input */
+        String,
+        /* Out for stdout */
+        String,
+        /* Buffers content */
+        String,
+        /* Prompt tokens count */
+        u64,
+        /* Completion tokens count */
+        u64
+    )
+    {
+        let mut out_msg = response.to_string();
+        let mut command = String::new();
+        let mut buffer = String::new();
+        let mut prompt_tokens = 0;
+        let mut completion_tokens = 0;
+
+        /* Remove think section if exists */
+        let response_clean = Regex::new( r"(?s)<think>.*?</think>" )
+        .unwrap()
+        .replace_all(&response, "")
+        .to_string();
+
+        /* Get json */
+        match serde_json::from_str::<serde_json::Value>( &response_clean )
+        {
+            Err( e ) =>
+            {
+                out_msg = response.to_string();
+                self.application.get_log()
+                .error( "Failed to parse GitHub response" )
+                .prm( "error", &e.to_string() );
+            }
+            Ok( json ) =>
+            {
+                /* Retrive content */
+                let content = json[ "choices" ][ 0 ][ "message" ][ "content" ]
+                .as_str().unwrap_or( "" );
+
+                /* Join all lines */
+                let content = content
+                    .lines()
+                    .map(|l| l.trim())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                /* Extract json source */
+                let content = content
+                    .trim()
+                    .trim_start_matches("```json")
+                    .trim_start_matches("```")
+                    .trim_end_matches("```");
+            
+                /* Retrive tokens count */
+                prompt_tokens = json[ "usage" ][ "prompt_tokens" ]
+                .as_u64()
+                .unwrap_or(0);
+
+                completion_tokens = json[ "usage" ][ "completion_tokens" ]
+                .as_u64()
+                .unwrap_or(0);
+
+                match serde_json::from_str::<serde_json::Value>( content )
+                {
+                    Ok( ai_json ) =>
+                    {
+                        out_msg = ai_json[ "out" ].as_str().unwrap_or(&out_msg).to_string().replace("\\n", "\n");
+                        command = ai_json[ "command" ].as_str().unwrap_or("").to_string();
+                        buffer = ai_json[ "buffer" ].as_str().unwrap_or("").to_string().replace("\\n", "\n");
+                    }
+                    Err( _ ) =>
+                    {
+                        /* If JSON parsing fails, return raw content as out_msg */
+                        out_msg = if content.trim().is_empty() 
+                        {
+                            response.to_string()
+                        }
+                        else
+                        {
+                            content.to_string()
+                        };
+                    }           
+                }
+            }
+        }
+
+        (command, out_msg, buffer, prompt_tokens, completion_tokens )
+    }
+
 }
