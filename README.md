@@ -130,7 +130,7 @@ cd ai-cli
 1. Put `ai` in to `~/.local/bin`.
 ```bash
 mkdir -p ~/.local/bin
-cp target/release/ai ~/.local/bin/ai
+cp target/release/ai ~/.local/bin/
 ```
 2. Add to your `~/.bashrc`
 ```
