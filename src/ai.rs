@@ -17,6 +17,9 @@ use std::io::Read;
 use std::io::Write;
 
 
+const UNIMPLEMENTED: &str = "Provider not implemented yet. Raw response: ";
+
+
 /*
     Ai applicatoin
 */
@@ -443,27 +446,56 @@ impl Ai
             Currently supports "github". Additional providers can be added here. 
             This is the main entry point for sending prompts to the LLM and 
             parsing responses.
-         */
-        match provider_type.as_str() 
+        */
+        match provider_type.as_str()
         {
-            "github" => 
+            "github" =>
             {
-                /* Request */
-                let response = self.request_github( &model, &prompt );
-                self.application.get_log().dump( "response", &response );                              
-                /* Responce */
-                (
-                    command, 
-                    out_msg, 
-                    buffer, 
-                    prompt_tokens, 
-                    answer_tokens
-                ) = self.answer_github( &model, &response );
+                let response = self.request_github(&model, &prompt);
+                self.application.get_log().dump("response", &response);
+                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
+                    self.answer_github(&model, &response);
+            }
+            "openai" =>
+            {
+                let response = self.request_openai(&model, &prompt);
+                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
+                    self.answer_openai(&response);
+            }
+            "deepseek" =>
+            {
+                let response = self.request_deepseek(&model, &prompt);
+                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
+                    self.answer_deepseek(&response);
+            }
+            "groq" =>
+            {
+                let response = self.request_groq(&model, &prompt);
+                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
+                    self.answer_groq(&response);
+            }
+            "together" =>
+            {
+                let response = self.request_together(&model, &prompt);
+                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
+                    self.answer_together(&response);
+            }
+            "local" =>
+            {
+                let response = self.request_local(&model, &prompt);
+                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
+                    self.answer_local(&response);
+            }
+            "anthropic" =>
+            {
+                let response = self.request_anthropic(&model, &prompt);
+                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
+                    self.answer_anthropic(&response);
             }
             _ =>
             {
                 self.application.get_log()
-                    .warning( "Unknown provider" )
+                    .warning("Unknown provider")
                     .prm("type", &provider_type);
             }
         }
@@ -1262,4 +1294,113 @@ impl Ai
         (command, out_msg, buffer, prompt_tokens, completion_tokens )
     }
 
+
+
+    /* 
+        OpenAI AI request
+    */
+    fn request_openai(&mut self, model: &str, prompt: &str) -> String
+    {
+        // TODO: implement
+        format!("{} {}", model, prompt)
+    }
+
+    /*
+        OpenAI AI response
+    */
+    fn answer_openai(&mut self, response: &str) -> (String, String, String, u64, u64)
+    {
+        // TODO: implement
+        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
+    }
+
+    /* 
+        DeepSeek AI request (OpenAI-compatible)
+    */
+    fn request_deepseek(&mut self, model: &str, prompt: &str) -> String
+    {
+        // TODO: implement
+        format!("{} {}", model, prompt)
+    }
+
+    /*
+        DeepSeek AI response
+    */
+    fn answer_deepseek(&mut self, response: &str) -> (String, String, String, u64, u64)
+    {
+        // TODO: implement
+        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
+    }
+
+    /* 
+        Groq AI request (OpenAI-compatible)
+    */
+    fn request_groq(&mut self, model: &str, prompt: &str) -> String
+    {
+        // TODO: implement
+        format!("{} {}", model, prompt)
+    }
+
+    /*
+        Groq AI response
+    */
+    fn answer_groq(&mut self, response: &str) -> (String, String, String, u64, u64)
+    {
+        // TODO: implement
+        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
+    }
+
+    /* 
+        Together AI request (OpenAI-compatible)
+    */
+    fn request_together(&mut self, model: &str, prompt: &str) -> String
+    {
+        // TODO: implement
+        format!("{} {}", model, prompt)
+    }
+
+    /*
+        Together AI response
+    */
+    fn answer_together(&mut self, response: &str) -> (String, String, String, u64, u64)
+    {
+        // TODO: implement
+        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
+    }
+
+    /* 
+        Local Ollama request
+    */
+    fn request_local(&mut self, model: &str, prompt: &str) -> String 
+    {
+        // TODO: implement
+        format!("{} {}", model, prompt)
+    }
+
+    /*
+        Local Ollama response
+    */
+    fn answer_local(&mut self, response: &str) -> (String, String, String, u64, u64) 
+    {
+        // TODO: implement
+        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
+    }
+
+    /* 
+        Anthropic Claude request
+    */
+    fn request_anthropic(&mut self, model: &str, prompt: &str) -> String 
+    {
+        // TODO: implement
+        format!("{} {}", model, prompt)
+    }
+
+    /*
+        Anthropic Claude response
+    */
+    fn answer_anthropic(&mut self, response: &str) -> (String, String, String, u64, u64) 
+    {
+        // TODO: implement
+        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
+    }
 }
