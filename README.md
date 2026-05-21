@@ -48,9 +48,8 @@ flowchart LR
 
 # Why `ai-cli`
 
-1. **No bloat** — No Node.js, no Python, no Docker. Works with standard Unix 
-tools — `cat`, `tee`, `grep`, `awk`, `sed`. Everything else (`xclip`, `nano`, 
-`vi`, `git`, `xdotool`) is **optional**. Use only what you need.
+1. **No bloat** — No Node.js, no Python, no Docker. Core works with POSIX tools 
+(`cat`, `tee`, `grep`). All extras (`xclip`, `git`, `nano`) are **optional**.
 2. **Minimal dependencies** — Single ~900KB static binary. No runtime, no package 
 manager, no interpreter.
 3. **Full user control** — AI **never** executes commands. Command appears on 
