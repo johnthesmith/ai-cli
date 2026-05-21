@@ -16,6 +16,7 @@
 * [Architecture](#architecture)
 
 
+
 # How it works
 
 1. User provides input via arguments or pipeline
@@ -35,13 +36,15 @@ user@comp:~$ ls -la
 "Would you press enter?"
 
 ```mermaid
-flowchart LR
+flowchart LR    
     gate{+}
     buffer[file & clipboard] 
     user[users \n 'enter']
-    stdin --> ai --> gate--> stdout & keyboard & buffer
     keyboard --> user --> bash
+    stdin --> ai --> gate--> keyboard & buffer & stdout
 ```
+
+
 
 # Why `ai-cli`
 
