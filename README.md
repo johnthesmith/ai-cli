@@ -12,6 +12,7 @@
 * [Build Instructions](#build-instructions)
 * [Run](#run)
 * [Security](#security)
+* [For developers](#for-developers)
 * [Architecture](#architecture)
 
 
