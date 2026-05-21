@@ -48,9 +48,9 @@ flowchart LR
 
 # Why `ai-cli`
 
-1. **Standard Bash and Unix utilities** — No Node.js, no Python, no Docker. Works 
-with `cat`, `tee`, `xclip`, `nano`, `vi`, `git` — everything already on your 
-system.
+1. **No bloat** — No Node.js, no Python, no Docker. Works with standard Unix 
+tools — `cat`, `tee`, `grep`, `awk`, `sed`. Everything else (`xclip`, `nano`, 
+`vi`, `git`, `xdotool`) is **optional**. Use only what you need.
 2. **Minimal dependencies** — Single ~900KB static binary. No runtime, no package 
 manager, no interpreter.
 3. **Full user control** — AI **never** executes commands. Command appears on 
@@ -59,6 +59,9 @@ No daemon. No permission popups. Just your terminal.
 4. **User defines output destinations** — `in`, `out`, `buffer` — each can be 
 sent to stdout, file, clipboard, TTY, or any custom command. You decide where AI 
 output goes.
+5. **Unix way** — Everything is a file or a pipe. Configuration is plain YAML in 
+`~/.config/ai/`. History is plain text in `~/.local/share/ai/`. Buffer is plain 
+text. No databases, no registries, no hidden state.
 
 **Compare:**
 
