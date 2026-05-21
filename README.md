@@ -33,7 +33,7 @@ user@comp:~$ ls -la
 
 "Would you press enter?"
 
-```
+```mermaid
 flowchart LR
     gate{+}
     buffer[file & clipboard] 
@@ -248,10 +248,26 @@ in the prompt file:
 **The author assumes no responsibility for data loss or system damage.** You are 
 using this tool at your own risk.
 
-## For developers
 
-1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs) 
-label REMOVE_ENTER.
+
+# For developers
+
+1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs)
+   - Search for `REMOVE_ENTER` — shows where newlines are stripped from AI-generated commands (security: prevents auto-execution)
+   - Search for `PROVIDER_ADAPTER` — main dispatch point for adding new AI providers (GitHub, OpenAI, Anthropic, etc.)
+
+2. Provider methods pattern:
+   - `request_<name>()` — sends HTTP request to API
+   - `answer_<name>()` — parses response into `(command, out, buffer, prompt_tokens, answer_tokens)`
+
+3. Adding a new provider:
+   - Add match arm in `PROVIDER_ADAPTER` section
+   - Implement `request_<name>` and `answer_<name>` methods
+   - Add provider key to config schema
+
+4. Supported providers (status):
+   - `github` — ✅ fully implemented
+   - `openai`, `deepseek`, `groq`, `together`, `local`, `anthropic` — 🚧 stubs ready, awaiting implementation
 
 
 
