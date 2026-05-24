@@ -78,7 +78,8 @@ impl Ai
         println!( "" );
         println!( "Options:" );
         println!( "  --help                      This information" );
-        println!( "  --no-prompt                 Suppress input prompt" );
+        println!( "  --no-prompt                 Suppress input user prompt" );
+        println!( "  --no-command                Suppress command event " );
         println!( "  --show-info                 Show current runtime information (profile, chat, log, config)");
         println!( "  --profile=<name>            Use profile for current session only" );
         println!( "  --switch-profile=<name>     Switch and save profile" );
@@ -1273,23 +1274,38 @@ impl Ai
         /* Execute command via destination */
         if !response.command.is_empty()
         {
-            /* 
-                REMOVE_ENTER: CRITICAL SECURITY LAYER
-                
-                Removes newline and carriage return characters from LLM-generated command.
-                Prevents command injection via line breaks that could:
-                1. Terminate the current command
-                2. Inject arbitrary new commands
-                3. Execute hidden malicious code
-                
-                The cleaned command remains as a single line.
-                Only newline/carriage return are removed - all other characters (&&, |, ;, $, `, etc.)
-                are preserved as legitimate command syntax.
-                
-                This is a PROOF of security awareness - intentional design, not a bug.
-            */
-            let clean_command = response.command.replace('\n', " ").replace('\r', "");
-            self.run_destination( &clean_command, "command" );
+            /* Check if command execution is disabled */
+            let no_command = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["no-command"].as_bool())
+            .unwrap_or( false );
+
+            if no_command 
+            {
+                self.application.get_log()
+                .info( "Command execution disabled by --no-command" )
+                .prm("command", &response.command);
+            } 
+            else 
+            {
+                /* 
+                    REMOVE_ENTER: CRITICAL SECURITY LAYER
+                    
+                    Removes newline and carriage return characters from LLM-generated command.
+                    Prevents command injection via line breaks that could:
+                    1. Terminate the current command
+                    2. Inject arbitrary new commands
+                    3. Execute hidden malicious code
+                    
+                    The cleaned command remains as a single line.
+                    Only newline/carriage return are removed - all other characters (&&, |, ;, $, `, etc.)
+                    are preserved as legitimate command syntax.
+                    
+                    This is a PROOF of security awareness - intentional design, not a bug.
+                */
+                let clean_command = response.command.replace('\n', " ").replace('\r', "");
+                self.run_destination( &clean_command, "command" );
+            }
         }
 
         /* Write buffer via destination */

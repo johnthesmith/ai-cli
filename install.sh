@@ -36,7 +36,7 @@ set -euo pipefail
 
 # ============================================
 # Configuration constants
-# ============================================
+1# ============================================
 REPO_URL="https://github.com/johnthesmith/ai-cli.git"
 CLONE_DIR="$HOME/tmp/ai-cli-install"
 BIN_DIR="$HOME/.local/bin"
@@ -47,23 +47,22 @@ BASHRC="$HOME/.bashrc"
 # Completion options for ai and 1 commands
 COMPLETION_OPTIONS='--help'
 COMPLETION_OPTIONS+=' --no-prompt'
+COMPLETION_OPTIONS+=' --no-command'
 COMPLETION_OPTIONS+=' --show-info'
-COMPLETION_OPTIONS+=' --show-chat'
+COMPLETION_OPTIONS+=' --profile='
+COMPLETION_OPTIONS+=' --switch-profile='
 COMPLETION_OPTIONS+=' --switch-chat='
+COMPLETION_OPTIONS+=' --pack-history'
 COMPLETION_OPTIONS+=' --show-history'
 COMPLETION_OPTIONS+=' --clear-history'
 COMPLETION_OPTIONS+=' --profile='
 COMPLETION_OPTIONS+=' --switch-profile='
-COMPLETION_OPTIONS+=' --show-provider'
 COMPLETION_OPTIONS+=' --provider='
 COMPLETION_OPTIONS+=' --switch-provider='
 COMPLETION_OPTIONS+=' --clear-memory'
 COMPLETION_OPTIONS+=' --show-memory'
-COMPLETION_OPTIONS+=' --clear-history'
-COMPLETION_OPTIONS+=' --show-history'
-COMPLETION_OPTIONS+=' --tiocsti'
 COMPLETION_OPTIONS+=' --write-buffer'
-
+COMPLETION_OPTIONS+=' --tiocsti'
 COMPLETION_LINE="complete -W \"$COMPLETION_OPTIONS\" 1"
 COMPLETION_LINE_AI="complete -W \"$COMPLETION_OPTIONS\" ai"
 

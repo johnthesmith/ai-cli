@@ -94,13 +94,13 @@ and executes code
 
 1. Currently `ai` works with the following providers:
 
-- `github` — ✅ implemented (default)
-- `openai` — ⏳ coming soon
-- `deepseek` — ⏳ coming soon
-- `groq` — ⏳ coming soon
-- `together` — ⏳ coming soon
-- `local` (Ollama) — ⏳ coming soon
-- `anthropic` (Claude) — ⏳ coming soon
+- `github` — implemented (default)
+- `openai` — testing
+- `deepseek` — testing
+- `groq` — testing
+- `anthropic` — coming soon
+- `together` — coming soon
+- `local` (Ollama) — coming soon
 
 
 
@@ -150,6 +150,7 @@ wget -qO- https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh 
 ```
 --help                      This information
 --no-prompt                 Suppress input prompt
+--no-command                Suppress command event 
 --show-info                 Show current runtime information (profile, chat, log, config)
 --profile=<name>            Use profile for current session only
 --switch-profile=<name>     Switch and save profile
