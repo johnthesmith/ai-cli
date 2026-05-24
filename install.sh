@@ -183,16 +183,35 @@ mkdir -p "$CONFIG_DIR"
 # Copy configuration files (only if missing)
 info "Creating configuration in $CONFIG_DIR (preserving existing files)"
 
-# Copy all files from config template directory
+# Copy all files and directories from config template (preserving existing)
 for file in "$CLONE_DIR/config/"*; do
     filename=$(basename "$file")
     target="$CONFIG_DIR/$filename"
-    if [[ ! -f "$target" ]]; then
-        cp "$file" "$target"
-        info "Created: $filename"
+
+    if [[ -d "$file" ]]; then
+        # Для директорий: создаём и копируем внутрь рекурсивно
+        if [[ ! -d "$target" ]]; then
+            cp -r "$file" "$target"
+            info "Created directory: $filename"
+        else
+            # Копируем только отсутствующие файлы внутри поддиректории
+            for subfile in "$file/"*; do
+                subfilename=$(basename "$subfile")
+                subtarget="$target/$subfilename"
+                if [[ ! -e "$subtarget" ]]; then
+                    cp "$subfile" "$subtarget"
+                    info "Created: $filename/$subfilename"
+                fi
+            done
+        fi
+    else
+        # Для файлов: копируем только если нет
+        if [[ ! -f "$target" ]]; then
+            cp "$file" "$target"
+            info "Created: $filename"
+        fi
     fi
 done
-
 
 
 # Clean up temporary directory
