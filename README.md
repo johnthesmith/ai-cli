@@ -25,6 +25,21 @@
 4. You can **edit the command** freely using standard line editing keys
 5. Press Enter to execute the final command
 
+```mermaid
+flowchart LR    
+    gate{+}
+    
+    stdout
+    buffer[file & clipboard] 
+    memory
+    keyboard[ keyboard \n input ]
+    bash{{ run bush \n command}}
+
+    user((users \n 'enter'))
+    keyboard --> user --> bash
+    stdin --> ai --> gate--> stdout & memory & keyboard & buffer
+```
+
 ```
 user@comp:~$ 1 hello
 Hello! How can I assist you today?
@@ -35,22 +50,18 @@ user@comp:~$ ls -la
 
 "Would you press enter?"
 
-```mermaid
-flowchart LR    
-    gate{+}
-    buffer[file & clipboard] 
-    user[users \n 'enter']
-    keyboard --> user --> bash
-    stdin --> ai --> gate--> keyboard & buffer & stdout
-```
+or You can literaly:
 
+```
+echo "hello world" | ai "say it for groq" --provider=openai | ai "grok"
+```
 
 
 # Why `ai-cli`
 
 1. **No bloat** — No Node.js, no Python, no Docker. Core works with POSIX tools 
 (`cat`, `tee`, `grep`). All extras (`xclip`, `git`, `nano`) are **optional**.
-2. **Minimal dependencies** — Single ~900KB static binary. No runtime, no package 
+2. **Minimal dependencies** — Single static binary. No runtime, no package 
 manager, no interpreter.
 3. **Full user control** — AI **never** executes commands. Command appears on 
 your keyboard → you edit → you press Enter → bash executes. No background agent. 
@@ -64,13 +75,18 @@ text. No databases, no registries, no hidden state.
 
 **Compare:**
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — can run shell commands automatically (with "auto mode")
-- [Codex CLI](https://github.com/openai/openai-codex) — has Auto/Read-only/Full Access modes, can execute without confirmation
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — has "Yolo mode" that bypasses confirmations
-- [Shell-GPT](https://github.com/TheR1D/shell_gpt) — can execute commands with `--execute` flag
-- [Aider](https://github.com/paul-gauthier/aider) — autonomous agent that writes and executes code
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — can run shell 
+commands automatically (with "auto mode")
+- [Codex CLI](https://github.com/openai/openai-codex) — has Auto/Read-only/Full 
+Access modes, can execute without confirmation
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — has "Yolo mode" 
+that bypasses confirmations
+- [Shell-GPT](https://github.com/TheR1D/shell_gpt) — can execute commands with 
+`--execute` flag
+- [Aider](https://github.com/paul-gauthier/aider) — autonomous agent that writes 
+and executes code
 
-**ai-cli** — only you press Enter... and that’s all that matters.
+`ai-cli` — only you press Enter... and that’s all that matters.
 
 
 
@@ -88,91 +104,36 @@ text. No databases, no registries, no hidden state.
 
 
 
-# Build Instructions
+# Liability
 
-1. You can build and install `ai` manually.
+**The author assumes no responsibility for data loss or system damage.** You are 
+using this tool at your own risk.
 
 
 
-## Prerequisites
+# Installation
 
 1. Linux (Ubuntu 20.04+ or Debian 11+) — or newer
-2. Install Rust and Cargo:
- 
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
+
+```
+wget -qO- https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh | bash
 ```
 
-## Clone project
-
-```bash
-git clone https://github.com/johnthesmith/ai-cli.git
-cd ai-cli
-```
-
-## Build
-
-1. Debug build (with debug symbols):
-
-```bush
-./make-debug.sh
-```
-
-2. Release build (optimized, stripped):
-
-```bash
-./make-release.sh
-```
-
-## Setup
-
-1. Put `ai` in to `~/.local/bin`.
-```bash
-mkdir -p ~/.local/bin
-cp target/release/ai ~/.local/bin/
-```
-2. Add to your `~/.bashrc`
-```
-# AI settings
-export PATH="$HOME/.local/bin:$PATH"
-ln -sf ~/.local/bin/ai ~/.local/bin/1
-complete -W "--help --show-info --show-chat --switch-chat --show-history --clear-history --profile --switch-profile=" 1
-complete -W "--help --show-info --show-chat --switch-chat --show-history --clear-history --profile --switch-profile=" ai
-```
-3. Restart your bash.
 
 
-
-## Config
-
-1. Copy config for `default` profile.
-
-```bash
-mkdir -p ~/.config/ai/default/
-cp -r ./config/* ~/.config/ai/default/
-```
-2. You can:
-    1. use proxy;
-    0. send bash commands to keyboard, tty, stdout or file;
-    0. change prompt;
-    0. switch profile.
-3. For all options see `~/.config/ai/default/`.
-
-
-
-## GitHub Token Setup
+# GitHub Token Setup
 
 1. Go to: https://github.com/settings/personal-access-tokens
-2. Click **Generate new token** → **Fine-grained token**
-3. Fill:
+0. Click **Fine-grained token** 
+0. Click **Generate new token**
+0. Fill:
    - **Token name**: `ai-cli`
    - **Expiration**: 90 days
    - **Resource owner**: your account
-4. **Repository access**: `Public Repositories (read-only)`
-5. **Permissions** → **Models** → `Read-only`
-6. Click **Generate token**
-7. **Copy token immediately** (shown only once)
+0. **Repository access**: `Public Repositories (read-only)`
+0. Click **Permissions** → **Models** → `Read-only`
+0. Click **Generate token**
+0. **Copy token immediately** (shown only once)
 8. Put your github token here `~/.config/local/ai/default/token.txt`
 
 
@@ -184,28 +145,35 @@ cp -r ./config/* ~/.config/ai/default/
 ```
 
 
-## Usage Information
+## Usage options
 
 ```
+--help                      This information
 --no-prompt                 Suppress input prompt
---show-info                 Show current runtime information (profile, chat, log, config
---show-chat                 Show current chat id
+--show-info                 Show current runtime information (profile, chat, log, config)
+--profile=<name>            Use profile for current session only
+--switch-profile=<name>     Switch and save profile
+--switch-provider=<name>    Switch to AI provider <name> (saves to file)
+--provider=<name>           Use provider for current session only (no save)
 --switch-chat=<id>          Switch to chat <id>, default id is default
 --show-history              Show history for current chat
 --clear-history             Remove history for current chat
---profile=<name>            Use profile for current session only
---switch-profile=<name>     Switch and save profile
---write-buffer              Write stdin to buffer file (see buffer_path in config
---tiocsti                   Inject input directly into TTY input buffer for ssh
+--pack-history              Pack current chat history into summary
+--show-memory               Show memory for current chat
+--clear-memory              Remove memory for current chat (global if %chat% not used)
+--write-buffer              Write stdin to buffer file and forward to stdout
+--tiocsti                   Inject input directly into TTY input buffer for keyboard
 ```
+
 
 
 # LLM Response Contract
 
 The AI assistant returns strict JSON. The full format description and rules are 
-in the prompt file:
+in the prompt file: 
+[prompt.txt](https://github.com/johnthesmith/ai-cli/blob/main/config/prompt.txt)
 
-👉 **[prompt.txt](https://github.com/johnthesmith/ai-cli/blob/main/config/prompt.txt)**
+
 
 ## Field Summary
 
@@ -221,6 +189,8 @@ in the prompt file:
 - `command` — command is **NOT executed automatically**, only appears in input line. No `\n`, no code blocks;
 - `buffer` — for large data. Reference via `%buffer%`;
 - `| ai` — only for non-interactive commands with predictable output.
+
+
 
 ## Response Example
 
@@ -246,8 +216,6 @@ confirm.
 - Recursive `ai|ai` pipelines may cause the tool to hang, but **cannot execute 
 commands without your approval** — AI never presses Enter for you.
 
-
-
 ## Recommendations
 
 1. Run with minimal privileges (avoid `sudo` unless absolutely necessary).
@@ -256,31 +224,10 @@ commands without your approval** — AI never presses Enter for you.
 
 
 
-## Liability
-
-**The author assumes no responsibility for data loss or system damage.** You are 
-using this tool at your own risk.
-
-
-
 # For developers
 
 1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs)
    - Search for `REMOVE_ENTER` — shows where newlines are stripped from AI-generated commands (security: prevents auto-execution)
-   - Search for `PROVIDER_ADAPTER` — main dispatch point for adding new AI providers (GitHub, OpenAI, Anthropic, etc.)
-
-2. Provider methods pattern:
-   - `request_<name>()` — sends HTTP request to API
-   - `answer_<name>()` — parses response into `(command, out, buffer, prompt_tokens, answer_tokens)`
-
-3. Adding a new provider:
-   - Add match arm in `PROVIDER_ADAPTER` section
-   - Implement `request_<name>` and `answer_<name>` methods
-   - Add provider key to config schema
-
-4. Supported providers (status):
-   - `github` — ✅ fully implemented
-   - `openai`, `deepseek`, `groq`, `together`, `local`, `anthropic` — 🚧 stubs ready, awaiting implementation
 
 
 
@@ -289,10 +236,13 @@ using this tool at your own risk.
 ```mermaid
 flowchart LR
     subgraph UserSide["User Side"]
-        subgraph FS["User's Filesystem"]
+        subgraph filesystem
             prompt[("User \n prompt")]
-            history[("Chat \n history")]
             buffer[("Buffer \n & clipboard")]
+            history_in[("Chat \n history")]
+            history_out[("Chat \n history")]
+            memory_in[("memory")]
+            memory_out[("memory")]
             log[("Log")]
         end
         
@@ -301,32 +251,30 @@ flowchart LR
         command{{"bash"}}
         stdout{{"User stdout"}}
         
-        subgraph AICLI["ai-cli"]
-            req["Request"]
-            resp["Response"]
-            split{"Split"}
-        end
+        req["Request"]
+        resp["Response"]
     end
 
     subgraph World["External"]
         llm["LLM"]
     end
 
+    resp --> |all| log
+    
+    llm --> |HTTP \n responce| resp
+    req -->|HTTP \n request| llm
+       
+    resp -->|data| memory_out
+    resp -->|data| history_out
+    resp -->|data| stdout
+    resp -->|command| command    
+    resp -->|data| buffer     
+
+    memory_in --> |txt| req
     prompt --> |txt| req
     stdin --> req
-    history --> |txt| req
     param --> req
-    
-    req -->|HTTP \n request| llm
-    llm --> |HTTP \n responce| resp
-       
-    split -->|info| stdout
-    split -->|command| command    
-    split -->|data| buffer     
-    
-    resp --> |json| split 
-    resp -->|write| history
-    resp --> |all| log
+    history_in --> |txt| req
 ```
 
 

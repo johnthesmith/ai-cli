@@ -7,17 +7,19 @@
     Main AI module
 */
 
-use core::{expand_path, ensure_directory };
-use core::Color;
+#[path = "providers/mod.rs"]
+mod providers;
+
+#[path = "response.rs"]
+mod response;
+
+use core::{ expand_path, ensure_directory };
 use serde_json;
-use regex::Regex;
 use core::State;
 use core::Application;
 use std::io::Read;
 use std::io::Write;
-
-
-const UNIMPLEMENTED: &str = "Provider not implemented yet. Raw response: ";
+use crate::ai::response::ChatResponse;
 
 
 /*
@@ -31,11 +33,11 @@ pub struct Ai
     /* Ai state structure */
     state: State,
 
-    /* Keyboard buffer for final typing */
-    kbd_response: String,
-
     /* Profile */
-    profile: String
+    profile: String,
+
+    /* Provider */
+    provider: String
 }
 
 
@@ -53,9 +55,9 @@ impl Ai
         Self 
         {
             application: Application::create(),
-            kbd_response: String::new(),
             profile: String::new(),
-            state: State::ok(),
+            provider: String::new(),
+            state: State::ok()
         }
     }
 
@@ -78,13 +80,17 @@ impl Ai
         println!( "  --help                      This information" );
         println!( "  --no-prompt                 Suppress input prompt" );
         println!( "  --show-info                 Show current runtime information (profile, chat, log, config)");
-        println!( "  --show-chat                 Show current chat id" );
+        println!( "  --profile=<name>            Use profile for current session only" );
+        println!( "  --switch-profile=<name>     Switch and save profile" );
+        println!( "  --switch-provider=<name>    Switch to AI provider <name> (saves to file)");
+        println!( "  --provider=<name>           Use provider for current session only (no save)");
         println!( "  --switch-chat=<id>          Switch to chat <id>, default id is default" );
         println!( "  --show-history              Show history for current chat" );
         println!( "  --clear-history             Remove history for current chat" );
-        println!( "  --profile=<name>            Use profile for current session only" );
-        println!( "  --switch-profile=<name>     Switch and save profile" );
-        println!( "  --write-buffer              Write stdin to buffer file (see buffer_path in config)");
+        println!( "  --pack-history              Pack current chat history into summary" );
+        println!( "  --show-memory               Show memory for current chat" );
+        println!( "  --clear-memory              Remove memory for current chat (global if %chat% not used)" );
+        println!( "  --write-buffer              Write stdin to buffer file and forward to stdout" );
         println!( "  --tiocsti                   Inject input directly into TTY input buffer for keyboard" );
         println!( "                              Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
         println!( "                              on modern kernels. Only use in trusted environments." );
@@ -140,13 +146,10 @@ impl Ai
         */
 
         /* Get default config path */
-        let path = 
-        expand_path( "~/.config/ai/%profile%/config.yaml" )
-        .replace( "%profile%", &self.get_profile() );
+        let path = self.get_config_file();
 
         /* Read config */
         self.application.read_config( &path ).read_cli();
-
 
         /*
             Log section
@@ -181,6 +184,36 @@ impl Ai
                 .and_then(|cfg| cfg["no-prompt"].as_bool())
                 .unwrap_or( false );
 
+            /* Switch profile mode */
+            if let Some(_) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["switch-profile"].as_str())
+            {
+                no_prompt = true;
+            }
+
+
+
+            /* Set provider */
+            if let Some( profile ) = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg[ "switch-provider" ].as_str())
+            {
+                no_prompt = true;
+                self.switch_provider( &profile.to_string() );
+            }
+
+            /* Set profile for current session */
+            if let Some( profile ) = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg[ "provider" ].as_str())
+            {
+                self.set_provider( &profile.to_string() );
+            }
+            else
+            {
+                self.set_provider( &self.read_provider());
+            }
+
             /* Switch chat if requested */
             let new_chat_id = self.application.config
                 .as_ref()
@@ -191,13 +224,6 @@ impl Ai
             {
                 no_prompt = true;
                 self.switch_chat_id(&new_chat_id);
-            }
-
-            /* Switch profile mode */
-            if let Some(_) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["switch-profile"].as_str())
-            {
-                no_prompt = true;
             }
 
             /* Help mode */
@@ -215,6 +241,14 @@ impl Ai
             {
                 no_prompt = true;
                 self.clear_history();
+            }
+
+            /* Check clear-memory flag */
+            if let Some(true) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["clear-memory"].as_bool())
+            {
+                no_prompt = true;
+                self.clear_memory();
             }
 
             /* Check write-buffer flag */
@@ -261,90 +295,139 @@ impl Ai
                 self.show_history();
             }
 
+            /* Memory request */
+            if let Some(_) = self.application.config.as_ref()
+                .and_then(|cfg| cfg[ "show-memory" ].as_bool())
+            {
+                no_prompt = true;
+                self.show_memory();
+            }
+
             if let Some(_) = self.application.config.as_ref()
                 .and_then(|cfg| cfg["show-info"].as_bool())
             {
                 no_prompt = true;
                 self.show_info();
             }
-           
-            if let Some(_) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["show-chat"].as_bool())
+
+            /* Pack history */
+            if let Some(true) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["pack-history"].as_bool())
             {
                 no_prompt = true;
-                self.show_chat();
+                
+                let provider_name = self.get_provider();
+                let mut provider = providers::create_provider(&provider_name, self);
+                provider.summary();
+            }
+
+            /* Check dump-prompt flag */
+            if let Some(true) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["dump-prompt"].as_bool())
+            {
+                no_prompt = true;
+                let user_prompt = self.get_user_prompt();
+                let prompt = self.build_prompt( &user_prompt, "chat" );
+                println!("{}", prompt);
             }
 
             if !no_prompt
             {
-                let system_prompt = self.read_prompt();
-                let history = self.get_history();
-                let user_prompt = self.get_user_prompt();
-                let chat = self.get_chat_id();                          
-
-                let prompt = system_prompt
-                .replace( "%chat%", &chat )
-                .replace( "%history%", &history )
-                .replace( "%user-prompt%", &user_prompt );
-
-                self.write_history( "USER", &user_prompt );
-                self.request( prompt );
+                let provider_name = self.get_provider();
+                let mut provider = providers::create_provider( &provider_name, self );
+                provider.chat();
             }
+            
         }
 
         self.application.get_log().end( "End of ai" ).eol();
 
-        /* Final output leyboard */
-        if !self.kbd_response.is_empty()
-        {
-            let cmd = self.kbd_response.clone();
-            let command = self.application.config
-                .as_ref()
-                .and_then(|cfg| cfg["application"]["ai"]["destination"]["command"].as_str())
-                .unwrap_or("")
-                .to_string();
-            self.run_command( &cmd, &command );
-        }
         self
     }
 
 
 
+
     /**************************************************************************
-        Prompt
+        Prompt Building
     */
 
-    fn read_prompt( &mut self ) -> String 
+    /*
+        Return prompt file path for chat
+        Uses global prompts section with placeholders
+            %profile%,
+            %provider%,
+            %model%
+    */
+    fn get_prompt_file
+    (
+        &self, 
+        /* chat | summary */
+        prompt_type: &str
+    )
+    /* Return prompt file name */
+    -> String
     {
-        /* Set default prompt */
-        let default_prompt = "%user-prompt%".to_string();
-        
-        let prompt_path = self.application.config
+        let path = self.application.config
             .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["prompt"].as_str())
-            .map(|s| s.to_string());
-        
-        match prompt_path 
-        {
-            Some(path) => 
-            {
-                let full_path = expand_path(&path)
-                .replace("%profile%", &self.get_profile());
-                
-                match std::fs::read_to_string(&full_path) 
-                {
-                    Ok( content ) => content,
-                    Err(_) => 
-                    {
-                        self.application.get_log()
-                        .warning( "Cannot read prompt file, using default" )
-                        .prm("path", full_path);
+            .and_then
+            (
+                |cfg| cfg
+                [ "application" ]
+                [ "ai" ]
+                [ "prompts" ]
+                [ prompt_type ]
+                .as_str()
+            )
+            .map(|s| s.to_string())
+            .unwrap_or_else
+            (
+                || format!
+                (
+                    "~/.config/ai/%profile%/prompts/%provider%/%model%/{}.txt", 
+                    prompt_type
+                )
+            );
 
-                        default_prompt
-                    }
-                }
+        let model = self.read_model()
+        .replace('/', "_")
+        .replace('\\', "_")
+        .replace('.', "_")
+        .replace("..", "_");
+
+        expand_path( &path )
+        .replace( "%profile%", &self.get_profile() )
+        .replace( "%provider%", &self.get_provider() )
+        .replace( "%model%", &model )
+    }
+
+
+
+ 
+    /*
+        Read prompt template from file
+    */
+    fn read_prompt
+    (
+        &mut self,
+        /* chat | summary */
+        prompt_type: &str       
+        
+    ) -> String
+    {
+        let default_prompt = "%user-prompt%".to_string();
+        let full_path = self.get_prompt_file( prompt_type );
+
+        match std::fs::read_to_string(&full_path)
+        {
+            Ok(content) => content,
+            Err(_) =>
+            {
+                self.application.get_log()
+                    .warning("Cannot read prompt file, using default")
+                    .prm("path", full_path);
+                default_prompt
             }
-            None => default_prompt
         }
     }
 
@@ -353,7 +436,7 @@ impl Ai
     /*
         Return user prompt from command line arguments (all non-flag arguments)
     */
-    fn get_user_prompt(&self) -> String
+    fn get_user_prompt( &self ) -> String
     {
         /* Collect all non-flag arguments */
         let args: Vec<String> = std::env::args().skip(1)
@@ -392,173 +475,26 @@ impl Ai
 
 
 
-    /**************************************************************************
-        Request
-    */
-
     /*
-        Return current provider
+        Build full prompt from template and context
     */
-    fn get_provider( &self )
-    -> String
-    {
-        self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg[ "application" ][ "ai" ][ "provider" ].as_str())
-        .unwrap_or( "github" )
-        .to_string()
-    }
-
-
-
-    /*
-        Request and return result
-    */
-    fn request
+    fn build_prompt
     (
-        &mut self,
-        prompt: String
+        &mut self, 
+        prompt_type: &str, 
+        /* User prompt */
+        input: &str
     )
-    -> &mut Self
+    -> String 
     {
-        let provider_type = self.get_provider();
-
-        self
-        .application.get_log()
-        .begin( "Request" )
-        .prm( "provider-type", &provider_type );
-
-        let mut command = String::new();
-        let mut out_msg = String::new();
-        let mut buffer = String::new();
-        let mut prompt_tokens = 0;
-        let mut answer_tokens = 0;
-
-        let model = self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
-        .unwrap_or("openai/gpt-4o-mini")
-        .to_string();
-
-        /* 
-            PROVIDE_ADAPTER
-            Dispatch to the appropriate AI provider based on configuration. 
-            Currently supports "github". Additional providers can be added here. 
-            This is the main entry point for sending prompts to the LLM and 
-            parsing responses.
-        */
-        match provider_type.as_str()
-        {
-            "github" =>
-            {
-                let response = self.request_github(&model, &prompt);
-                self.application.get_log().dump("response", &response);
-                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
-                    self.answer_github(&model, &response);
-            }
-            "openai" =>
-            {
-                let response = self.request_openai(&model, &prompt);
-                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
-                    self.answer_openai(&response);
-            }
-            "deepseek" =>
-            {
-                let response = self.request_deepseek(&model, &prompt);
-                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
-                    self.answer_deepseek(&response);
-            }
-            "groq" =>
-            {
-                let response = self.request_groq(&model, &prompt);
-                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
-                    self.answer_groq(&response);
-            }
-            "together" =>
-            {
-                let response = self.request_together(&model, &prompt);
-                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
-                    self.answer_together(&response);
-            }
-            "local" =>
-            {
-                let response = self.request_local(&model, &prompt);
-                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
-                    self.answer_local(&response);
-            }
-            "anthropic" =>
-            {
-                let response = self.request_anthropic(&model, &prompt);
-                (command, out_msg, buffer, prompt_tokens, answer_tokens) = 
-                    self.answer_anthropic(&response);
-            }
-            _ =>
-            {
-                self.application.get_log()
-                    .warning("Unknown provider")
-                    .prm("type", &provider_type);
-            }
-        }
-
-        /* 
-            Answer processing
-        */
-
-        /* Retrive buffer path placeholder for %buffer% */
-        let buffer_path = self.get_buffer_path();
-
-        /* OUT */
-        if !out_msg.is_empty() 
-        {
-            let out_cmd = self.application.config
-                .as_ref()
-                .and_then(|cfg| cfg["application"]["ai"]["destination"]["out"].as_str())
-                .unwrap_or("")
-                .to_string();
-            out_msg = out_msg.replace("%buffer%", &buffer_path );
-            self.run_command( &out_msg, &out_cmd );
-        }
-
-        /* BUFFER */
-        if !buffer.is_empty() 
-        {
-            let buffer_cmd = self.application.config
-                .as_ref()
-                .and_then(|cfg| cfg["application"]["ai"]["destination"]["buffer"].as_str())
-                .unwrap_or("ai --write-buffer")
-                .to_string();
-            self.run_command(&buffer, &buffer_cmd);
-        }
-
-        /* COMMAND */
-        if !command.is_empty() 
-        {
-            self.kbd_response = command
-                .replace(['\n', '\r'], " ")
-                .replace("%buffer%", &buffer_path)
-                .trim()
-                .to_string();
-        }
-
-        /* Succes */
-        let has_output = !out_msg.is_empty() || !buffer.is_empty() || !command.is_empty();
-        if has_output 
-        {
-            /* Write history */
-            self.write_history( "AI", &format!("{}\n{}", out_msg, command ));
-            self.application.get_log()
-                .trace("Success answer")
-                .prm( "prompt-tokens", prompt_tokens)
-                .prm( "answer-tokens", answer_tokens)
-                .prm( "out-len", out_msg.len())
-                .prm( "command-len", command.len())
-                .prm( "buffer-len", buffer.len());
-
-        }
-        self.application.get_log().end( "" );
-        self
+        let template = self.read_prompt( prompt_type );
+        
+        template
+            .replace("%chat%", &self.get_chat_id())
+            .replace("%history%", &self.get_history())
+            .replace("%memory%", &self.read_memory())
+            .replace("%user-prompt%", input)
     }
-
 
 
 
@@ -619,7 +555,7 @@ impl Ai
         use std::fs::OpenOptions;
         use std::io::Write;
         
-        let line = format!( "@FROM_{}\n{}\n\n", role, text );
+        let line = format!( "{}\n{}\n\n", role, text );
         
         if let Ok(mut file) = OpenOptions::new()
             .create(true)
@@ -677,6 +613,57 @@ impl Ai
 
 
 
+    pub fn handle_summary_response
+    (
+        &mut self, 
+        summary: &str, 
+        think: &str, 
+        recent_history: &str, 
+        prompt_tokens: u64, 
+        answer_tokens: u64, 
+        success: bool, 
+        old_blocks: usize, 
+        kept_blocks: usize
+    )
+    {
+        if success && !summary.is_empty()
+        {
+            let new_history = format!
+            (
+                "{}\n\n{}\n\n{}{}", 
+                "@SUMMARY",
+                summary, 
+                self.get_history_delimiter(), 
+                recent_history
+            );
+
+            std::fs::write(&self.get_history_file_path(), new_history).unwrap();
+
+            self.application.get_log()
+                .info("History packed successfully")
+                .prm("old_blocks", old_blocks)
+                .prm("kept_blocks", kept_blocks)
+                .prm("prompt_tokens", prompt_tokens)
+                .prm("answer_tokens", answer_tokens);
+
+            if !think.is_empty()
+            {
+                self.application.get_log()
+                    .trace("Summary think")
+                    .prm("content", think);
+            }
+        }
+        else
+        {
+            self.application.get_log().warning
+            (
+                "Failed to get summary, history unchanged"
+            );
+        }
+    }
+
+
+
     /*******************************************************************8******
         Buffers
     */
@@ -701,7 +688,11 @@ impl Ai
 
 
 
-    fn write_buffer(&mut self, data: &str)
+    fn write_buffer
+    (
+        &mut self,
+        data: &str
+    )
     {
         let buffer_path = self.get_buffer_path();
         if let Some(parent) = std::path::Path::new(&buffer_path).parent() 
@@ -709,22 +700,140 @@ impl Ai
             let _ = std::fs::create_dir_all(parent);
         }
         
-        match std::fs::write(&buffer_path, data) {
-            Ok(_) => {
+        match std::fs::write(&buffer_path, data) 
+        {
+            Ok(_) => 
+            {
                 self.application.get_log()
-                    .info("Buffer written to file")
-                    .prm("path", &buffer_path);
+                    .info( "Buffer written to file" )
+                    .prm( "path", &buffer_path );
             }
-            Err(e) => {
+            Err(e) => 
+            {
                 self.application.get_log()
-                    .error("Failed to write buffer")
-                    .prm("path", &buffer_path)
-                    .prm("error", &e.to_string());
+                    .error( "Failed to write buffer" )
+                    .prm( "path", &buffer_path )
+                    .prm( "error", &e.to_string() );
             }
         }
+
+        print!( "{}", data );
     }
 
-    
+
+
+
+    /*************************************************************************
+        Any
+    */
+
+
+    /*
+        Return config file path for current profile
+    */
+    fn get_config_file(&self)
+    -> String
+    {
+        expand_path("~/.config/ai/%profile%/config.yaml")
+        .replace("%profile%", &self.get_profile())
+    }
+
+
+ 
+    /*
+        Return proxy for current provider
+    */
+    fn read_proxy(&self)
+    -> String
+    {
+        let provider = self.get_provider();
+        
+        self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["providers"][&provider]["proxy"].as_str())
+            .unwrap_or("")
+            .to_string()
+    }
+
+
+
+    /*******************************************************************8******
+        Token
+    */
+
+    /*
+        Return token path for current provider
+    */
+    fn get_token_path( &self )
+    -> String
+    {
+        self.application.config
+            .as_ref()
+            .and_then
+            (
+                |cfg| cfg
+                [ "application" ]
+                [ "ai" ]
+                [ "providers" ]
+                [ self.get_provider() ]
+                [ "token" ]
+                .as_str()
+            )
+            .map(|s| expand_path(s).replace( "%profile%", &self.get_profile() ))
+            .unwrap_or_else( || String::new() )
+    }
+
+
+
+
+    /*******************************************************************8******
+        Model
+    */
+
+    /*
+        Return file for current model
+        Placeholders: %profile%, %provider%, %chat%
+    */
+    fn get_model_file_path( &self ) -> String
+    {
+        let provider = self.get_provider();
+
+        self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["providers"][ &provider ]["model"].as_str())
+            .map(|s| expand_path(s))
+            .unwrap_or_else(|| expand_path("~/.local/share/ai/%profile%/models/%provider%.txt"))
+            .replace("%profile%", &self.get_profile())
+            .replace("%provider%", &provider)
+            .replace("%chat%", &self.get_chat_id())
+    }
+
+
+
+    pub fn read_model( &self ) -> String
+    {
+        let path = self.get_model_file_path();
+        let provider = self.get_provider();
+
+        if let Ok(content) = std::fs::read_to_string(&path)
+        {
+            let model = content.trim().to_string();
+            if !model.is_empty()
+            {
+                return model;
+            }
+        }
+        
+        // Дефолтная модель из конфига провайдера
+        self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["providers"][provider]["models"][0].as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "gpt-4.1".to_string())
+    }
+
+
+
     /*******************************************************************8******
         Chat
     */
@@ -797,11 +906,100 @@ impl Ai
 
 
 
-    fn show_chat( &mut self )
-    -> &mut Self 
+    /*************************************************************************
+        Provider
+    */
+
+    /*
+        Return provider
+    */
+    fn get_provider( &self )
+    -> String
     {
-        let chat_id = self.get_chat_id();
-        println!( "Current chat: {}", chat_id );
+        self.provider.clone()
+    }
+
+
+
+    /*
+        Set provider for current session
+    */
+    fn set_provider(&mut self, name: &str) -> &mut Self
+    {
+        self.provider = name.to_string();
+        self
+    }
+
+
+
+    /*
+        Return provider file path
+    */
+    fn get_provider_file_path( &self )
+    -> String
+    {
+        self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg[ "application" ][ "ai" ][ "provider_file" ].as_str())
+            .map(|s| expand_path(s))
+            .unwrap_or_else(|| expand_path( "~/.config/ai/%profile%/provider.txt" ))
+            .replace( "%profile%", &self.get_profile() )
+    }
+
+
+
+    /*
+        Return provider
+    */
+    fn read_provider( &self )
+    -> String
+    {
+        let path = self.get_provider_file_path();
+
+        if let Ok(content) = std::fs::read_to_string(&path)
+        {
+            let provider = content.trim().to_string();
+            if !provider.is_empty()
+            {
+                return provider;
+            }
+        }
+        "github".to_string()
+    }
+
+
+
+    /*
+        Change current provider
+    */
+    fn switch_provider
+    (
+        &mut self, 
+        new_provider: &str
+    ) -> &mut Self
+    {
+        let file_path = self.get_provider_file_path();
+
+        if let Err(e) = ensure_directory(&file_path)
+        {
+            self.application.get_log()
+                .error("Failed to ensure provider directory")
+                .prm("error", &e);
+            return self;
+        }
+
+        if let Err(e) = std::fs::write(&file_path, new_provider)
+        {
+            self.application.get_log()
+                .error("Failed to switch provider")
+                .prm("path", &file_path)
+                .prm("error", &e.to_string());
+        } else {
+            self.application.get_log()
+                .trace("Provider switched")
+                .prm("provider", new_provider);
+        }
+
         self
     }
 
@@ -933,67 +1131,91 @@ impl Ai
     */
     fn show_info(&mut self) -> &mut Self
     {
-        let model = self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg["application"]["ai"]["params"]["model"].as_str())
-        .unwrap_or("openai/gpt-4o-mini")
-        .to_string();
-    
-
-        println!("Profile: {}", self.get_profile());
-        println!("Chat: {}", self.get_chat_id());
-        println!("Log: {}", self.application.get_log().get_file_path());
-        println!("Config: ~/.config/ai/{}/config.yaml", self.get_profile());
-        println!("Model: {}", model);
-                
+        println!("Log:                  {}", self.application.get_log().get_file_path());
+        println!("Config:               {}", self.get_config_file());
+        println!("Profile:              {}", self.get_profile());
+        println!("Provider:             {}", self.get_provider());
+        println!("Chat:                 {}", self.get_chat_id());
+        println!("Model:                {}", self.read_model() );
+        println!("Prompt chat file:     {}", self.get_prompt_file( "chat" ));
+        println!("Prompt summary file:  {}", self.get_prompt_file( "summary" ));
+        println!("Model file:           {}", self.get_model_file_path() );
+        println!("History file:         {}", self.get_history_file_path() );
+        println!("Memory file:          {}", self.get_memory_file() );
+        println!("Token file:           {}", self.get_token_path() );
         self
     }
 
 
 
     /**************************************************************************
-        Profile
+        Commands
     */
+
+    /*
+        Run destination command by identifier.
+        Identifier: "command", "out", "buffer"
+    */
+    fn run_destination
+    (
+        &mut self, 
+        data: &str, 
+        dest_type: &str
+    )
+    {
+        let command = self.application.config
+        .as_ref()
+        .and_then
+        (
+            |cfg| 
+            cfg
+            ["application"]
+            ["ai"]
+            ["destination"]
+            [dest_type]
+            .as_str()
+        )
+        .unwrap_or("")
+        .to_string();
+        
+        self.run_command( data, &command, false );
+    }
+
+
 
     /*
         Execute external command to insert the AI-generated text.
         Falls back to stdout if command execution fails.
     */
-    fn run_command
-    (
-        &mut self, 
-        data: &str, 
-        command: &str
-    )
+    fn run_command(&mut self, data: &str, command: &str, wait: bool)
     {
-        if command.is_empty() 
-        {
-            println!( "{}", data );
+        if command.is_empty() {
+            println!("{}", data);
+            return;
         }
-        else
-        {      
-            match std::process::Command::new("bash")
-                .arg("-c")
-                .arg(command)
-                .stdin(std::process::Stdio::piped())
-                .spawn()
-            {
-                Ok(mut child) => 
-                {
-                    let data_len = data.len();
-                    
-                    if let Some(mut stdin) = child.stdin.take() {
-                        let _ = stdin.write_all(data.as_bytes());
-                        let _ = stdin.flush();
-                    }
-                    
+
+        match std::process::Command::new("bash")
+            .arg("-c")
+            .arg(command)
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+        {
+            Ok(mut child) => {
+                let data_len = data.len();
+                
+                if let Some(mut stdin) = child.stdin.take() {
+                    let _ = stdin.write_all(data.as_bytes());
+                    let _ = stdin.flush();
+                }
+                
+                if wait {
                     match child.wait() {
                         Ok(exit_status) => {
                             self.application.get_log()
-                            .info( "Command executed successfully" )
-                            .prm( "command", command )
-                            .prm( "data_bytes", data_len )
-                            .prm( "exit_code", exit_status.code().unwrap_or(-1) );
+                                .info("Command executed successfully")
+                                .prm("command", command)
+                                .prm("data_bytes", data_len)
+                                .prm("exit_code", exit_status.code().unwrap_or(-1));
                         }
                         Err(e) => {
                             self.application.get_log()
@@ -1002,18 +1224,91 @@ impl Ai
                                 .prm("error", &e.to_string());
                         }
                     }
-                }
-                Err(e) => 
-                {
+                } else {
+                    // Не ждём, просто логируем запуск
                     self.application.get_log()
-                        .error("Failed to execute command")
+                        .info("Command spawned (no wait)")
                         .prm("command", command)
-                        .prm("data_bytes", data.len())
-                        .prm("error", &e.to_string());
-                    println!("{}", data);
-                }            
+                        .prm("data_bytes", data_len);
+                    
+                    // Открепляем child, чтобы не ждать
+                    std::thread::spawn(move || {
+                        let _ = child.wait();
+                    });
+                }
+            }
+            Err(e) => {
+                self.application.get_log()
+                    .error("Failed to execute command")
+                    .prm("command", command)
+                    .prm("data_bytes", data.len())
+                    .prm("error", &e.to_string());
+                println!("{}", data);
             }
         }
+    }
+
+
+
+    pub fn handle_chat_response
+    (
+        &mut self,
+        response: &ChatResponse
+    )
+    {
+        /* Write to history if has content */
+        if !response.message.is_empty() || !response.command.is_empty() {
+            self.write_history(
+                "@AI",
+                &format!("{}\n{}\n\n", response.message, response.command)
+            );
+        }
+
+        /* Output message via destination */
+        if !response.message.is_empty() 
+        {
+            self.run_destination(&response.message, "message" );
+        }
+
+        /* Execute command via destination */
+        if !response.command.is_empty()
+        {
+            /* 
+                REMOVE_ENTER: CRITICAL SECURITY LAYER
+                
+                Removes newline and carriage return characters from LLM-generated command.
+                Prevents command injection via line breaks that could:
+                1. Terminate the current command
+                2. Inject arbitrary new commands
+                3. Execute hidden malicious code
+                
+                The cleaned command remains as a single line.
+                Only newline/carriage return are removed - all other characters (&&, |, ;, $, `, etc.)
+                are preserved as legitimate command syntax.
+                
+                This is a PROOF of security awareness - intentional design, not a bug.
+            */
+            let clean_command = response.command.replace('\n', " ").replace('\r', "");
+            self.run_destination( &clean_command, "command" );
+        }
+
+        /* Write buffer via destination */
+        if !response.buffer.is_empty()
+        {
+            self.run_destination(&response.buffer, "buffer" );
+        }
+
+        /* Save memory */
+        if !response.memory.is_empty()
+        {
+            self.write_memory(&response.memory);
+        }
+
+        /* Log token usage */
+        self.application.get_log()
+        .trace("Token usage")
+        .prm("prompt_tokens", response.prompt_tokens)
+        .prm("answer_tokens", response.answer_tokens);
     }
 
 
@@ -1083,324 +1378,138 @@ impl Ai
     }
 
 
+    /**************************************************************************
+        Memory
+    */
 
+    /*
+        Return memory file path for current chat
+        Supports %profile% and %chat% placeholders
+        Default: ~/.local/share/ai/%profile%/memory/%chat%.txt
+    */
+    fn get_memory_file(&self) -> String
+    {
+        let path = self.application.config
+            .as_ref()
+            .and_then(|cfg| cfg["application"]["ai"]["memory"].as_str())
+            .unwrap_or("~/.local/share/ai/%profile%/memory/%chat%.txt")
+            .to_string()
+            .replace("%profile%", &self.get_profile())
+            .replace("%chat%", &self.get_chat_id());
+        
+        expand_path(&path)
+    } 
+
+
+    /*
+        Clear memory file for current chat
+    */
+    fn clear_memory(&mut self) -> &mut Self
+    {
+        let path = self.get_memory_file();
+        
+        match std::fs::write(&path, "") {
+            Ok(_) => {
+                self.application.get_log()
+                    .info("Memory cleared")
+                    .prm("path", &path);
+            }
+            Err(e) => {
+                self.application.get_log()
+                    .warning("Failed to clear memory")
+                    .prm("path", &path)
+                    .prm("error", &e.to_string());
+            }
+        }
+        
+        self
+    }
+
+
+
+    /*
+        Write memory
+    */
+    fn write_memory
+    (
+        &mut self, text: &str
+    )
+    {
+        let memory_path = self.get_memory_file();
+
+        // Create parent directory
+        if let Err(e) = ensure_directory(&memory_path)
+        {
+            self.application.get_log()
+                .error("Failed to ensure memory directory")
+                .prm("error", &e);
+            return;
+        }
+
+        use std::fs::OpenOptions;
+        use std::io::Write;
+
+        let line = format!("@FACT\n{}\n\n", text);
+
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&memory_path)
+        {
+            let _ = file.write_all(line.as_bytes());
+        }
+    }
+
+
+
+    /*
+        Read memory for current chat
+    */
+    fn read_memory(&self) -> String
+    {
+        let memory_path = self.get_memory_file();
+        
+        match std::fs::read_to_string(&memory_path)
+        {
+            Ok(content) => content,
+            Err(_) => String::new(),
+        }
+    }
+
+
+
+    fn show_memory( &mut self )
+    -> &mut Self 
+    {
+        let memory = self.read_memory();
+        if memory.is_empty() 
+        {
+            println!( "No memory" );
+        } 
+        else
+        {
+            println!( "{}", memory );
+        }
+        self
+    }
+
+ 
+ 
     /**************************************************************************
         Providers methods
     */
 
-    /* 
-        GitHub AI request
-    */
-    fn request_github
-    (
-        &mut self,
-        /* Model id */
-        model: &str,
-        /* Prompt */
-        prompt: &str
-    ) -> String
-    {
-        let api = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["params"]["api"].as_str())
-            .unwrap_or( "https://models.github.ai/inference/chat/completions" )
-            .to_string();
-
-        /* Retrive token */
-        let token_path = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["params"]["token"].as_str())
-            .map(|s| expand_path(s).replace("%profile%", &self.get_profile()))
-            .unwrap_or_else(|| "".to_string());
-
-        let token = if let Ok(content) = std::fs::read_to_string(token_path)
-        {
-            content.trim().to_string()
-        }
-        else
-        {
-            String::new()
-        };
-
-        /* Build reqwest client with proxy from config */
-        let mut client_builder = reqwest::blocking::Client::builder();
-
-        if let Some( proxy_url ) = self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg["application"]["ai"]["proxy"].as_str())
-        {
-            if let Ok(proxy) = reqwest::Proxy::all(proxy_url)
-            {
-                client_builder = client_builder.proxy(proxy);
-            }
-        }
-
-        let client = client_builder.build().unwrap();
-
-
-        let payload = serde_json::json!
-        (
-            {
-                "messages": [{ "role": "user", "content": prompt }],
-                "model": model
-            }
-        );
-
-        let response = client.post(&api)
-            .bearer_auth(&token)
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send();
-
-        if let Ok( resp ) = &response
-        {
-            self.application.get_log().begin( "GitHub response headers" );
-            for( name, value ) in resp.headers().iter()
-            {
-                self.application.get_log()
-                    .trace("")
-                    .prm(name.as_str(), value.to_str().unwrap_or("N/A"));
-            }
-
-            self.application.get_log().end("");
-        }
-
-        match response
-        {
-            Ok( resp ) =>
-            {
-                resp.text().unwrap_or_default()
-            }
-            Err( e ) =>
-            {
-                println!
-                (
-                    "{}{} {}{}",
-                    Color::Red.to_str(),
-                    "GitHub API error",
-                    &e.to_string(),
-                    Color::Default.to_str()
-                );
-                self.application.get_log()
-                .error("GitHub API error")
-                .prm("error", &e.to_string());
-                String::new()
-            }
-        }
-    }
-
-
-
     /*
-        Github AI response
+        Return history chat delimiter
     */
-    fn answer_github
-    (
-        &mut self,
-        /* Model */
-        _model: &str,
-        /* String with response after request_github */
-        response: &str
-    )
-    ->
-    (
-        /* In for tty input */
-        String,
-        /* Out for stdout */
-        String,
-        /* Buffers content */
-        String,
-        /* Prompt tokens count */
-        u64,
-        /* Completion tokens count */
-        u64
-    )
+    pub fn get_history_delimiter( &self ) 
+    -> &'static str
     {
-        let mut out_msg = response.to_string();
-        let mut command = String::new();
-        let mut buffer = String::new();
-        let mut prompt_tokens = 0;
-        let mut completion_tokens = 0;
-
-        /* Remove think section if exists */
-        let response_clean = Regex::new( r"(?s)<think>.*?</think>" )
-        .unwrap()
-        .replace_all(&response, "")
-        .to_string();
-
-        /* Get json */
-        match serde_json::from_str::<serde_json::Value>( &response_clean )
-        {
-            Err( e ) =>
-            {
-                out_msg = response.to_string();
-                self.application.get_log()
-                .error( "Failed to parse GitHub response" )
-                .prm( "error", &e.to_string() );
-            }
-            Ok( json ) =>
-            {
-                /* Retrive content */
-                let content = json[ "choices" ][ 0 ][ "message" ][ "content" ]
-                .as_str().unwrap_or( "" );
-
-                /* Join all lines */
-                let content = content
-                    .lines()
-                    .map(|l| l.trim())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-
-                /* Extract json source */
-                let content = content
-                    .trim()
-                    .trim_start_matches("```json")
-                    .trim_start_matches("```")
-                    .trim_end_matches("```");
-            
-                /* Retrive tokens count */
-                prompt_tokens = json[ "usage" ][ "prompt_tokens" ]
-                .as_u64()
-                .unwrap_or(0);
-
-                completion_tokens = json[ "usage" ][ "completion_tokens" ]
-                .as_u64()
-                .unwrap_or(0);
-
-                match serde_json::from_str::<serde_json::Value>( content )
-                {
-                    Ok( ai_json ) =>
-                    {
-                        out_msg = ai_json[ "out" ].as_str().unwrap_or(&out_msg).to_string().replace("\\n", "\n");
-                        command = ai_json[ "command" ].as_str().unwrap_or("").to_string();
-                        buffer = ai_json[ "buffer" ].as_str().unwrap_or("").to_string().replace("\\n", "\n");
-                    }
-                    Err( _ ) =>
-                    {
-                        /* If JSON parsing fails, return raw content as out_msg */
-                        out_msg = if content.trim().is_empty() 
-                        {
-                            response.to_string()
-                        }
-                        else
-                        {
-                            content.to_string()
-                        };
-                    }           
-                }
-            }
-        }
-
-        (command, out_msg, buffer, prompt_tokens, completion_tokens )
+        "=AIOL9B1MZX="
     }
 
 
 
-    /* 
-        OpenAI AI request
-    */
-    fn request_openai(&mut self, model: &str, prompt: &str) -> String
-    {
-        // TODO: implement
-        format!("{} {}", model, prompt)
-    }
-
-    /*
-        OpenAI AI response
-    */
-    fn answer_openai(&mut self, response: &str) -> (String, String, String, u64, u64)
-    {
-        // TODO: implement
-        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
-    }
-
-    /* 
-        DeepSeek AI request (OpenAI-compatible)
-    */
-    fn request_deepseek(&mut self, model: &str, prompt: &str) -> String
-    {
-        // TODO: implement
-        format!("{} {}", model, prompt)
-    }
-
-    /*
-        DeepSeek AI response
-    */
-    fn answer_deepseek(&mut self, response: &str) -> (String, String, String, u64, u64)
-    {
-        // TODO: implement
-        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
-    }
-
-    /* 
-        Groq AI request (OpenAI-compatible)
-    */
-    fn request_groq(&mut self, model: &str, prompt: &str) -> String
-    {
-        // TODO: implement
-        format!("{} {}", model, prompt)
-    }
-
-    /*
-        Groq AI response
-    */
-    fn answer_groq(&mut self, response: &str) -> (String, String, String, u64, u64)
-    {
-        // TODO: implement
-        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
-    }
-
-    /* 
-        Together AI request (OpenAI-compatible)
-    */
-    fn request_together(&mut self, model: &str, prompt: &str) -> String
-    {
-        // TODO: implement
-        format!("{} {}", model, prompt)
-    }
-
-    /*
-        Together AI response
-    */
-    fn answer_together(&mut self, response: &str) -> (String, String, String, u64, u64)
-    {
-        // TODO: implement
-        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
-    }
-
-    /* 
-        Local Ollama request
-    */
-    fn request_local(&mut self, model: &str, prompt: &str) -> String 
-    {
-        // TODO: implement
-        format!("{} {}", model, prompt)
-    }
-
-    /*
-        Local Ollama response
-    */
-    fn answer_local(&mut self, response: &str) -> (String, String, String, u64, u64) 
-    {
-        // TODO: implement
-        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
-    }
-
-    /* 
-        Anthropic Claude request
-    */
-    fn request_anthropic(&mut self, model: &str, prompt: &str) -> String 
-    {
-        // TODO: implement
-        format!("{} {}", model, prompt)
-    }
-
-    /*
-        Anthropic Claude response
-    */
-    fn answer_anthropic(&mut self, response: &str) -> (String, String, String, u64, u64) 
-    {
-        // TODO: implement
-        (String::new(), format!("{}{}", UNIMPLEMENTED, response), String::new(), 0, 0)
-    }
 }
+
+

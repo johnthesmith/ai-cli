@@ -6,29 +6,72 @@ application:
     enabled: true
   # AI application
   ai:
-    # Provider id 
-    #  supported
-    #    github
-    provider: github
-    # Prompt template file
-    prompt: ~/.config/ai/%profile%/prompt.txt
+    # Providers file
+    provider_file: ~/.config/ai/%profile%/provider.txt
     # Chat file. This chat contins chat id
     chat-file: ~/.local/share/ai/%profile%/chat.txt
     # History file
     history: ~/.local/share/ai/%profile%/history/
     # Buffer path
     buffers: ~/.local/share/ai/%profile%/buffer
-    params:
-      api: https://models.github.ai/inference/chat/completions
-      # deepseek/deepseek-v3-0324
-      # deepseek/deepseek-r1-0528
-      # openai/gpt-4.1
-      # openai/gpt-4.1-mini
-      model: openai/gpt-4.1
-      token: ~/.config/ai/%profile%/token.txt
+    # Memory file for long store data
+    memory: ~/.local/share/ai/%profile%/memory/%chat%.txt
 
-    # Optional proxy settings
-    # proxy: socks5://127.0.0.1:1080
+    # AI promts
+    # Placeholders %provile% %provider% %model%
+    prompts:
+      chat: ~/.config/ai/%profile%/prompts/chat.txt
+      summary: ~/.config/ai/%profile%/prompts/summary.txt
+
+    # AI Providers configuration
+    #    api: ling for api
+    #    token: token file
+    #    model: model id
+    #    proxy: proxy for provider
+    #    prompt: promt template file for provider
+    providers:
+      github:
+        api: https://models.github.ai/inference/chat/completions
+        proxy: socks5://127.0.0.1:1080
+        token: ~/.config/ai/%profile%/tokens/github.txt
+        model: ~/.config/ai/%profile%/models/github.txt
+        models:
+        - openai/gpt-4.1
+      openai:
+        api: https://api.openai.com/v1/chat/completions
+        proxy: socks5://127.0.0.1:1080
+        token: ~/.config/ai/%profile%/tokens/openai.txt
+        model: ~/.config/ai/%profile%/models/openai.txt
+        models:
+        - gpt-4.1
+      deepseek:
+        api: https://api.deepseek.com/v1/chat/completions
+        proxy: socks5://127.0.0.1:1080
+        token: ~/.config/ai/%profile%/tokens/deepseek.txt
+        model: ~/.config/ai/%profile%/models/deepseek.txt
+        models:
+        - deepseek-chat
+      groq:
+        api: https://api.groq.com/openai/v1/chat/completions
+        proxy: socks5://127.0.0.1:1080
+        token: ~/.config/ai/%profile%/tokens/groq.txt
+        model: ~/.config/ai/%profile%/models/groq.txt
+        models:
+         - mixtral-8x7b-32768
+      together:
+        api: https://api.together.xyz/v1/chat/completions
+        proxy: socks5://127.0.0.1:1080
+        token: ~/.config/ai/%profile%/tokens/together.txt
+        model: ~/.config/ai/%profile%/models/together.txt
+        models:
+        - meta-llama/Llama-3.3-70B-Instruct-Turbo
+      anthropic:
+        api: https://api.anthropic.com/v1/messages
+        proxy: socks5://127.0.0.1:1080
+        token: ~/.config/ai/%profile%/tokens/anthropic.txt
+        model: ~/.config/ai/%profile%/models/anthropic.txt
+        models:
+        - claude-3-5-sonnet-20241022
 
     # Output destinations for AI response fields (command, out, buffer)
     # Recommended to use only:
@@ -40,33 +83,33 @@ application:
     #
     # Examples:
     #
-    # TTY input (inject into terminal for user input emuulation):
-    #  `xdotool type --clearmodifiers --file -`   X11
-    #  `ydotool type --file -`                    Wayland
-    #  `ai --tiocsti`                             for ssh
-    #     Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels.
-    #     Disabled by default due to security risks 
-    #     Only use in trusted environments.
+    #   Stdout
+    #     All:        `cat && echo`
     #
-    # Clipboard:
-    #  `xclip -selection clipboard"               X11
-    #  `wl-copy`                                  Wayland
-    #  `pbcopy`                                   macOS
+    #   TTY input (inject into terminal for user input emuulation):
+    #    X11:         `xdotool type --clearmodifiers --file -`   
+    #    Wayland:     `ydotool type --file -`
+    #    macOS:       `osascript -e 'tell app \"System Events\" to keystroke (do shell script \"cat\")'`
+    #    Linux tty:   `ai --tiocsti`
+    #      Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels.
+    #      Disabled by default due to security risks 
+    #      Only use in trusted environments.
     #
-    # File output:
-    #  `cat && echo`
-    #  `ai --write-buffer`
+    #   Clipboard:
+    #     X11:        `xclip -selection clipboard`
+    #     Wayland:    `wl-copy`                                  
+    #     macOS:      `pbcopy`
     #
-    # Multiple actions (using tee):
-    #  `tee >(ai --write-buffer) | xclip -selection clipboard`
+    #   File output:
+    #     Write:      `cat > ~/file.txt`
+    #     Append:     `cat >> ~/file.log`
+    #
+    #   Buffer (file + stdout):
+    #     All:        `ai --write-buffer`
     destination:
-      # Pipeline for command processing
-      command: "xdotool type --clearmodifiers --file -"
+      # Сommand processing
+      command: "sleep 0.3 && xdotool type --clearmodifiers --delay 10 --file -"
       # Pipeline for information out processing
-      out: "cat && echo"
+      message: "cat && echo"
       # Pipeline for buffer processing
-      buffer: "tee >(ai --write-buffer) | xclip -selection clipboard"
-
-
-
-
+      buffer: "ai --write-buffer | xclip -selection clipboard"
