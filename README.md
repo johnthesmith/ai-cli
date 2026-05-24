@@ -136,12 +136,14 @@ wget -qO- https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh 
 8. Put your github token here `~/.config/local/ai/default/token.txt`
 
 
-
 # Run
 
 ```bash
 1 your question
 ```
+Full configuration – see 
+[config/config.yaml](https://github.com/johnthesmith/ai-cli/blob/main/config/config.yaml) 
+for all providers, prompts, and output destinations.
 
 
 ## Usage options
