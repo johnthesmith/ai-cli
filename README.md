@@ -29,15 +29,16 @@
 flowchart LR    
     gate{+}
     
+    keyboard[ keyboard \n input ]
     stdout
     buffer[file & clipboard] 
     memory
-    keyboard[ keyboard \n input ]
     bash{{ run bush \n command}}
+
 
     user((users \n 'enter'))
     keyboard --> user --> bash
-    stdin --> ai --> gate--> stdout & memory & keyboard & buffer
+    stdin --> ai --> gate--> keyboard & stdout & memory & buffer
 ```
 
 ```
