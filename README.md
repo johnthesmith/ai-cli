@@ -49,9 +49,7 @@ Here are the files and directories in the current directory:
 user@comp:~$ ls -la
 ```
 
-"Would you press enter?"
-
-or You can literaly:
+Would you press Enter, or try something else?
 
 ```
 echo "hello world" | ai "say it for groq" --provider=openai | ai "grok"
