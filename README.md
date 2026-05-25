@@ -195,6 +195,8 @@ confirm.
 - Recursive `ai|ai` pipelines may cause the tool to hang, but **cannot execute 
 commands without your approval** — AI never presses Enter for you.
 
+
+
 ## Recommendations
 
 1. Run with minimal privileges (avoid `sudo` unless absolutely necessary).
