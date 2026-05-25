@@ -1,10 +1,12 @@
-use crate::Ai;
-use crate::ai::response::{ ChatResponse };
-use super::api::{get_api_url, get_token};
-use core::Color;
-use super::Provider;
 use regex::Regex;
 use reqwest::blocking::Response;
+
+use core::Color;
+
+use crate::Ai;
+use crate::ai::response:: ChatResponse;
+use super::api::{get_api_url, get_token};
+use super::Provider;
 
 
 
@@ -45,13 +47,15 @@ impl<'a> OpenAICompatibleProvider<'a>
 
 
 
-    fn create_client(&self)
+    fn create_client( &self )
     -> reqwest::blocking::Client
     {
         let mut builder = reqwest::blocking::Client::builder();       
         let proxy_url = self.ai.read_proxy();
-        if !proxy_url.is_empty() {
-            if let Ok(proxy) = reqwest::Proxy::all(&proxy_url) {
+        if !proxy_url.is_empty() 
+        {
+            if let Ok(proxy) = reqwest::Proxy::all(&proxy_url) 
+            {
                 builder = builder.proxy(proxy);
             }
         }
@@ -111,29 +115,29 @@ impl<'a> OpenAICompatibleProvider<'a>
             {
                 /* Retrieve content */
                 let content = json
-                    .get( "choices" )
-                    .and_then( |c| c.get( 0 ) )
-                    .and_then( |c| c.get( "message" ) )
-                    .and_then( |m| m.get( "content" ) )
-                    .and_then( |v| v.as_str() )
-                    .unwrap_or( "" )
-                    .lines()
-                    .map( |l| l.trim() )
-                    .collect::<Vec<_>>()
-                    .join( " " );
+                .get( "choices" )
+                .and_then( |c| c.get( 0 ) )
+                .and_then( |c| c.get( "message" ) )
+                .and_then( |m| m.get( "content" ) )
+                .and_then( |v| v.as_str() )
+                .unwrap_or( "" )
+                .lines()
+                .map( |l| l.trim() )
+                .collect::<Vec<_>>()
+                .join( " " );
 
                 /* Retrieve tokens */
                 let prompt_tokens = json
-                    .get( "usage" )
-                    .and_then( |u| u.get( "prompt_tokens" ) )
-                    .and_then( |v| v.as_u64() )
-                    .unwrap_or( 0 );
+                .get( "usage" )
+                .and_then( |u| u.get( "prompt_tokens" ) )
+                .and_then( |v| v.as_u64() )
+                .unwrap_or( 0 );
 
                 let completion_tokens = json
-                    .get( "usage" )
-                    .and_then( |u| u.get( "completion_tokens" ) )
-                    .and_then( |v| v.as_u64() )
-                    .unwrap_or( 0 );
+                .get( "usage" )
+                .and_then( |u| u.get( "completion_tokens" ) )
+                .and_then( |v| v.as_u64() )
+                .unwrap_or( 0 );
 
                 ( think, content, prompt_tokens, completion_tokens, true )
             }
@@ -169,7 +173,8 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
     /*
         Return provider name identifier.
     */
-    fn get_name( &self ) -> &str
+    fn get_name( &self ) 
+    -> &str
     {
         &self.name
     }
@@ -258,7 +263,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     match serde_json::from_str::<serde_json::Value>( &chat_response.message )
                     {
                         Ok( ai_json ) =>
-                       {
+                        {
                             chat_response.command = ai_json[ "command" ]
                             .as_str()
                             .unwrap_or( "" )
@@ -280,7 +285,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                             .as_str()
                             .unwrap_or( "" )
                             .to_string()
-                            .replace("\\n", "\n");
+                            .replace( "\\n", "\n" );
 
                             chat_response.clipboard = ai_json[ "clipboard" ]
                             .as_str()
@@ -293,14 +298,19 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                         }
                     }
                 }
-
                 self.ai.handle_chat_response( &chat_response );
-
             }
             Err( e ) =>
             {
                 /* event */
-                self.ai.on_after_response( &e.to_string(), &self.name, &model, &api_url, "chat" );
+                self.ai.on_after_response
+                (
+                    &e.to_string(), 
+                    &self.name, 
+                    &model, 
+                    &api_url, 
+                    "chat"
+                );
 
                 println!
                 (
@@ -310,6 +320,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     &e.to_string(),
                     Color::Default.to_str()
                 );
+
                 let provider_name = self.get_name().to_string();
                 let proxy = self.ai.read_proxy();
                 self.ai.application.get_log()
@@ -322,7 +333,6 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
             }
         }      
     }
-
 
 
 
@@ -353,7 +363,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         }
 
         /* Calculate split point based on percent (0-100) */
-        let percent = percent.clamp(0, 100);
+        let percent = percent.clamp( 0, 100 );
         let split_point = (blocks.len() as f64 * (percent as f64 / 100.0)).round() as usize;
         let split_point = split_point.max(1).min(blocks.len() - 1);
 
@@ -373,17 +383,25 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         let client = self.create_client();
 
         /* Trigger before request event */
-        self.ai.on_before_request( &prompt, &self.name, &model, &api_url, "summary" );
+        self.ai.on_before_request
+        (
+            &prompt, 
+            &self.name, 
+            &model, 
+            &api_url, 
+            "summary"
+        );
 
-        let payload = serde_json::json!({
+        let payload = serde_json::json!
+        ({
             "messages": [{ "role": "user", "content": prompt }],
             "model": model
         });
 
         let response = client.post(&api_url)
-            .bearer_auth(&token)
-            .json(&payload)
-            .send();
+        .bearer_auth(&token)
+        .json(&payload)
+        .send();
 
         match response
         {
@@ -419,7 +437,14 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
             }
             Err(e) =>
             {
-                self.ai.on_after_response( &e.to_string(), &self.name, &model, &api_url, "summary" );
+                self.ai.on_after_response
+                (
+                    &e.to_string(), 
+                    &self.name, 
+                    &model, 
+                    &api_url, 
+                    "summary"
+                );
                 self.ai.application.get_log()
                     .error( "Summary request failed" )
                     .prm( "error", &e.to_string() );

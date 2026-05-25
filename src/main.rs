@@ -3,7 +3,6 @@
     SPDX-FileCopyrightText: 2026 Still Swamp
 */
 
-
 /*
     Main entry point for AI CLI utility.
 

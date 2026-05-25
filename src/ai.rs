@@ -13,7 +13,9 @@ mod providers;
 #[path = "response.rs"]
 mod response;
 
+use core::Moment;
 use core::{ expand_path, ensure_directory };
+
 use serde_json;
 use core::State;
 use core::Application;
@@ -21,7 +23,7 @@ use std::io::Read;
 use std::io::Write;
 use std::io::IsTerminal;
 use crate::ai::response::ChatResponse;
-use core::Moment;
+
 
 /*
     Ai applicatoin
@@ -274,14 +276,17 @@ impl Ai
                 let mut input = String::new();
                 match std::io::stdin().read_to_string(&mut input)
                 {
-                    Ok(0) => {
+                    Ok( 0 ) => 
+                    {
                         self.application.get_log()
                             .warning("tiocsti: stdin is empty");
                     }
-                    Ok(_) => {
-                        self.input_tiocsti(&input);
+                    Ok(_) =>
+                    {
+                        self.input_tiocsti( &input );
                     }
-                    Err(e) => {
+                    Err( e ) =>
+                    {
                         self.application.get_log()
                             .error("tiocsti: failed to read stdin")
                             .prm("error", &e.to_string());
@@ -404,7 +409,6 @@ impl Ai
         .replace( "%provider%", &self.get_provider() )
         .replace( "%model%", &model )
     }
-
 
 
  
@@ -538,7 +542,11 @@ impl Ai
         .replace( "%user-prompt%", input )
         .replace( "%chat%", &self.get_chat_id() )
         .replace( "%history-delimiter%", &self.get_history_delimiter() )
-        .replace( "%now%", &Moment::create().now().format("%Y-%m-%d %H:%M:%S") );
+        .replace
+        (
+            "%now%", 
+            &Moment::create().now().format( "%Y-%m-%d %H:%M:%S" )
+        );
 
         result
     }
