@@ -30,9 +30,7 @@ COMPLETION_OPTIONS+=' --tiocsti'
 COMPLETION_LINE="complete -W \"$COMPLETION_OPTIONS\" 1"
 COMPLETION_LINE_AI="complete -W \"$COMPLETION_OPTIONS\" ai"
 
-# ============================================
 # Helper functions
-# ============================================
 info() {
     echo "[INFO] $1"
 }
@@ -45,10 +43,7 @@ warn() {
     echo "[WARN] $1"
 }
 
-# ============================================
 # Main installation script
-# ============================================
-
 # Clone repository
 if [[ -d "$CLONE_DIR" ]]; then
     warn "Directory $CLONE_DIR already exists. Removing..."
@@ -145,10 +140,13 @@ rm -rf "$CLONE_DIR"
 
 info "Installation complete!"
 echo ""
-echo "==================================================="
 echo "Next steps:"
 echo "1. Reload bash or run: source ~/.bashrc"
-echo "2. Test the installation: 1 --help"
-echo "==================================================="
+echo "2. Set up GitHub token (see README for instructions):"
+echo "   - Go to https://github.com/settings/personal-access-tokens"
+echo "   - Create a fine-grained token with access to public repositories"
+echo "     and 'Models' -> 'Read-only' permission"
+echo "   - Save the token to file: $CONFIG_DIR/tokens/<provider>.txt"
+echo "3. Test the installation: 1 --help"
 
 exit 0
