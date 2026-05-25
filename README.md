@@ -30,11 +30,11 @@
 ```mermaid
 flowchart LR    
     keyboard[ keyboard \n input ]
-    stdout
+    stdout{{ai-cli}}
     buffer[buffer file] 
     clipboard
     memory
-    ai[ai-cli]
+    ai{{ai-cli}}
     bash{{ run bush \n command}}
 
 
