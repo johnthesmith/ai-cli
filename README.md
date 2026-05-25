@@ -37,8 +37,8 @@ flowchart LR
     memory[(memory)]
     ai[ai-cli] 
     bash{{run bash \n command}}
+    user((users \n 'ENTER'))
 
-    user((users \n 'enter'))
     keyboard --> user --> bash
     stdin --> ai --> keyboard & stdout & memory & buffer & clipboard
 ```
