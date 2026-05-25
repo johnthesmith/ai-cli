@@ -32,7 +32,7 @@ flowchart LR
     keyboard[ keyboard \n input ]
     stdout{{stdout}}
     stdin{{stdin}}
-    clipboard{{stdin}}
+    clipboard{{clipboard}}
     buffer[(buffer \n file)] 
     memory[(memory)]
     ai[ai-cli] 
