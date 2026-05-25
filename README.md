@@ -29,8 +29,6 @@
 
 ```mermaid
 flowchart LR    
-    gate{+}
-    
     keyboard[ keyboard \n input ]
     stdout
     buffer[buffer file] 
@@ -41,7 +39,7 @@ flowchart LR
 
     user((users \n 'enter'))
     keyboard --> user --> bash
-    stdin --> ai --> gate--> keyboard & stdout & memory & buffer & clipboard
+    stdin --> ai --> keyboard & stdout & memory & buffer & clipboard
 ```
 
 ```
