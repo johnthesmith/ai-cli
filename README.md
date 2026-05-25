@@ -119,7 +119,7 @@ using this tool at your own risk.
 ```
 curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh | bash
 ```
-
+2. Binary files: https://github.com/johnthesmith/ai-cli/releases/tag/v0.1.2
 
 
 # Build
