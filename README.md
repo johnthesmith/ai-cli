@@ -32,12 +32,11 @@ flowchart LR
     keyboard[ keyboard \n input ]
     stdout{{stdout}}
     stdin{{stdin}}
-    buffer[buffer file] 
-    clipboard
-    memory
-    ai[ai-cli]
-    bash{{ run bush \n command}}
-
+    clipboard{{stdin}}
+    buffer[(buffer \n file)] 
+    memory[(memory)]
+    ai[ai-cli] 
+    bash{{run bash \n command}}
 
     user((users \n 'enter'))
     keyboard --> user --> bash
