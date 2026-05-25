@@ -115,16 +115,18 @@ impl<'a> OpenAICompatibleProvider<'a>
             {
                 /* Retrieve content */
                 let content = json
-                .get( "choices" )
-                .and_then( |c| c.get( 0 ) )
-                .and_then( |c| c.get( "message" ) )
-                .and_then( |m| m.get( "content" ) )
-                .and_then( |v| v.as_str() )
-                .unwrap_or( "" )
-                .lines()
-                .map( |l| l.trim() )
-                .collect::<Vec<_>>()
-                .join( " " );
+                .get("choices")
+                .and_then(|c| c.get(0))
+                .and_then(|c| c.get("message"))
+                .and_then(|m| m.get("content"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .trim_start_matches("```json")
+                .trim_start_matches("```")
+                .trim_end_matches("```")
+                .trim()
+                .to_string();
 
                 /* Retrieve tokens */
                 let prompt_tokens = json
