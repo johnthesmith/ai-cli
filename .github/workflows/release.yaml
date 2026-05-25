@@ -35,10 +35,14 @@ jobs:
 
       - run: cargo build --release --target ${{ matrix.target }}
 
+      - name: Sleep for 5 seconds
+        run: sleep 5
+        shell: bash
+
       - name: Upload binary to release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           files: |
             target/${{ matrix.target }}/release/ai${{ matrix.extension }}
-          allow_updates: true
+
