@@ -183,35 +183,6 @@ in the prompt file:
 
 
 
-## Field Summary
-
-| Field     | Type      | Purpose |
-|-|-|-|
-| `out`     | `string`  | Human-readable response to user (STDOUT) |
-| `command` | `string`  | Bash command for terminal (optional) |
-| `buffer`  | `string`  | Data/code, saved to file |
-
-## Main Rules
-
-- `out` — brief response, max 80 chars per line;
-- `command` — command is **NOT executed automatically**, only appears in input line. No `\n`, no code blocks;
-- `buffer` — for large data. Reference via `%buffer%`;
-- `| ai` — only for non-interactive commands with predictable output.
-
-
-
-## Response Example
-
-```json
-{
-  "out": "Listing files in current directory",
-  "command": "ls -la",
-  "buffer": ""
-}
-```
-
-
-
 # Security
 
 ⚠️  **IMPORTANT: This utility does NOT execute commands automatically.**
