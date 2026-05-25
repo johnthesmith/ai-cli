@@ -18,13 +18,13 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            extension: ""
+            name: ai-linux
           - target: x86_64-apple-darwin
             os: macos-latest
-            extension: ""
+            name: ai-macos-intel
           - target: aarch64-apple-darwin
             os: macos-latest
-            extension: ""
+            name: ai-macos-apple-silicon
 
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +35,9 @@ jobs:
 
       - run: cargo build --release --target ${{ matrix.target }}
 
+      - name: Rename binary
+        run: cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
+
       - name: Sleep for 5 seconds
         run: sleep 5
         shell: bash
@@ -44,5 +47,4 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: |
-            target/${{ matrix.target }}/release/ai${{ matrix.extension }}
-
+            ${{ matrix.name }}
