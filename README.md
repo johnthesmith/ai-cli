@@ -30,9 +30,9 @@
 ```mermaid
 flowchart LR    
     keyboard[ keyboard \n input ]
+    clipboard{{clipboard}}
     stdout{{stdout}}
     stdin{{stdin}}
-    clipboard{{clipboard}}
     buffer[(buffer \n file)] 
     memory[(memory)]
     ai[ai-cli] 
@@ -40,7 +40,7 @@ flowchart LR
     user((users \n 'ENTER'))
 
     keyboard --> user --> bash
-    stdin --> ai --> keyboard & stdout & memory & buffer & clipboard
+    stdin --> ai --> keyboard &  memory & buffer & clipboard & stdout
 ```
 
 ```
