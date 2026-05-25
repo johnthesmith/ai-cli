@@ -9,7 +9,9 @@
 * [How it works](#how-it-works)
 * [Why ai-cli](#why-ai-cli)
 * [Supported AI Providers](#supported-ai-providers)
-* [Build Instructions](#build-instructions)
+* [Liability](#liability)
+* [Build](#build)
+* [Configuration](#configuration)
 * [Run](#run)
 * [Security](#security)
 * [For developers](#for-developers)
@@ -54,6 +56,7 @@ Would you press Enter, or try something else?
 ```
 echo "hello world" | ai "say it for groq" --provider=openai | ai "grok"
 ```
+
 
 
 # Why `ai-cli`
@@ -110,30 +113,36 @@ using this tool at your own risk.
 
 
 
-# Installation
+# Build
 
-1. Linux (Ubuntu 20.04+ or Debian 11+) — or newer
+1. Requirements for building:
+    1. `linux` - (Ubuntu 20.04+, Debian 11+, or newer)
+    0. `git` - to clone the repository
+    0. `curl`
+    0. `build-essential`
+    0. `pkg-config`
+    0. `libssl-dev`
+2. Download and run instalation script:
 
 ```
-wget -qO- https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh | bash
+sudo apt install git curl build-essential pkg-config libssl-dev
+curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/build.sh > build.sh
+less build.sh
+chmod +x build.sh
+./build.sh
+source ~/.bashrc
 ```
 
 
 
-# GitHub Token Setup
+# Configuration
 
-1. Go to: https://github.com/settings/personal-access-tokens
-0. Click **Fine-grained token** 
-0. Click **Generate new token**
-0. Fill:
-   - **Token name**: `ai-cli`
-   - **Expiration**: 90 days
-   - **Resource owner**: your account
-0. **Repository access**: `Public Repositories (read-only)`
-0. Click **Permissions** → **Models** → `Read-only`
-0. Click **Generate token**
-0. **Copy token immediately** (shown only once)
-8. Put your github token here `~/.config/local/ai/default/token.txt`
+1. Default configuration located at 
+[config/config.yaml](https://github.com/johnthesmith/ai-cli/blob/main/config/config.yaml) 
+for all providers, prompts, and output destinations.
+2. This file must be located at `~/.config/ai/<profile>`.
+3. For Git token retrieval see [Git token](./man/git-toke.md).
+
 
 
 # Run
@@ -141,9 +150,6 @@ wget -qO- https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh 
 ```bash
 1 your question
 ```
-Full configuration – see 
-[config/config.yaml](https://github.com/johnthesmith/ai-cli/blob/main/config/config.yaml) 
-for all providers, prompts, and output destinations.
 
 
 ## Usage options
@@ -160,7 +166,7 @@ for all providers, prompts, and output destinations.
 --switch-chat=<id>          Switch to chat <id>, default id is default
 --show-history              Show history for current chat
 --clear-history             Remove history for current chat
---pack-history              Pack current chat history into summary
+--pack-history=<percent>    Pack current chat history with 0-100 percent (default: 50)
 --show-memory               Show memory for current chat
 --clear-memory              Remove memory for current chat (global if %chat% not used)
 --write-buffer              Write stdin to buffer file and forward to stdout
@@ -208,11 +214,11 @@ in the prompt file:
 
 # Security
 
-⚠️ **IMPORTANT: This utility does NOT execute commands automatically.**
+⚠️  **IMPORTANT: This utility does NOT execute commands automatically.**
 
 - Always review the command printed in your terminal before pressing Enter.
 - The AI may generate dangerous commands (e.g., `rm -rf /*`, `dd`, `sudo`).
-- **Never execute commands you don't understand or trust.**
+- Never execute commands you don't understand or trust.
 - This utility does NOT automatically execute commands — you must press Enter to 
 confirm.
 - Recursive `ai|ai` pipelines may cause the tool to hang, but **cannot execute 

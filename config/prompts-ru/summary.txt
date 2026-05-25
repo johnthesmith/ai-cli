@@ -29,5 +29,5 @@
 
 #HISTORY
 
-%history%
+%user-prompt%
 

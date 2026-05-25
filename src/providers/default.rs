@@ -45,7 +45,8 @@ impl<'a> OpenAICompatibleProvider<'a>
 
 
 
-    fn create_client(&self) -> reqwest::blocking::Client
+    fn create_client(&self)
+    -> reqwest::blocking::Client
     {
         let mut builder = reqwest::blocking::Client::builder();       
         let proxy_url = self.ai.read_proxy();
@@ -65,7 +66,14 @@ impl<'a> OpenAICompatibleProvider<'a>
         &mut self,
         raw: String
     )
-    -> ( String, String, u64, u64, bool )
+    ->
+    (
+        String, 
+        String, 
+        u64, 
+        u64, 
+        bool
+    )
     {
         let raw = raw.trim();
 
@@ -185,6 +193,9 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         let model = self.ai.read_model();
         let client = self.create_client();
 
+        /* Trigger before request event */
+        self.ai.on_before_request( &prompt, &self.name, &model, &api_url, "chat" );
+    
         /* Prepare request */
         let payload = serde_json::json!
         (
@@ -193,7 +204,6 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 "model": model
             }
         );
-
 
         /*
             Request
@@ -217,8 +227,8 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 /* Get full answer */             
                 let full_answer = resp.text().unwrap_or_default();
 
-                /* Dump full answer in to log */
-                self.ai.application.get_log().dump( "Full answer", &full_answer );
+                /* Event */
+                self.ai.on_after_response( &full_answer, &self.name, &model, &api_url, "chat");
 
                 /* Get openai fields*/
                 let
@@ -236,6 +246,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     message: content,
                     prompt_tokens,
                     answer_tokens,
+                    clipboard: String::new(),
                     command: String::new(),
                     buffer: String::new(),
                     memory: String::new()
@@ -270,6 +281,12 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                             .unwrap_or( "" )
                             .to_string()
                             .replace("\\n", "\n");
+
+                            chat_response.clipboard = ai_json[ "clipboard" ]
+                            .as_str()
+                            .unwrap_or( "" )
+                            .to_string()
+                            .replace("\\n", "\n");
                         }
                         Err( _ ) =>
                         {
@@ -282,55 +299,81 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
             }
             Err( e ) =>
             {
+                /* event */
+                self.ai.on_after_response( &e.to_string(), &self.name, &model, &api_url, "chat" );
+
                 println!
                 (
-                    "{}{} {}{}",
+                    "{}{}\n{}{}",
                     Color::Red.to_str(),
                     "API error",
                     &e.to_string(),
                     Color::Default.to_str()
                 );
                 let provider_name = self.get_name().to_string();
+                let proxy = self.ai.read_proxy();
                 self.ai.application.get_log()
                 .error( "API error" )
                 .prm( "error", &e.to_string() )
-                .prm( "provider", provider_name );
+                .prm( "provider", provider_name )
+                .prm( "api", api_url )
+                .prm( "proxy", proxy )
+                ;
             }
         }      
     }
 
 
 
+
     /*
         Send summarization request and parse response.
     */
-    fn summary( &mut self )
+    fn summary
+    (
+        &mut self,
+        percent: u64
+    )
     {
+        self.ai.application.get_log().begin( "summary" );
+
         let history = self.ai.get_history();
 
-        if history.is_empty() {
-            self.ai.application.get_log().info("No history to summarize");
+        if history.is_empty()
+        {
+            self.ai.application.get_log().info( "No history to summarize" );
             return;
         }
 
         let blocks: Vec<&str> = history.split(self.ai.get_history_delimiter()).collect();
-        if blocks.len() < 2 {
-            self.ai.application.get_log().info("Not enough blocks to summarize");
+        if blocks.len() < 2
+        {
+            self.ai.application.get_log().info( "Not enough blocks to summarize" );
             return;
         }
 
-        let mid = blocks.len() / 2;
-        let old_history = blocks[..mid].join(self.ai.get_history_delimiter());
-        let recent_history = blocks[mid..].join(self.ai.get_history_delimiter());
+        /* Calculate split point based on percent (0-100) */
+        let percent = percent.clamp(0, 100);
+        let split_point = (blocks.len() as f64 * (percent as f64 / 100.0)).round() as usize;
+        let split_point = split_point.max(1).min(blocks.len() - 1);
+
+        let old_history = blocks[..split_point].join(self.ai.get_history_delimiter());
+        let recent_history = blocks[split_point..].join(self.ai.get_history_delimiter());
+
+        let old_blocks = split_point;
+        let kept_blocks = blocks.len() - split_point;
 
         /* Build summary prompt */
-        let prompt = self.ai.build_prompt("summary", &old_history);
+        let prompt = self.ai.build_prompt( "summary", &old_history );
 
         /* Send request */
         let api_url = get_api_url(self.ai, &self.name);
         let token = get_token(self.ai);
         let model = self.ai.read_model();
         let client = self.create_client();
+
+        /* Trigger before request event */
+        self.ai.on_before_request( &prompt, &self.name, &model, &api_url, "summary" );
 
         let payload = serde_json::json!({
             "messages": [{ "role": "user", "content": prompt }],
@@ -346,26 +389,43 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         {
             Ok(resp) =>
             {
+                /* Get raw answer */
                 let raw_answer = resp.text().unwrap_or_default();
+
+                /* Event */
+                self.ai.on_after_response
+                (
+                    &raw_answer,
+                    &self.name,
+                    &model,
+                    &api_url,
+                    "summary"
+                );
+
                 let (think, summary, prompt_tokens, answer_tokens, success) =
-                self.parse_openai_response(raw_answer);
+                    self.parse_openai_response(raw_answer);
+
                 self.ai.handle_summary_response
                 (
-                    &summary, 
-                    &think, 
-                    &recent_history, 
-                    prompt_tokens, 
-                    answer_tokens, 
-                    success, 
-                    mid, 
-                    blocks.len() - mid
+                    &summary,
+                    &think,
+                    &recent_history,
+                    prompt_tokens,
+                    answer_tokens,
+                    success,
+                    old_blocks,
+                    kept_blocks
                 );
             }
-            Err(e) => {
+            Err(e) =>
+            {
+                self.ai.on_after_response( &e.to_string(), &self.name, &model, &api_url, "summary" );
                 self.ai.application.get_log()
-                    .error("Summary request failed")
-                    .prm("error", &e.to_string());
+                    .error( "Summary request failed" )
+                    .prm( "error", &e.to_string() );
             }
         }
+
+        self.ai.application.get_log().end( "" );
     }
 }

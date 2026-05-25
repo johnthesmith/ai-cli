@@ -36,7 +36,7 @@ set -euo pipefail
 
 # ============================================
 # Configuration constants
-1# ============================================
+# ============================================
 REPO_URL="https://github.com/johnthesmith/ai-cli.git"
 CLONE_DIR="$HOME/tmp/ai-cli-install"
 BIN_DIR="$HOME/.local/bin"
@@ -188,12 +188,10 @@ for file in "$CLONE_DIR/config/"*; do
     target="$CONFIG_DIR/$filename"
 
     if [[ -d "$file" ]]; then
-        # Для директорий: создаём и копируем внутрь рекурсивно
         if [[ ! -d "$target" ]]; then
             cp -r "$file" "$target"
             info "Created directory: $filename"
         else
-            # Копируем только отсутствующие файлы внутри поддиректории
             for subfile in "$file/"*; do
                 subfilename=$(basename "$subfile")
                 subtarget="$target/$subfilename"
@@ -204,7 +202,6 @@ for file in "$CLONE_DIR/config/"*; do
             done
         fi
     else
-        # Для файлов: копируем только если нет
         if [[ ! -f "$target" ]]; then
             cp "$file" "$target"
             info "Created: $filename"
@@ -218,6 +215,8 @@ info "Cleaning up temporary build files..."
 rm -rf "$CLONE_DIR"
 
 
+source ~/.bashrc
+
 
 # GitHub token setup info
 info "Installation complete!"
@@ -230,7 +229,7 @@ echo "   - Go to https://github.com/settings/personal-access-tokens"
 echo "   - Create a fine-grained token with access to public repositories"
 echo "     and 'Models' -> 'Read-only' permission"
 echo "   - Save the token to file: $CONFIG_DIR/token.txt"
-echo "3. Test the installation: 1 --show-info"
+echo "3. Test the installation: 1 --help"
 echo "==================================================="
 
 exit 0

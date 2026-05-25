@@ -19,8 +19,9 @@ use core::State;
 use core::Application;
 use std::io::Read;
 use std::io::Write;
+use std::io::IsTerminal;
 use crate::ai::response::ChatResponse;
-
+use core::Moment;
 
 /*
     Ai applicatoin
@@ -88,7 +89,7 @@ impl Ai
         println!( "  --switch-chat=<id>          Switch to chat <id>, default id is default" );
         println!( "  --show-history              Show history for current chat" );
         println!( "  --clear-history             Remove history for current chat" );
-        println!( "  --pack-history              Pack current chat history into summary" );
+        println!( "  --pack-history=<percent>    Pack current chat history with 0-100 percent (default: 50)" );
         println!( "  --show-memory               Show memory for current chat" );
         println!( "  --clear-memory              Remove memory for current chat (global if %chat% not used)" );
         println!( "  --write-buffer              Write stdin to buffer file and forward to stdout" );
@@ -312,14 +313,14 @@ impl Ai
             }
 
             /* Pack history */
-            if let Some(true) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["pack-history"].as_bool())
+            if let Some( level ) = self.application.config.as_ref()
+                .and_then(|cfg| cfg["pack-history"].as_u64())
             {
                 no_prompt = true;
                 
                 let provider_name = self.get_provider();
                 let mut provider = providers::create_provider(&provider_name, self);
-                provider.summary();
+                provider.summary( level );
             }
 
             /* Check dump-prompt flag */
@@ -435,43 +436,82 @@ impl Ai
 
 
     /*
-        Return user prompt from command line arguments (all non-flag arguments)
+        Return user prompt combining stdin pipe, CLI arguments, and interactive input.
+
+        Priority:
+        1. Stdin (pipe) content if available (even if empty)
+        2. CLI arguments (non-flag) appended after pipe content
+        3. Interactive input only when:
+           - No pipe present (stdin is terminal)
+           - No arguments provided
+           - Result is still empty
     */
-    fn get_user_prompt( &self ) -> String
+    fn get_user_prompt( &mut self )
+    -> String
     {
-        /* Collect all non-flag arguments */
-        let args: Vec<String> = std::env::args().skip(1)
-            .filter(|arg| !arg.starts_with('-'))
-            .collect();
-        
-        if !args.is_empty() 
-        {
-            return args.join(" ");
-        }
-
-        /* else from stdin */
-        use std::io::Read;
-        use std::io::IsTerminal;
-
-        let mut buffer = String::new();
+        let mut prompt = String::new();
         let mut stdin = std::io::stdin();
+        let is_pipe = !stdin.is_terminal();
 
-        /* Check if stdin is empty (no pipe) */
-        if stdin.is_terminal()
+        /* Read from pipe if stdin is not a terminal */
+        if is_pipe
         {
-            println!("Enter your prompt (Ctrl+D to finish or Ctrl+C to cancel):");
+            let mut buffer = String::new();
+            match stdin.read_to_string(&mut buffer)
+            {
+                Ok(0) => 
+                {
+                    /* Pipe exists but empty - do nothing, prompt stays empty */
+                }
+                Ok(_) => 
+                {
+                    prompt.push_str(buffer.trim());
+                }
+                Err(e) => 
+                {
+                    self.application.get_log()
+                        .error("Failed to read from stdin pipe")
+                        .prm("error", &e.to_string());
+                }
+            }
         }
 
-        if stdin.read_to_string(&mut buffer).unwrap_or(0) > 0
+        /*
+            Add CLI arguments (all non-flag arguments)
+            Append after pipe content if both exist
+        */
+        let args: Vec<String> = std::env::args().skip( 1 )
+            .filter( |arg| !arg.starts_with('-') )
+            .collect();
+
+        if !args.is_empty()
         {
-            println!();
-            buffer.trim().to_string()
+            if !prompt.is_empty()
+            {
+                prompt.push(' ');
+            }
+            prompt.push_str( &args.join( " " ));
         }
-        else
+
+        /*
+           3. Interactive input only when:
+              - No pipe (stdin is terminal)
+              - No arguments were provided
+              - Prompt is still empty
+        */
+        if !is_pipe && prompt.is_empty()
         {
+            println!( "Enter your prompt (Ctrl+D to finish or Ctrl+C to cancel):" );
+            
+            let mut interactive = String::new();
+            if stdin.read_to_string(&mut interactive).unwrap_or(0) > 0
+            {
+                prompt = interactive.trim().to_string();
+            }
             println!();
-            String::new()
         }
+
+        prompt
     }
 
 
@@ -489,12 +529,16 @@ impl Ai
     -> String 
     {
         let template = self.read_prompt( prompt_type );
-        
-        template
-            .replace("%chat%", &self.get_chat_id())
-            .replace("%history%", &self.get_history())
-            .replace("%memory%", &self.read_memory())
-            .replace("%user-prompt%", input)
+         
+        let result = template
+        .replace( "%history%", &self.get_history() )
+        .replace( "%memory%", &self.read_memory() )
+        .replace( "%user-prompt%", input )
+        .replace( "%chat%", &self.get_chat_id() )
+        .replace( "%history-delimiter%", &self.get_history_delimiter() )
+        .replace( "%now%", &Moment::create().now().format("%Y-%m-%d %H:%M:%S") );
+
+        result
     }
 
 
@@ -502,6 +546,19 @@ impl Ai
     /**************************************************************************
         History
     */
+
+
+    /*
+        Return history chat delimiter
+    */
+    pub fn get_history_delimiter( &self ) 
+    -> &'static str
+    {
+        "=AIOL9B1MZX="
+    }
+
+
+
 
     fn get_history_file_path(&mut self) -> String 
     {
@@ -519,7 +576,7 @@ impl Ai
 
 
 
-    fn get_history(&mut self) -> String 
+    fn get_history( &mut self ) -> String 
     {
         let history_path = self.get_history_file_path();       
         match std::fs::read_to_string(&history_path) 
@@ -544,7 +601,7 @@ impl Ai
         let history_path = self.get_history_file_path();
         
         // Создаём родительскую директорию
-        if let Err(e) = ensure_directory(&history_path)
+        if let Err(e) = ensure_directory( &history_path )
         {
             self.application.get_log()
             .error( "Failed to ensure history directory" )
@@ -555,15 +612,16 @@ impl Ai
         
         use std::fs::OpenOptions;
         use std::io::Write;
+
+        let now = Moment::create().now().format( "%Y-%m-%d %H:%M:%S" );
+        let line = format!( "{}\nUTC {}\n{}\n\n", role, now, text );        
         
-        let line = format!( "{}\n{}\n\n", role, text );
-        
-        if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&history_path)
+        if let Ok( mut file ) = OpenOptions::new()
+            .create( true )
+            .append( true )
+            .open( &history_path )
         {
-            let _ = file.write_all(line.as_bytes());
+            let _ = file.write_all( line.as_bytes() );
         }
     }
 
@@ -1251,28 +1309,52 @@ impl Ai
 
 
 
+    /*
+        Processing chat responce
+    */
     pub fn handle_chat_response
     (
         &mut self,
         response: &ChatResponse
     )
     {
+        /* Replace %buffer% placeholder in all fields */
+        let buffer_path = self.get_buffer_path();
+        let message = response.message.replace( "%buffer%", &buffer_path );
+        let command = response.command.replace( "%buffer%", &buffer_path );
+        let buffer = response.buffer.replace( "%buffer%", &buffer_path );
+        let memory = response.memory.replace( "%buffer%", &buffer_path );
+        let clipboard = response.clipboard.replace( "%buffer%", &buffer_path );
+
         /* Write to history if has content */
-        if !response.message.is_empty() || !response.command.is_empty() {
-            self.write_history(
+        if !message.is_empty() || !command.is_empty() 
+        {
+            self.write_history
+            (
                 "@AI",
-                &format!("{}\n{}\n\n", response.message, response.command)
+                &format!
+                (
+                    "{}\n{}\n\n",
+                    message,
+                    command
+                )
             );
         }
 
         /* Output message via destination */
-        if !response.message.is_empty() 
+        if !message.is_empty()
         {
-            self.run_destination(&response.message, "message" );
+            self.run_destination( &message, "message" );
+        }
+
+        /* Put information to clipboard */
+        if !clipboard.is_empty()
+        {
+            self.run_destination( &clipboard, "clipboard" );
         }
 
         /* Execute command via destination */
-        if !response.command.is_empty()
+        if !command.is_empty()
         {
             /* Check if command execution is disabled */
             let no_command = self.application.config
@@ -1280,44 +1362,44 @@ impl Ai
             .and_then(|cfg| cfg["no-command"].as_bool())
             .unwrap_or( false );
 
-            if no_command 
+            if no_command
             {
                 self.application.get_log()
                 .info( "Command execution disabled by --no-command" )
-                .prm("command", &response.command);
-            } 
-            else 
+                .prm( "command", &command );
+            }
+            else
             {
                 /* 
                     REMOVE_ENTER: CRITICAL SECURITY LAYER
-                    
+
                     Removes newline and carriage return characters from LLM-generated command.
                     Prevents command injection via line breaks that could:
                     1. Terminate the current command
                     2. Inject arbitrary new commands
                     3. Execute hidden malicious code
-                    
+
                     The cleaned command remains as a single line.
                     Only newline/carriage return are removed - all other characters (&&, |, ;, $, `, etc.)
                     are preserved as legitimate command syntax.
-                    
+
                     This is a PROOF of security awareness - intentional design, not a bug.
                 */
-                let clean_command = response.command.replace('\n', " ").replace('\r', "");
-                self.run_destination( &clean_command, "command" );
+                let clean_command = command.replace('\n', " ").replace('\r', "");
+                self.run_destination(&clean_command, "command" );
             }
         }
 
         /* Write buffer via destination */
-        if !response.buffer.is_empty()
+        if !buffer.is_empty()
         {
-            self.run_destination(&response.buffer, "buffer" );
+            self.run_destination( &buffer, "buffer" );
         }
 
         /* Save memory */
-        if !response.memory.is_empty()
+        if !memory.is_empty()
         {
-            self.write_memory(&response.memory);
+            self.write_memory(&memory);
         }
 
         /* Log token usage */
@@ -1481,7 +1563,8 @@ impl Ai
     /*
         Read memory for current chat
     */
-    fn read_memory(&self) -> String
+    fn read_memory( &self )
+    -> String
     {
         let memory_path = self.get_memory_file();
         
@@ -1515,17 +1598,62 @@ impl Ai
         Providers methods
     */
 
+
     /*
-        Return history chat delimiter
+        Event triggered before sending HTTP request to LLM provider.
+        Logs the prompt for debugging and audit purposes.
     */
-    pub fn get_history_delimiter( &self ) 
-    -> &'static str
+    pub fn on_before_request
+    (
+        &mut self,
+        /* Full prompt text that will be sent to LLM */
+        prompt: &str,
+        /* Provider name (e.g., "github", "openai", "deepseek") */
+        provider: &str,
+        /* Model identifier (e.g., "gpt-4.1", "deepseek-chat", "claude-3-5-sonnet") */
+        model: &str,
+        /* API endpoint URL for the request */
+        api_url: &str,
+        /* Type of request: "chat" for conversation, "summary" for history compression */
+        prompt_type: &str
+    )
     {
-        "=AIOL9B1MZX="
+        self.application.get_log()
+            .dump("Prompt to LLM", prompt)
+            .prm("provider", provider)
+            .prm("model", model)
+            .prm("api", api_url)
+            .prm("type", prompt_type);
     }
 
 
 
+    /*
+        Event triggered after receiving HTTP response from LLM provider.
+        Logs the response for debugging and audit purposes.
+    */
+    pub fn on_after_response
+    (
+        &mut self,
+        /* Raw response text from LLM */
+        response: &str,
+        /* Provider name (e.g., "github", "openai", "deepseek") */
+        provider: &str,
+        /* Model identifier used for the request */
+        model: &str,
+        /* API endpoint URL used for the request */
+        api_url: &str,
+        /* Type of request: "chat" or "summary" */
+        prompt_type: &str
+    )
+    {
+        self.application.get_log()
+            .dump("Response from LLM", response)
+            .prm("provider", provider)
+            .prm("model", model)
+            .prm("api", api_url)
+            .prm("type", prompt_type);
+    }
 }
 
 

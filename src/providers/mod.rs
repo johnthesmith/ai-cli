@@ -36,7 +36,12 @@ pub trait Provider
         Send summarization request and parse response.
         Returns structured SummaryResponse with summary text and tokens.
     */
-    fn summary( &mut self );
+    fn summary
+    (
+        &mut self,
+        /* Packing percent from 0 to 100 ( all will be packing ) */ 
+        percent: u64
+    );
 }
 
 

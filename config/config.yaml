@@ -32,42 +32,42 @@ application:
     providers:
       github:
         api: https://models.github.ai/inference/chat/completions
-        proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/github.txt
         model: ~/.config/ai/%profile%/models/github.txt
         models:
         - openai/gpt-4.1
       openai:
         api: https://api.openai.com/v1/chat/completions
-        proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/openai.txt
         model: ~/.config/ai/%profile%/models/openai.txt
         models:
         - gpt-4.1
       deepseek:
         api: https://api.deepseek.com/v1/chat/completions
-        proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/deepseek.txt
         model: ~/.config/ai/%profile%/models/deepseek.txt
         models:
         - deepseek-chat
       groq:
         api: https://api.groq.com/openai/v1/chat/completions
-        proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/groq.txt
         model: ~/.config/ai/%profile%/models/groq.txt
         models:
          - mixtral-8x7b-32768
       together:
         api: https://api.together.xyz/v1/chat/completions
-        proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/together.txt
         model: ~/.config/ai/%profile%/models/together.txt
         models:
         - meta-llama/Llama-3.3-70B-Instruct-Turbo
       anthropic:
         api: https://api.anthropic.com/v1/messages
-        proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/anthropic.txt
         model: ~/.config/ai/%profile%/models/anthropic.txt
         models:

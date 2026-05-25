@@ -10,6 +10,8 @@ pub struct ChatResponse
     pub command: String,  
     /* Output message to display to user (stdout or out destination) */
     pub message: String,
+    /* Data to copy to system clipboard */
+    pub clipboard: String,
     /* Thinking/reasoning content from AI (if supported) */
     #[allow(dead_code)]
     pub think: String,
