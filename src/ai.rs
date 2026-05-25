@@ -306,26 +306,28 @@ impl Ai
             }
 
             if let Some(_) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["show-info"].as_bool())
+                .and_then(|cfg| cfg[ "show-info" ].as_bool())
             {
                 no_prompt = true;
                 self.show_info();
             }
 
             /* Pack history */
-            if let Some( level ) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["pack-history"].as_u64())
+            if let Some(level_str) = self.application.config.as_ref()
+            .and_then(|cfg| cfg["pack-history"].as_str())
             {
-                no_prompt = true;
-                
-                let provider_name = self.get_provider();
-                let mut provider = providers::create_provider(&provider_name, self);
-                provider.summary( level );
+                if let Ok(level) = level_str.parse::<u64>() 
+                {
+                    no_prompt = true;
+                    let provider_name = self.get_provider();
+                    let mut provider = providers::create_provider(&provider_name, self);
+                    provider.summary(level);
+                }
             }
 
             /* Check dump-prompt flag */
-            if let Some(true) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["dump-prompt"].as_bool())
+            if let Some( true ) = self.application.config.as_ref()
+                .and_then(|cfg| cfg[ "dump-prompt" ].as_bool())
             {
                 no_prompt = true;
                 let user_prompt = self.get_user_prompt();
