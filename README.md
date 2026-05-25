@@ -33,14 +33,15 @@ flowchart LR
     
     keyboard[ keyboard \n input ]
     stdout
-    buffer[file & clipboard] 
+    buffer[buffer file] 
+    clipboard
     memory
     bash{{ run bush \n command}}
 
 
     user((users \n 'enter'))
     keyboard --> user --> bash
-    stdin --> ai --> gate--> keyboard & stdout & memory & buffer
+    stdin --> ai --> gate--> keyboard & stdout & memory & buffer & clipboard
 ```
 
 ```
