@@ -103,7 +103,7 @@ and executes code
 - `groq` — testing
 - `anthropic` — coming soon
 - `together` — coming soon
-- `local` (Ollama) — coming soon
+- `local` — coming soon
 
 
 
