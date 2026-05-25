@@ -217,15 +217,16 @@ commands without your approval** — AI never presses Enter for you.
 flowchart LR
     subgraph UserSide["User Side"]
         subgraph filesystem
-            prompt[("User \n prompt")]
-            buffer[("Buffer \n & clipboard")]
-            history_in[("Chat \n history")]
-            history_out[("Chat \n history")]
             memory_in[("memory")]
             memory_out[("memory")]
+            history_out[("Chat \n history")]
+            history_in[("Chat \n history")]
+            prompt[("User \n prompt")]
+            buffer[("Buffer \n file")]
             log[("Log")]
         end
         
+        clipboard["Clipboard"]
         stdin{{"User stdin"}}
         param{{"User CLI param"}}
         command{{"bash"}}
@@ -249,6 +250,7 @@ flowchart LR
     resp -->|data| stdout
     resp -->|command| command    
     resp -->|data| buffer     
+    resp -->|data| clipboard
 
     memory_in --> |txt| req
     prompt --> |txt| req
