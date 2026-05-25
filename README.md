@@ -30,7 +30,7 @@
 ```mermaid
 flowchart LR    
     keyboard[ keyboard \n input ]
-    stdout{{ai-cli}}
+    stdout{{stdin}}
     buffer[buffer file] 
     clipboard
     memory
