@@ -113,16 +113,26 @@ using this tool at your own risk.
 
 
 
+# Install
+
+1. Run 
+```
+curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh | bash
+```
+
+
+
 # Build
 
-1. Requirements for building:
+1. This is an alternative to [Install](#install).
+2. Requirements for building:
     1. `linux` - (Ubuntu 20.04+, Debian 11+, or newer)
-    0. `git` - to clone the repository
+    0. `git`
     0. `curl`
     0. `build-essential`
     0. `pkg-config`
     0. `libssl-dev`
-2. Download and run instalation script:
+3. Download and run instalation script:
 
 ```
 sudo apt install git curl build-essential pkg-config libssl-dev
