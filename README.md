@@ -34,6 +34,7 @@ flowchart LR
     buffer[buffer file] 
     clipboard
     memory
+    ai[ai-cli]
     bash{{ run bush \n command}}
 
 
