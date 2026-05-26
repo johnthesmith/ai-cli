@@ -79,7 +79,7 @@ impl Ai
     */
     fn help(&mut self) -> &mut Self
     {
-        println!( "AI CLI Utility 2026" );
+        println!( "AI CLI Utility v{}", env!( "CARGO_PKG_VERSION" ));
         println!( "" );
         println!( "Usage:" );
         println!( "  ai                         Interactive keyboard input" );
