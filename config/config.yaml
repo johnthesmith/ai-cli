@@ -6,6 +6,10 @@ application:
     enabled: true
   # AI application
   ai:
+    # Shell binary for command execution (default: /bin/bash)
+    # Examples: /bin/sh, /bin/zsh, /usr/bin/fish, /bin/dash etc
+    # Must support '-c' argument (POSIX-compatible).
+    shell: /bin/bash
     # Providers file
     provider_file: ~/.config/ai/%profile%/provider.txt
     # Chat file. This chat contins chat id
@@ -32,46 +36,49 @@ application:
     providers:
       github:
         api: https://models.github.ai/inference/chat/completions
-        #proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/github.txt
-        model: ~/.config/ai/%profile%/models/github.txt
+        model: ~/.local/share/ai/%profile%/models/github.txt
         models:
         - openai/gpt-4o
         - openai/gpt-4.1
         - openai/gpt-4.1-mini
       openai:
         api: https://api.openai.com/v1/chat/completions
-        #proxy: socks5://127.0.0.1:1080
+        # proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/openai.txt
-        model: ~/.config/ai/%profile%/models/openai.txt
+        model: ~/.local/share/ai/%profile%/models/openai.txt
         models:
         - gpt-4.1
       deepseek:
         api: https://api.deepseek.com/v1/chat/completions
         #proxy: socks5://127.0.0.1:1080
+        # https://console.groq.com/keys
         token: ~/.config/ai/%profile%/tokens/deepseek.txt
-        model: ~/.config/ai/%profile%/models/deepseek.txt
+        model: ~/.local/share/ai/%profile%/models/deepseek.txt
         models:
         - deepseek-chat
       groq:
         api: https://api.groq.com/openai/v1/chat/completions
         #proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/groq.txt
-        model: ~/.config/ai/%profile%/models/groq.txt
+        model: ~/.local/share/ai/%profile%/models/groq.txt
         models:
-         - mixtral-8x7b-32768
+        - llama-3.3-70b-versatile
+        - llama-4-scout-17b-16e-instruct
+        - mixtral-8x7b-32768
       together:
         api: https://api.together.xyz/v1/chat/completions
         #proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/together.txt
-        model: ~/.config/ai/%profile%/models/together.txt
+        model: ~/.local/share/ai/%profile%/models/together.txt
         models:
         - meta-llama/Llama-3.3-70B-Instruct-Turbo
       anthropic:
         api: https://api.anthropic.com/v1/messages
         #proxy: socks5://127.0.0.1:1080
         token: ~/.config/ai/%profile%/tokens/anthropic.txt
-        model: ~/.config/ai/%profile%/models/anthropic.txt
+        model: ~/.local/share/ai/%profile%/models/anthropic.txt
         models:
         - claude-3-5-sonnet-20241022
 
