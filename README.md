@@ -100,7 +100,7 @@ and executes code
 - `openai` — testing
 - `deepseek` — testing
 - `groq` — testing
-- `local` — implemented (Ollama)
+- `local` — testing (Ollama)
 - `anthropic` — coming soon
 - `together` — coming soon
 
