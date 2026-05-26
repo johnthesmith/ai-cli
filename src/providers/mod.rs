@@ -1,12 +1,9 @@
 mod default;
-// mod local;
-// mod anthropic;
-mod api;
+mod ollama;
+pub mod api;
 
 pub use default::OpenAICompatibleProvider;
-// pub use local::LocalProvider;
-// pub use anthropic::AnthropicProvider;
-
+pub use ollama::OllamaProvider;
 use crate::Ai;
 
 
@@ -61,15 +58,13 @@ pub fn create_provider<'a>
 {
     match name
     {
-        // OpenAI-compatible providers (same API format)
-        "github" | "openai" | "deepseek" | "groq" | "together" =>
-            Box::new( OpenAICompatibleProvider::new( name, ai )),
+        /* OpenAI-compatible providers (same API format) */
+        "github" | "openai" | "deepseek" | "groq" | "together"
+        => Box::new( OpenAICompatibleProvider::new( name, ai )),
 
-        // Local Ollama (different API format)
-//        "local" => Box::new( LocalProvider::new( ai )),
-
-        // Anthropic Claude (different API format)
-//        "anthropic" => Box::new( AnthropicProvider::new( ai )),
+        /* Ollama (different API format) */
+        "ollama"
+        => Box::new( OllamaProvider::new( ai )),
 
         _ => Box::new(OpenAICompatibleProvider::new(name, ai))
     }

@@ -2,7 +2,6 @@ use crate::Ai;
 use core::expand_path;
 
 
-
 /*
     Return API endpoint URL for the provider.
 */

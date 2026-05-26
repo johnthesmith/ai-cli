@@ -74,6 +74,12 @@ application:
         model: ~/.local/share/ai/%profile%/models/together.txt
         models:
         - meta-llama/Llama-3.3-70B-Instruct-Turbo
+      ollama:
+        api: http://localhost:11434/api/generate
+        model: ~/.local/share/ai/%profile%/models/local.txt
+        models:
+        - qwen3.5:9b
+        - llama3.2
       anthropic:
         api: https://api.anthropic.com/v1/messages
         #proxy: socks5://127.0.0.1:1080

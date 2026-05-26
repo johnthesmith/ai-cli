@@ -24,7 +24,6 @@ use std::io::Write;
 use std::io::IsTerminal;
 use crate::ai::response::ChatResponse;
 
-
 /*
     Ai applicatoin
 */
@@ -806,7 +805,7 @@ impl Ai
     }
 
 
-
+    
     /*******************************************************************8******
         Buffers
     */

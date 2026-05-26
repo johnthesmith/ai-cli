@@ -100,9 +100,9 @@ and executes code
 - `openai` — testing
 - `deepseek` — testing
 - `groq` — testing
+- `local` — implemented (Ollama)
 - `anthropic` — coming soon
 - `together` — coming soon
-- `local` — coming soon
 
 
 
@@ -271,5 +271,4 @@ flowchart LR
     param --> req
     history_in --> |txt| req
 ```
-
 
