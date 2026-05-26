@@ -72,78 +72,103 @@ impl<'a> OpenAICompatibleProvider<'a>
     )
     ->
     (
-        String, 
-        String, 
-        u64, 
-        u64, 
+        /* Error text */
+        String,
+        /* think text */
+        String,
+        /* content text */
+        String,
+        /* prompt_tokens count */
+        u64,
+        /* answer_tokens */
+        u64,
+        /* sucess true or false */
         bool
     )
     {
+        /* Result variables */
+        let mut error_msg = String::new();
+        let think;
+        let content;
+        let mut prompt_tokens = 0;
+        let mut completion_tokens = 0;
+        let success;
+
         let raw = raw.trim();
 
         /* Split think and raw */
-        let ( think, raw ) =
-        {
-            let re = Regex::new( r"(?s)<think>(.*?)</think>" ).unwrap();
+        let re = Regex::new( r"(?s)<think>(.*?)</think>" ).unwrap();
+        think = re.captures( raw )
+            .and_then( |cap| cap.get( 1 ).map( |m| m.as_str().to_string() ) )
+            .unwrap_or_default();
+        let clear = re.replace_all( raw, "" ).to_string();
 
-            /* Extract think block content if exists */
-            let think = re.captures( raw )
-                .and_then( |cap| cap.get( 1 ).map( |m| m.as_str().to_string() ) )
-                .unwrap_or_default();
-
-            /* Remove think section from full text */
-            let raw = re.replace_all( raw, "" ).to_string();
-
-            /* Return separated parts */
-            ( think, raw )
-        };
-
-        /* Get json from raw answer, it must contain OpenAI contract */
-        match serde_json::from_str::<serde_json::Value>( &raw )
+        /* Get json from raw answer */
+        match serde_json::from_str::<serde_json::Value>( &clear )
         {
             Err( e ) =>
             {
                 self.ai.application.get_log()
                     .error( "Failed to parse response" )
                     .prm( "error", &e.to_string() )
-                    .prm( "content", &raw );
+                    .prm( "content", &clear );
 
-                return ( think, raw, 0, 0, false );
+                error_msg = e.to_string();
+                content = clear.to_string();
+                success = false;
             }
 
             Ok( json ) =>
             {
-                /* Retrieve content */
-                let content = json
-                .get("choices")
-                .and_then(|c| c.get(0))
-                .and_then(|c| c.get("message"))
-                .and_then(|m| m.get("content"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .trim()
-                .trim_start_matches("```json")
-                .trim_start_matches("```")
-                .trim_end_matches("```")
-                .trim()
-                .to_string();
+                if let Some(error) = json.get("error") {
+                    error_msg = error[ "message" ]
+                        .as_str()
+                        .unwrap_or("Unknown API error")
+                        .to_string();
+                    content = error_msg.clone();
+                    success = false;
+                } 
+                else
+                {
+                    content = json
+                        .get("choices")
+                        .and_then(|c| c.get(0))
+                        .and_then(|c| c.get("message"))
+                        .and_then(|m| m.get("content"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim()
+                        .trim_start_matches("```json")
+                        .trim_start_matches("```")
+                        .trim_end_matches("```")
+                        .trim()
+                        .to_string();
 
-                /* Retrieve tokens */
-                let prompt_tokens = json
-                .get( "usage" )
-                .and_then( |u| u.get( "prompt_tokens" ) )
-                .and_then( |v| v.as_u64() )
-                .unwrap_or( 0 );
+                    prompt_tokens = json
+                        .get("usage")
+                        .and_then(|u| u.get("prompt_tokens"))
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
 
-                let completion_tokens = json
-                .get( "usage" )
-                .and_then( |u| u.get( "completion_tokens" ) )
-                .and_then( |v| v.as_u64() )
-                .unwrap_or( 0 );
+                    completion_tokens = json
+                        .get("usage")
+                        .and_then(|u| u.get("completion_tokens"))
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
 
-                ( think, content, prompt_tokens, completion_tokens, true )
+                    success = true;
+                }
             }
         }
+
+        ( 
+            error_msg, 
+            think, 
+            content, 
+            prompt_tokens, 
+            completion_tokens, 
+            success
+        )
     }
 
 
@@ -197,7 +222,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
         let api_url = get_api_url( self.ai, &self.name );
         let token = get_token( self.ai );
-        let model = self.ai.read_model();
+        let model = self.ai.get_model();
         let client = self.create_client();
 
         /* Trigger before request event */
@@ -239,7 +264,8 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
                 /* Get openai fields*/
                 let
-                ( 
+                (
+                    error,
                     think, 
                     content, 
                     prompt_tokens, 
@@ -250,7 +276,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 let mut chat_response = ChatResponse
                 {
                     think,
-                    message: content,
+                    message: if error.is_empty() { content } else { format!("Error: {}", error) },
                     prompt_tokens,
                     answer_tokens,
                     clipboard: String::new(),
@@ -381,7 +407,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         /* Send request */
         let api_url = get_api_url(self.ai, &self.name);
         let token = get_token(self.ai);
-        let model = self.ai.read_model();
+        let model = self.ai.get_model();
         let client = self.create_client();
 
         /* Trigger before request event */
@@ -422,12 +448,20 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     "summary"
                 );
 
-                let (think, summary, prompt_tokens, answer_tokens, success) =
-                    self.parse_openai_response(raw_answer);
+                let
+                (
+                    error,
+                    think, 
+                    summary, 
+                    prompt_tokens, 
+                    answer_tokens, 
+                    success
+                ) = self.parse_openai_response(raw_answer);
 
                 self.ai.handle_summary_response
                 (
                     &summary,
+                    &error,
                     &think,
                     &recent_history,
                     prompt_tokens,

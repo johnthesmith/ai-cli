@@ -71,6 +71,6 @@ pub fn create_provider<'a>
         // Anthropic Claude (different API format)
 //        "anthropic" => Box::new( AnthropicProvider::new( ai )),
 
-        _ => unimplemented!(),
+        _ => Box::new(OpenAICompatibleProvider::new(name, ai))
     }
 }

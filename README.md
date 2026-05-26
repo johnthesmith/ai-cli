@@ -165,22 +165,24 @@ for all providers, prompts, and output destinations.
 ## Usage options
 
 ```
---help                      This information
---no-prompt                 Suppress input prompt
---no-command                Suppress command event 
---show-info                 Show current runtime information (profile, chat, log, config)
---profile=<name>            Use profile for current session only
---switch-profile=<name>     Switch and save profile
---switch-provider=<name>    Switch to AI provider <name> (saves to file)
---provider=<name>           Use provider for current session only (no save)
---switch-chat=<id>          Switch to chat <id>, default id is default
---show-history              Show history for current chat
---clear-history             Remove history for current chat
---pack-history=<percent>    Pack current chat history with 0-100 percent (default: 50)
---show-memory               Show memory for current chat
---clear-memory              Remove memory for current chat (global if %chat% not used)
---write-buffer              Write stdin to buffer file and forward to stdout
---tiocsti                   Inject input directly into TTY input buffer for keyboard
+--help                     This information
+--no-prompt                Suppress input user prompt
+--no-command               Suppress command event
+--show-info                Show current runtime information (profile, chat, log, config)
+--switch-profile=<name>    Switch and save profile
+--profile=<name>           Use profile for current session only
+--switch-provider=<name>   Switch to AI provider <name> (saves to file)
+--provider=<name>          Use provider for current session only (no save)
+--switch-model=<name>      Switch and save model
+--modle=<name>             Use model for current session only (no save)
+--switch-chat=<id>         Switch to chat <id>, default id is default
+--show-history             Show history for current chat
+--clear-history            Remove history for current chat
+--pack-history=<percent>   Pack current chat history with 0-100 percent (default: 50)
+--show-memory              Show memory for current chat" );
+--clear-memory             Remove memory for current chat (global if %chat% not used
+--write-buffer             Write stdin to buffer file and forward to stdout
+--tiocsti                  Inject input directly into TTY input buffer for keyboard
 ```
 
 
