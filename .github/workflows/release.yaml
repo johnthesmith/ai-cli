@@ -25,6 +25,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             name: ai-macos-apple-silicon
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: ai-windows.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -36,15 +39,20 @@ jobs:
       - run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary
-        run: cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            cp target/${{ matrix.target }}/release/ai.exe ${{ matrix.name }}
+          else
+            cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
+          fi
 
       - name: Sleep for 5 seconds
         run: sleep 5
         shell: bash
 
       - name: Upload binary to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            ${{ matrix.name }}
+          files: ${{ matrix.name }}
+          generate_release_notes: true
