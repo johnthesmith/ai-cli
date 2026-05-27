@@ -25,9 +25,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             name: ai-macos-apple-silicon
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            name: ai-windows.exe
+#          - target: x86_64-pc-windows-msvc
+#            os: windows-latest
+#            name: ai-windows.exe
 
     steps:
       - uses: actions/checkout@v4
