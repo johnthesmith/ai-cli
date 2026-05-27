@@ -23,7 +23,7 @@ pub trait Provider
 
     /*
         Send chat request and parse response.
-        Returns structured ChatResponse with command, message, buffer, memory, tokens.
+        Returns structured ChatResponse with command, message, pool, memory, tokens.
     */
     fn chat( &mut self );
 

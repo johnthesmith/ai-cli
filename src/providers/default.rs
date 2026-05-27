@@ -281,7 +281,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     answer_tokens,
                     clipboard: String::new(),
                     command: String::new(),
-                    buffer: String::new(),
+                    pool: String::new(),
                     memory: String::new()
                 };
                 
@@ -303,7 +303,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                             .to_string()
                             .replace("\\n", "\n");
                             
-                            chat_response.buffer = ai_json[ "buffer" ]
+                            chat_response.pool = ai_json[ "pool" ]
                             .as_str()
                             .unwrap_or( "" )
                             .to_string()

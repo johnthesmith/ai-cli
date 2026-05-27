@@ -15,8 +15,8 @@ pub struct ChatResponse
     /* Thinking/reasoning content from AI (if supported) */
     #[allow(dead_code)]
     pub think: String,
-    /* Buffer content to write to buffer file and forward to stdout */
-    pub buffer: String,
+    /* pool content to write to pool file and forward to stdout */
+    pub pool: String,
     /* Memory facts to store in chat memory */
     pub memory: String,
     /* Number of tokens in user prompt (from provider response) */

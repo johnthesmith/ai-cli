@@ -33,14 +33,14 @@ flowchart LR
     clipboard{{clipboard}}
     stdout{{stdout}}
     stdin{{stdin}}
-    buffer[(buffer \n file)] 
+    pool[(pool \n file)] 
     memory[(memory)]
     ai[ai-cli] 
     bash{{run bash \n command}}
     user((users \n 'ENTER'))
 
     keyboard --> user --> bash
-    stdin --> ai --> keyboard &  memory & buffer & clipboard & stdout
+    stdin --> ai --> keyboard &  memory & pool & clipboard & stdout
 ```
 
 ```
@@ -68,11 +68,11 @@ manager, no interpreter.
 3. **Full user control** — AI **never** executes commands. Command appears on 
 your keyboard → you edit → you press Enter → bash executes. No background agent. 
 No daemon. No permission popups. Just your terminal.
-4. **User defines output destinations** — `in`, `out`, `buffer` — each can be 
-sent to stdout, file, clipboard, TTY, or any custom command. You decide where AI 
+4. **User defines output destinations** — each can be 
+sent to stdout, pool file, clipboard, TTY, or any custom command. You decide where AI 
 output goes.
 5. **Unix way** — Everything is a file or a pipe. Configuration is plain YAML in 
-`~/.config/ai/`. History is plain text in `~/.local/share/ai/`. Buffer is plain 
+`~/.config/ai/`. History is plain text in `~/.local/share/ai/`. pool is plain 
 text. No databases, no registries, no hidden state.
 
 **Compare:**
@@ -165,24 +165,24 @@ for all providers, prompts, and output destinations.
 ## Usage options
 
 ```
---help                     This information
---no-prompt                Suppress input user prompt
---no-command               Suppress command event
---show-info                Show current runtime information (profile, chat, log, config)
---switch-profile=<name>    Switch and save profile
---profile=<name>           Use profile for current session only
---switch-provider=<name>   Switch to AI provider <name> (saves to file)
---provider=<name>          Use provider for current session only (no save)
---switch-model=<name>      Switch and save model
---modle=<name>             Use model for current session only (no save)
---switch-chat=<id>         Switch to chat <id>, default id is default
---show-history             Show history for current chat
---clear-history            Remove history for current chat
---pack-history=<percent>   Pack current chat history with 0-100 percent (default: 50)
---show-memory              Show memory for current chat" );
---clear-memory             Remove memory for current chat (global if %chat% not used
---write-buffer             Write stdin to buffer file and forward to stdout
---tiocsti                  Inject input directly into TTY input buffer for keyboard
+--help                      This information
+--no-prompt                 Suppress input user prompt
+--no-command                Suppress command event
+--info                      Show current runtime information (profile, chat, log, config)
+--switch-profile=<name>     Switch and save profile
+--profile=<name>            Use profile for current session only
+--switch-provider=<name>    Switch to AI provider <name> (saves to file)
+--provider=<name>           Use provider for current session only (no save)
+--switch-model=<name>       Switch and save model
+--modle=<name>              Use model for current session only (no save)
+--switch-chat=<id>          Switch to chat <id>, default id is default
+--show-history              Show history for current chat
+--clear-history             Remove history for current chat
+--pack-history=<percent>    Pack current chat history with 0-100 percent (default: 50)
+--show-memory               Show memory for current chat" );
+--clear-memory              Remove memory for current chat (global if %chat% not used
+--write-pool                Write stdin to pool file and forward to stdout
+--tiocsti                   Inject input directly into TTY input pool for keyboard
 ```
 
 
@@ -235,7 +235,7 @@ flowchart LR
             history_out[("Chat \n history")]
             history_in[("Chat \n history")]
             prompt[("User \n prompt")]
-            buffer[("Buffer \n file")]
+            pool[("pool \n file")]
             log[("Log")]
         end
         
@@ -262,7 +262,7 @@ flowchart LR
     resp -->|data| history_out
     resp -->|data| stdout
     resp -->|command| command    
-    resp -->|data| buffer     
+    resp -->|data| pool     
     resp -->|data| clipboard
 
     memory_in --> |txt| req

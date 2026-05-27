@@ -14,7 +14,7 @@ BASHRC="$HOME/.bashrc"
 COMPLETION_OPTIONS='--help'
 COMPLETION_OPTIONS+=' --no-prompt'
 COMPLETION_OPTIONS+=' --no-command'
-COMPLETION_OPTIONS+=' --show-info'
+COMPLETION_OPTIONS+=' --info'
 
 COMPLETION_OPTIONS+=' --provider='
 COMPLETION_OPTIONS+=' --switch-provider='

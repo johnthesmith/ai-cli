@@ -78,7 +78,7 @@ impl Ai
     */
     fn help(&mut self) -> &mut Self
     {
-        println!( "AI CLI Utility v{}", env!( "CARGO_PKG_VERSION" ));
+        println!( "{}\n", self.get_version());
         println!( "" );
         println!( "Usage:" );
         println!( "  ai                         Interactive keyboard input" );
@@ -88,9 +88,10 @@ impl Ai
         println!( "" );
         println!( "Options:" );
         println!( "  --help                     This information" );
+        println!( "  --info                     Show current runtime information" );
+        println!( "  --version                  Show current version" );
         println!( "  --no-prompt                Suppress input user prompt" );
         println!( "  --no-command               Suppress command event " );
-        println!( "  --show-info                Show current runtime information (profile, chat, log, config)" );
         println!( "" );
         println!( "  --provider=<name>          Use provider for current session only (no save)" );
         println!( "  --switch-provider=<name>   Switch to AI provider <name> (saves to file)" );
@@ -107,8 +108,8 @@ impl Ai
         println!( "  --show-memory              Show memory for current chat" );
         println!( "  --clear-memory             Remove memory for current chat (global if %chat% not used)" );
         println!( "" );
-        println!( "  --write-buffer             Write stdin to buffer file and forward to stdout" );
-        println!( "  --tiocsti                  Inject input directly into TTY input buffer for keyboard" );
+        println!( "  --write-pool               Write stdin to pool file and forward to stdout" );
+        println!( "  --tiocsti                  Inject input directly into TTY input pool for keyboard" );
         println!( "                             Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
         println!( "                             on modern kernels. Only use in trusted environments." );
         println!( "" );
@@ -289,6 +290,18 @@ impl Ai
                 self.help();
             }
 
+
+
+            /* Help mode */
+            if let Some(_) = self.application.config
+                .as_ref()
+                .and_then(|cfg| cfg["version"].as_bool())
+            {
+                no_prompt = true;
+                println!( "{}\n", self.get_version() );
+            }
+
+
             /* Check clear-history flag */
             if let Some(_) = self.application.config.as_ref()
                 .and_then(|cfg| cfg["clear-history"].as_bool())
@@ -305,15 +318,15 @@ impl Ai
                 self.clear_memory();
             }
 
-            /* Check write-buffer flag */
+            /* Check write-pool flag */
             if let Some(true) = self.application.config.as_ref()
-                .and_then(|cfg| cfg["write-buffer"].as_bool())
+                .and_then(|cfg| cfg["write-pool"].as_bool())
             {
                 no_prompt = true;
                 
                 let mut input = String::new();
                 if let Ok(_) = std::io::stdin().read_to_string(&mut input) {
-                    self.write_buffer( &input ); 
+                    self.write_pool( &input ); 
                 }
             }
 
@@ -384,7 +397,7 @@ impl Ai
             }
 
             if let Some(_) = self.application.config.as_ref()
-                .and_then(|cfg| cfg[ "show-info" ].as_bool())
+                .and_then(|cfg| cfg[ "info" ].as_bool())
             {
                 no_prompt = true;
                 self.show_info();
@@ -511,8 +524,8 @@ impl Ai
         /* Read from pipe if stdin is not a terminal */
         if is_pipe
         {
-            let mut buffer = String::new();
-            match stdin.read_to_string(&mut buffer)
+            let mut pool = String::new();
+            match stdin.read_to_string(&mut pool)
             {
                 Ok(0) => 
                 {
@@ -520,7 +533,7 @@ impl Ai
                 }
                 Ok(_) => 
                 {
-                    prompt.push_str(buffer.trim());
+                    prompt.push_str(pool.trim());
                 }
                 Err(e) => 
                 {
@@ -608,6 +621,8 @@ impl Ai
         .replace( "%user-prompt%", input )
         .replace( "%application.ai.shell%", &shell )
         .replace( "%chat%", &self.get_chat() )
+        .replace( "%provider%", &self.get_provider() )
+        .replace( "%model%", &self.get_model() )
         .replace( "%history-delimiter%", &self.get_history_delimiter() )
         .replace
         (
@@ -807,22 +822,22 @@ impl Ai
 
     
     /*******************************************************************8******
-        Buffers
+        pools
     */
 
 
     /*
-        Return buffer file  
+        Return pool file  
     */
-    fn get_buffer_path(&self) 
+    fn get_pool_path(&self) 
     -> String
     {
         expand_path
         (
             &self.application.config
             .as_ref()
-            .and_then(|cfg| cfg[ "application" ][ "ai" ][ "buffers" ].as_str() )
-            .unwrap_or_else(|| "~/.local/share/ai/%profile%/buffer")
+            .and_then(|cfg| cfg[ "application" ][ "ai" ][ "pool" ].as_str() )
+            .unwrap_or_else(|| "~/.local/share/ai/%profile%/pool")
             .to_string()
             .replace("%profile%", &self.get_profile())
         )
@@ -830,31 +845,31 @@ impl Ai
 
 
 
-    fn write_buffer
+    fn write_pool
     (
         &mut self,
         data: &str
     )
     {
-        let buffer_path = self.get_buffer_path();
-        if let Some(parent) = std::path::Path::new(&buffer_path).parent() 
+        let pool_path = self.get_pool_path();
+        if let Some(parent) = std::path::Path::new(&pool_path).parent() 
         {
             let _ = std::fs::create_dir_all(parent);
         }
         
-        match std::fs::write(&buffer_path, data) 
+        match std::fs::write(&pool_path, data) 
         {
             Ok(_) => 
             {
                 self.application.get_log()
-                    .info( "Buffer written to file" )
-                    .prm( "path", &buffer_path );
+                    .info( "pool written to file" )
+                    .prm( "path", &pool_path );
             }
             Err(e) => 
             {
                 self.application.get_log()
-                    .error( "Failed to write buffer" )
-                    .prm( "path", &buffer_path )
+                    .error( "Failed to write pool" )
+                    .prm( "path", &pool_path )
                     .prm( "error", &e.to_string() );
             }
         }
@@ -870,10 +885,22 @@ impl Ai
     */
 
 
+
     /*
         Return config file path for current profile
     */
-    fn get_config_file(&self)
+    fn get_version( &self )
+    -> String
+    {
+        format!( "AI CLI Utility v{}", env!( "CARGO_PKG_VERSION" ))
+    }
+
+
+
+    /*
+        Return config file path for current profile
+    */
+    fn get_config_file( &self )
     -> String
     {
         expand_path("~/.config/ai/%profile%/config.yaml")
@@ -1412,7 +1439,7 @@ impl Ai
 
     /*
         Run destination command by identifier.
-        Identifier: "command", "out", "buffer"
+        Identifier: "command", "out", "pool"
     */
     fn run_destination
     (
@@ -1553,13 +1580,13 @@ impl Ai
         response: &ChatResponse
     )
     {
-        /* Replace %buffer% placeholder in all fields */
-        let buffer_path = self.get_buffer_path();
-        let message = response.message.replace( "%buffer%", &buffer_path );
-        let command = response.command.replace( "%buffer%", &buffer_path );
-        let buffer = response.buffer.replace( "%buffer%", &buffer_path );
-        let memory = response.memory.replace( "%buffer%", &buffer_path );
-        let clipboard = response.clipboard.replace( "%buffer%", &buffer_path );
+        /* Replace %pool% placeholder in all fields */
+        let pool_path = self.get_pool_path();
+        let message = response.message.replace( "%pool%", &pool_path );
+        let command = response.command.replace( "%pool%", &pool_path );
+        let pool = response.pool.replace( "%pool%", &pool_path );
+        let memory = response.memory.replace( "%pool%", &pool_path );
+        let clipboard = response.clipboard.replace( "%pool%", &pool_path );
 
         /* Write to history if has content */
         if !message.is_empty() || !command.is_empty() 
@@ -1625,10 +1652,10 @@ impl Ai
             }
         }
 
-        /* Write buffer via destination */
-        if !buffer.is_empty()
+        /* Write pool via destination */
+        if !pool.is_empty()
         {
-            self.run_destination( &buffer, "buffer" );
+            self.run_destination( &pool, "pool" );
         }
 
         /* Save memory */
@@ -1647,7 +1674,7 @@ impl Ai
 
 
     /*
-        Inject command directly into TTY input buffer using TIOCSTI ioctl.
+        Inject command directly into TTY input pool using TIOCSTI ioctl.
 
         This makes the command appear in the user's terminal prompt as if typed.
         Does NOT press Enter - user can edit before executing.
