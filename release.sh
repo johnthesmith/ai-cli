@@ -40,7 +40,7 @@ done
 
 echo "Done. Version $VERSION applied to all files."
 
-## 5. Закоммить и затегать
+## 5. Commit and registrate
 ./make-release.sh && \
 ./push.sh "Release v$VERSION" && \
 git tag "v$VERSION" && \

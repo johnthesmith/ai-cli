@@ -122,7 +122,7 @@ application:
     #   Buffer (file + stdout):
     #     All:        `ai --write-buffer`
     destination:
-      # Сommand processing
+      # Command processing
       command: "sleep 0.3 && xdotool type --clearmodifiers --delay 10 --file -"
       # Pipeline for information out processing
       message: "cat && echo"

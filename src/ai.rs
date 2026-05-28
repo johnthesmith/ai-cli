@@ -117,7 +117,7 @@ impl Ai
         println!( "  alias                      Set `alias 1=ai`" );
         println!( "" );
         println!( "Author:" );
-        println!( "  Still Swamp (still@itserv.ru) Powered by deepseek" );
+        println!( "  Still Swamp (still@catlair.net) Powered by deepseek" );
         self
     }
 
@@ -691,7 +691,7 @@ impl Ai
     {
         let history_path = self.get_history_file_path();
         
-        // Создаём родительскую директорию
+        /* Check directory exists */
         if let Err(e) = ensure_directory( &history_path )
         {
             self.application.get_log()
@@ -1030,7 +1030,7 @@ impl Ai
             }
         }
         
-        /* Дефолтная модель из конфига провайдера */
+        /* Read default model */
         self.application.config
         .as_ref()
         .and_then
