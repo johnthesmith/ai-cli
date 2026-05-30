@@ -211,15 +211,13 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
     /*
         Send chat request and parse response.
     */
-    fn chat( &mut self )
+    fn chat
+    (
+        &mut self,
+        /* Prompt */
+        prompt: &str
+    )
     {
-        let user_prompt = self.ai.get_user_prompt();
-        let prompt = self.ai.build_prompt( "chat", &user_prompt );
-
-        /* Write user prompt to history */
-        self.ai.write_history( self.ai.get_history_delimiter(), "" );
-        self.ai.write_history( "@USER", &user_prompt );
-
         let api_url = get_api_url( self.ai, &self.name );
         let token = get_token( self.ai );
         let model = self.ai.get_model();

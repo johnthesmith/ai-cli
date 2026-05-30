@@ -25,10 +25,10 @@ In the `message` field, always return an explanatory response understandable to
 the user; it will be sent to the user's STDOUT. The maximum line width in
 `message` is no more than 80 characters.
 
-In the `command` field, return only shell commands and pipelines for tty
-compatible with `%application.ai.shell%`. If the user's request does not require
-a command, return an empty string. Do not put code blocks, text, or
-configurations in `command`.
+In the `command` field, return only shell commands and pipelines for tty 
+compatible with `%shell%`. If the user's request does not require a command, 
+return an empty string. Do not put code blocks, text, or configurations in 
+`command`.
 
 If the user asks to analyze command output or file contents, add the pipeline
 `|ai` to the command, for example: `ai --help |ai`. Use `|ai` if the user

@@ -17,12 +17,15 @@ use core::Moment;
 use core::{ expand_path, ensure_directory };
 
 use serde_json;
+use serde_yaml::Value;
 use core::State;
 use core::Application;
 use std::io::Read;
 use std::io::Write;
 use std::io::IsTerminal;
 use crate::ai::response::ChatResponse;
+
+
 
 /*
     Ai applicatoin
@@ -76,48 +79,50 @@ impl Ai
     /*
         Help utility
     */
-    fn help(&mut self) -> &mut Self
+    fn help( &mut self )
+    -> &mut Self
     {
         println!( "{}\n", self.get_version());
         println!( "" );
         println!( "Usage:" );
-        println!( "  ai                         Interactive keyboard input" );
-        println!( "  ai <question>              Ask a question" );
-        println!( "  echo <text> | ai           Read from stdin" );
-        println!( "  ai --help                  Show this help" );
+        println!( "    ai                         Interactive keyboard input" );
+        println!( "    ai <question>              Ask a question" );
+        println!( "    echo <text> | ai           Read from stdin" );
+        println!( "    ai --help                  Show this help" );
         println!( "" );
         println!( "Options:" );
-        println!( "  --help                     This information" );
-        println!( "  --info                     Show current runtime information" );
-        println!( "  --version                  Show current version" );
-        println!( "  --no-prompt                Suppress input user prompt" );
-        println!( "  --no-command               Suppress command event " );
+        println!( "    --help                     This information" );
+        println!( "    --info                     Show current runtime information" );
+        println!( "    --version                  Show current version" );
+        println!( "    --no-prompt                Suppress input user prompt" );
+        println!( "    --no-command               Suppress command event " );
         println!( "" );
-        println!( "  --provider=<name>          Use provider for current session only (no save)" );
-        println!( "  --switch-provider=<name>   Switch to AI provider <name> (saves to file)" );
-        println!( "  --profile=<name>           Use profile for current session only" );
-        println!( "  --switch-profile=<name>    Switch and save profile" );
-        println!( "  --model=<name>             Use model for current session only (no save)" );
-        println!( "  --switch-model=<name>      Switch and save model" );
-        println!( "  --chat=<id>                Switch to chat <id> for current session only (no save)" );
-        println!( "  --switch-chat=<id>         Switch to chat <id> (saves to file)" );
+        println!( "    --provider=<name>          Use provider for current session only (no save)" );
+        println!( "    --switch-provider=<name>   Switch to AI provider <name> (saves to file)" );
+        println!( "    --profile=<name>           Use profile for current session only" );
+        println!( "    --switch-profile=<name>    Switch and save profile" );
+        println!( "    --model=<name>             Use model for current session only (no save)" );
+        println!( "    --switch-model=<name>      Switch and save model" );
+        println!( "    --chat=<id>                Switch to chat <id> for current session only (no save)" );
+        println!( "    --switch-chat=<id>         Switch to chat <id> (saves to file)" );
         println!( "" );
-        println!( "  --show-history             Show history for current chat" );
-        println!( "  --clear-history            Remove history for current chat" );
-        println!( "  --pack-history=<percent>   Pack current chat history with 0-100 percent (default: 50)" );
-        println!( "  --show-memory              Show memory for current chat" );
-        println!( "  --clear-memory             Remove memory for current chat (global if %chat% not used)" );
+        println!( "    --show-history             Show history for current chat" );
+        println!( "    --clear-history            Remove history for current chat" );
+        println!( "    --pack-history=<percent>   Pack current chat history with 0-100 percent (default: 50)" );
+        println!( "    --show-memory              Show memory for current chat" );
+        println!( "    --clear-memory             Remove memory for current chat (global if %chat% not used)" );
         println!( "" );
-        println!( "  --write-pool               Write stdin to pool file and forward to stdout" );
-        println!( "  --tiocsti                  Inject input directly into TTY input pool for keyboard" );
-        println!( "                             Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
-        println!( "                             on modern kernels. Only use in trusted environments." );
+        println!( "    --write-pool               Write stdin to pool file and forward to stdout" );
+        println!( "    --tiocsti                  Inject input directly into TTY input pool for keyboard" );
+        println!( "                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
+        println!( "                               on modern kernels. Only use in trusted environments." );
         println!( "" );
         println!( "Recommendations:" );
-        println!( "  alias                      Set `alias 1=ai`" );
+        println!( "    alias                      Set `alias 1=ai`" );
         println!( "" );
         println!( "Author:" );
-        println!( "  Still Swamp (still@catlair.net) Powered by deepseek" );
+        println!( "    Still Swamp (still@catlair.net) Powered by deepseek" );
+
         self
     }
 
@@ -126,10 +131,7 @@ impl Ai
     /*
         Main run method
     */
-    pub fn run
-    (
-        &mut self
-    ) 
+    pub fn run ( &mut self ) 
     -> &mut Self 
     {
         /* Read cli arguments */
@@ -142,15 +144,15 @@ impl Ai
         /* Set profile */
         if let Some( profile ) = self.application.config
             .as_ref()
-            .and_then(|cfg| cfg[ "switch-profile" ].as_str())
+            .and_then( |cfg| cfg[ "switch-profile" ].as_str() )
         {
             self.switch_profile( &profile.to_string() );
         }
 
         /* Set profile for current session */
         if let Some( profile ) = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["profile"].as_str())
+        .as_ref()
+        .and_then(|cfg| cfg["profile"].as_str())
         {
             self.set_profile( &profile.to_string() );
         }
@@ -158,6 +160,8 @@ impl Ai
         {
             self.read_profile();
         }
+
+
 
         /*
             Config section
@@ -175,7 +179,7 @@ impl Ai
 
         /* Set log file */
         if let Some(file) = self.application.config.as_ref()
-            .and_then(|c| c["application"]["log"]["file"].as_str())
+        .and_then(|c| c["application"]["log"]["file"].as_str())
         {
             let file = expand_path(file).replace( "%profile%", &self.get_profile() );
             self.application.get_log().set_file_path(&file);
@@ -382,7 +386,7 @@ impl Ai
                     no_prompt = true;
                     let provider_name = self.get_provider();
                     let mut provider = providers::create_provider(&provider_name, self);
-                    provider.summary(level);
+                    provider.summary( level );
                 }
             }
 
@@ -393,11 +397,11 @@ impl Ai
                 no_prompt = true;
                 let user_prompt = self.get_user_prompt();
                 let prompt = self.build_prompt( &user_prompt, "chat" );
-                println!("{}", prompt);
+                println!( "{}", prompt );
             }
 
             if let Some(_) = self.application.config.as_ref()
-                .and_then(|cfg| cfg[ "info" ].as_bool())
+                .and_then( |cfg| cfg[ "info" ].as_bool() )
             {
                 no_prompt = true;
                 self.show_info();
@@ -406,10 +410,32 @@ impl Ai
             if !no_prompt
             {
                 let provider_name = self.get_provider();
-                let mut provider = providers::create_provider( &provider_name, self );
-                provider.chat();
-            }
-            
+                let user_prompt = self.get_user_prompt();
+                let prompt = self.build_prompt("chat", &user_prompt);
+
+                let max_bytes = self.get_max_chat_prompt_size_byte();
+                let size = prompt.len();
+                
+                if size > max_bytes
+                {
+                    println!
+                    (
+                        "Prompt size {} bytes exceeds limit {} bytes.\n\
+                         Please increase max-chat-prompt-size-byte in config,\n\
+                         or run 'ai --pack-history' to compress conversation history.",
+                        size, max_bytes
+                    );
+                }
+                else
+                {
+                    /* Write user prompt to history */
+                    self.write_history(self.get_history_delimiter(), "");
+                    self.write_history("@USER", &user_prompt);
+
+                    let mut provider = providers::create_provider(&provider_name, self);
+                    provider.chat(&prompt);
+                }
+            }            
         }
 
         self.application.get_log().end( "End of ai" ).eol();
@@ -428,6 +454,7 @@ impl Ai
         Uses global prompts section with placeholders
             %profile%,
             %provider%,
+            %chat%,
             %model%
     */
     fn get_prompt_file
@@ -439,37 +466,18 @@ impl Ai
     /* Return prompt file name */
     -> String
     {
-        let path = self.application.config
-            .as_ref()
-            .and_then
+        expand_path
+        (
+            &self.get_config_val
             (
-                |cfg| cfg
-                [ "application" ]
-                [ "ai" ]
-                [ "prompts" ]
-                [ prompt_type ]
-                .as_str()
+                &[ "prompts", prompt_type ],
+                format!( "~/.config/ai/%profile%/prompts/%provider%/%model%/{}.txt", prompt_type )
             )
-            .map(|s| s.to_string())
-            .unwrap_or_else
-            (
-                || format!
-                (
-                    "~/.config/ai/%profile%/prompts/%provider%/%model%/{}.txt", 
-                    prompt_type
-                )
-            );
-
-        let model = self.get_model()
-        .replace('/', "_")
-        .replace('\\', "_")
-        .replace('.', "_")
-        .replace("..", "_");
-
-        expand_path( &path )
-        .replace( "%profile%", &self.get_profile() )
-        .replace( "%provider%", &self.get_provider() )
-        .replace( "%model%", &model )
+            .replace( "%profile%", &self.get_profile() )
+            .replace( "%provider%", &self.get_provider() )
+            .replace( "%model%", &self.get_model_safe() )
+            .replace( "%chat%", &self.get_chat() )
+        )
     }
 
 
@@ -600,26 +608,18 @@ impl Ai
     {
         let template = self.read_prompt( prompt_type );
 
-         /* Retrive shell */
-        let shell = self.application.config
-        .as_ref()
-        .and_then
+        /* Retrive shell */
+        let shell = self.get_config_val
         (
-            |cfg|
-            cfg
-            [ "application" ]
-            [ "ai" ]
-            [ "shell" ]
-            .as_str()
-        )
-        .unwrap_or( "/bin/bash" )
-        .to_string();
+            &[ "shell" ], 
+            "/bin/bash".to_string()
+        );
 
         let result = template
         .replace( "%history%", &self.get_history() )
         .replace( "%memory%", &self.read_memory() )
         .replace( "%user-prompt%", input )
-        .replace( "%application.ai.shell%", &shell )
+        .replace( "%shell%", &shell )
         .replace( "%chat%", &self.get_chat() )
         .replace( "%provider%", &self.get_provider() )
         .replace( "%model%", &self.get_model() )
@@ -651,18 +651,21 @@ impl Ai
 
 
 
-    fn get_history_file_path(&mut self) -> String 
+    fn get_history_file_path( &mut self )
+    -> String
     {
-        let history_dir = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg[ "application"]["ai"]["history"].as_str())
-            .map(|s| expand_path( s ))
-            .unwrap_or_else(|| expand_path( "~/.config/ai/%profile%/history/" ))
-            .replace( "%profile%", &self.get_profile() );
-
-        let chat_id = self.get_chat();
-
-        format!("{}{}.txt", history_dir, chat_id)
+        expand_path
+        (
+            &self.get_config_val
+            (
+                &[ "history" ],
+                "~/.config/ai/%profile%/history/%chat%.txt".to_string()
+            )
+            .replace( "%profile%", &self.get_profile() )
+            .replace( "%model%", &self.get_model_safe() )
+            .replace( "%provider%", &self.get_provider() )
+            .replace( "%chat%", &self.get_chat() )
+        )
     }
 
 
@@ -672,7 +675,7 @@ impl Ai
         let history_path = self.get_history_file_path();       
         match std::fs::read_to_string(&history_path) 
         {
-            Ok(content) => content,
+            Ok( content ) => content,
             Err(_) => String::new(),
         }
     }
@@ -692,7 +695,7 @@ impl Ai
         let history_path = self.get_history_file_path();
         
         /* Check directory exists */
-        if let Err(e) = ensure_directory( &history_path )
+        if let Err( e ) = ensure_directory( &history_path )
         {
             self.application.get_log()
             .error( "Failed to ensure history directory" )
@@ -717,6 +720,7 @@ impl Ai
     }
 
 
+
     /*
         Clear history file
     */
@@ -726,18 +730,18 @@ impl Ai
         let history_path = self.get_history_file_path();      
         match std::fs::write( &history_path, "" )
         {
-            Ok(_) =>
+            Ok( _ ) =>
             {
                 self.application.get_log()
                 .info("History cleared")
                 .prm("path", &history_path);
             }
-            Err(e) =>
+            Err( e ) =>
             {
                 self.application.get_log()
-                    .warning("Failed to clear history")
-                    .prm("path", &history_path)
-                    .prm("error", &e.to_string());
+                .warning( "Failed to clear history" )
+                .prm( "path", &history_path )
+                .prm( "error", &e.to_string() );
             }
         }
         
@@ -746,7 +750,10 @@ impl Ai
 
 
 
-    fn show_history(&mut self)
+    /*
+        Send history to stdout
+    */
+    fn show_history( &mut self )
     -> &mut Self 
     {
         let history = self.get_history();
@@ -791,11 +798,11 @@ impl Ai
             std::fs::write(&self.get_history_file_path(), new_history).unwrap();
 
             self.application.get_log()
-                .info("History packed successfully")
-                .prm("old_blocks", old_blocks)
-                .prm("kept_blocks", kept_blocks)
-                .prm("prompt_tokens", prompt_tokens)
-                .prm("answer_tokens", answer_tokens);
+                .info( "History packed successfully" )
+                .prm( "old_blocks", old_blocks )
+                .prm( "kept_blocks", kept_blocks )
+                .prm( "prompt_tokens", prompt_tokens )
+                .prm( "answer_tokens", answer_tokens );
 
             if !think.is_empty()
             {
@@ -826,20 +833,24 @@ impl Ai
     */
 
 
+
     /*
         Return pool file  
     */
-    fn get_pool_path(&self) 
+    fn get_pool_path( &self )
     -> String
     {
         expand_path
         (
-            &self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg[ "application" ][ "ai" ][ "pool" ].as_str() )
-            .unwrap_or_else(|| "~/.local/share/ai/%profile%/pool")
-            .to_string()
-            .replace("%profile%", &self.get_profile())
+            &self.get_config_val
+            (
+                &[ "pool" ],
+                "~/.local/share/ai/%profile%/pool.txt".to_string()
+            )
+            .replace( "%profile%", &self.get_profile() )
+            .replace( "%provider%", &self.get_provider() )
+            .replace( "%model%", &self.get_model_safe() )
+            .replace( "%chat%", &self.get_chat() )
         )
     }
 
@@ -885,6 +896,13 @@ impl Ai
     */
 
 
+    fn get_max_chat_prompt_size_byte( &self )
+    -> usize
+    {
+        self.get_config_val(&[ "max-chat-prompt-size-byte"], 100000 )
+    }
+
+
 
     /*
         Return config file path for current profile
@@ -908,22 +926,15 @@ impl Ai
     }
 
 
- 
+
     /*
         Return proxy for current provider
     */
-    fn read_proxy(&self)
+    fn read_proxy( &self )
     -> String
     {
-        let provider = self.get_provider();
-        
-        self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["providers"][&provider]["proxy"].as_str())
-            .unwrap_or("")
-            .to_string()
+        self.get_config_val( &[ "proxy" ], String::new() )
     }
-
 
 
     /*
@@ -931,19 +942,105 @@ impl Ai
     */
     fn show_info(&mut self) -> &mut Self
     {
-        println!("Log:                  {}", self.application.get_log().get_file_path());
-        println!("Config:               {}", self.get_config_file());
-        println!("Profile:              {}", self.get_profile());
-        println!("Provider:             {}", self.get_provider());
-        println!("Chat:                 {}", self.get_chat());
-        println!("Model:                {}", self.get_model() );
-        println!("Prompt chat file:     {}", self.get_prompt_file( "chat" ));
-        println!("Prompt summary file:  {}", self.get_prompt_file( "summary" ));
-        println!("Model file:           {}", self.get_model_file_path() );
-        println!("History file:         {}", self.get_history_file_path() );
-        println!("Memory file:          {}", self.get_memory_file() );
-        println!("Token file:           {}", self.get_token_path() );
+        println!( "Log:                  {}", self.application.get_log().get_file_path());
+        println!( "Config:               {}", self.get_config_file());
+        println!( "Profile:              {}", self.get_profile());
+        println!( "Provider:             {}", self.get_provider());
+        println!( "Chat:                 {}", self.get_chat());
+        println!( "Model:                {}", self.get_model() );
+        println!( "Prompt chat file:     {}", self.get_prompt_file( "chat" ));
+        println!( "Prompt summary file:  {}", self.get_prompt_file( "summary" ));
+        println!( "Model file:           {}", self.get_model_file_path() );
+        println!( "History file:         {}", self.get_history_file_path() );
+        println!( "Memory file:          {}", self.get_memory_file() );
+        println!( "Token file:           {}", self.get_token_path() );
         self
+    }
+
+
+    /*
+        Get configuration value with inheritance:
+        1. provider.model.chat.key
+        2. provider.model.key
+        3. provider.key
+        4. global key
+        5. default
+    */
+    fn get_config_val<T: Clone + serde::de::DeserializeOwned>
+    (
+        &self,
+        /* Key path after "application.ai" */
+        keys: &[&str],
+        /* Default value */
+        default: T,
+    )
+    -> T 
+    {
+        let config = match &self.application.config 
+        {
+            Some(c) => c,
+            None => return default,
+        };
+        
+        let ai_cfg = &config[ "application" ][ "ai" ];
+
+        let provider = self.get_provider();
+        let model = self.get_model();
+        let chat = self.get_chat();
+
+        let get_nested = |root: &Value| -> Option<Value>
+        {
+            let mut current = root;
+            for &k in keys
+            {
+                current = current.get(k)?;
+            }
+            Some(current.clone())
+        };
+
+        /* 1. provider.model.chat.key */
+        if let Some(val) = get_nested
+        (
+            &ai_cfg["providers"][&provider]["models"][&model]["chats"][&chat]
+        )
+        {
+            if let Ok(v) = serde_yaml::from_value(val)
+            {
+                return v;
+            }
+        }
+
+        /* 2. provider.model.key */
+        if let Some(val) = get_nested
+        (
+            &ai_cfg["providers"][&provider]["models"][&model]
+        )
+        {
+            if let Ok( v ) = serde_yaml::from_value( val ) 
+            {
+                return v;
+            }
+        }
+
+        /* 3. provider.key */
+        if let Some(val) = get_nested(&ai_cfg["providers"][&provider])
+        {
+            if let Ok( v ) = serde_yaml::from_value( val )
+            {
+                return v;
+            }
+        }
+
+        /* 4. global key */
+        if let Some( val ) = get_nested( ai_cfg )
+        {
+            if let Ok(v) = serde_yaml::from_value( val )
+            {
+                return v;
+            }
+        }
+
+        default
     }
 
 
@@ -955,25 +1052,19 @@ impl Ai
     /*
         Return token path for current provider
     */
-    fn get_token_path( &self )
-    -> String
+    fn get_token_path( &self ) -> String
     {
-        self.application.config
-            .as_ref()
-            .and_then
-            (
-                |cfg| cfg
-                [ "application" ]
-                [ "ai" ]
-                [ "providers" ]
-                [ self.get_provider() ]
-                [ "token" ]
-                .as_str()
-            )
-            .map(|s| expand_path(s).replace( "%profile%", &self.get_profile() ))
-            .unwrap_or_else( || String::new() )
+        let default = "~/.config/ai/%profile%/tokens/%provider%.txt".to_string();
+        let path = self.get_config_val( &[ "token" ], default );       
+        expand_path
+        (
+            &path
+            .replace( "%profile%", &self.get_profile())
+            .replace( "%provider%", &self.get_provider())
+            .replace( "%model%", &self.get_model_safe())
+            .replace( "%chat%", &self.get_chat())
+        )
     }
-
 
 
 
@@ -985,43 +1076,28 @@ impl Ai
         Return file for current model
         Placeholders: %profile%, %provider%, %chat%
     */
-    fn get_model_file_path( &self ) -> String
+    fn get_model_file_path( &self )
+    -> String 
     {
-        let provider = self.get_provider();
-
-        self.application.config
-            .as_ref()
-            .and_then
-            (
-                |cfg| cfg
-                ["application"]
-                ["ai"]
-                ["providers"]
-                [ &provider ]
-                ["model"]
-                .as_str()
-            )
-            .map(|s| expand_path(s))
-            .unwrap_or_else
-            (
-                || expand_path
-                (
-                    "~/.local/share/ai/%profile%/models/%provider%.txt"
-                )
-            )
-            .replace("%profile%", &self.get_profile())
-            .replace("%provider%", &provider)
-            .replace("%chat%", &self.get_chat())
+        let default = "~/.local/share/ai/%profile%/models/%provider%.txt".to_string();
+        let path = self.get_config_val( &[ "model" ], default );
+        
+        expand_path
+        (
+            &path
+            .replace( "%profile%", &self.get_profile() )
+            .replace( "%provider%", &self.get_provider() )
+            .replace( "%chat%", &self.get_chat() )
+        )
     }
 
 
 
-    pub fn read_model( &self ) -> String
+    pub fn read_model(&self) -> String
     {
         let path = self.get_model_file_path();
-        let provider = self.get_provider();
 
-        if let Ok(content) = std::fs::read_to_string(&path)
+        if let Ok(content) = std::fs::read_to_string( &path )
         {
             let model = content.trim().to_string();
             if !model.is_empty()
@@ -1029,24 +1105,14 @@ impl Ai
                 return model;
             }
         }
-        
-        /* Read default model */
-        self.application.config
-        .as_ref()
-        .and_then
-        (
-            |cfg| cfg
-            ["application"]
-            ["ai"]
-            ["providers"]
-            [provider]
-            ["models"]
-            [0].as_str()
-        )
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| "gpt-4.1".to_string())
-    }
 
+        let available: Vec<String> = self.get_config_val
+        (
+            &["available-models"],
+            vec![]
+        );
+        available.first().cloned().unwrap_or_else(|| "gpt-4.1".to_string())
+    }
 
 
     /*
@@ -1100,6 +1166,21 @@ impl Ai
 
 
     /*
+        Return safe model (replace special chars for filesystem)
+    */
+    fn get_model_safe( &self )
+    -> String 
+    {
+        self.get_model()
+        .replace( '/', "_" )
+        .replace( '\\', "_" )
+        .replace( '.', "_" )
+        .replace( "..", "_" )
+    }
+
+
+
+    /*
         Set modle for current session
     */
     fn set_model
@@ -1144,17 +1225,16 @@ impl Ai
     /*
         Return provider file path
     */
-    fn get_provider_file_path( &self )
-    -> String
+    fn get_provider_file_path(&self) -> String
     {
-        self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg[ "application" ][ "ai" ][ "provider_file" ].as_str())
-            .map(|s| expand_path(s))
-            .unwrap_or_else(|| expand_path( "~/.config/ai/%profile%/provider.txt" ))
-            .replace( "%profile%", &self.get_profile() )
+        let path = self.get_config_val
+        (
+            &[ "provider_file" ],
+            "~/.config/ai/%profile%/provider.txt".to_string()
+        );
+        
+        expand_path( &path.replace( "%profile%", &self.get_profile() ))
     }
-
 
 
     /*
@@ -1192,21 +1272,24 @@ impl Ai
         if let Err(e) = ensure_directory(&file_path)
         {
             self.application.get_log()
-                .error("Failed to ensure provider directory")
-                .prm("error", &e);
+            .error( "Failed to ensure provider directory" )
+            .prm( "error", &e );
+
             return self;
         }
 
-        if let Err(e) = std::fs::write(&file_path, new_provider)
+        if let Err( e ) = std::fs::write( &file_path, new_provider )
         {
             self.application.get_log()
-                .error("Failed to switch provider")
-                .prm("path", &file_path)
-                .prm("error", &e.to_string());
-        } else {
+            .error("Failed to switch provider")
+            .prm("path", &file_path)
+            .prm("error", &e.to_string());
+        } 
+        else
+        {
             self.application.get_log()
-                .trace("Provider switched")
-                .prm("provider", new_provider);
+            .trace("Provider switched")
+            .prm("provider", new_provider);
         }
 
         self
@@ -1221,7 +1304,8 @@ impl Ai
     /*
         Return profile file
     */
-    fn get_profile_file_path(&self) -> String 
+    fn get_profile_file_path( &self )
+    -> String 
     {
         expand_path( "~/.local/share/ai/profile" )
     }
@@ -1258,16 +1342,17 @@ impl Ai
     /*
         Read and return profile
     */
-    fn read_profile(&mut self) -> &mut Self
+    fn read_profile( &mut self )
+    -> &mut Self
     {
         let path = self.get_profile_file_path();
         
         let profile = std::fs::read_to_string(&path)
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "default".to_string());
-        
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "default".to_string());
+    
         self.set_profile(&profile);
         self
     }
@@ -1340,18 +1425,25 @@ impl Ai
     */
 
     /*
-        Return file for curren chat id 
+        Return file for current chat id
     */
-    fn get_chat_file_path( &self )
-    -> String 
+    fn get_chat_file_path(&self) -> String
     {
-        self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg["application"]["ai"]["chat-file"].as_str())
-        .map(|s| expand_path(s))
-        .unwrap_or_else(|| expand_path( "~/.local/share/ai/%profile%/chat.txt" ))
-        .replace("%profile%", &self.get_profile())
+        let path = self.get_config_val
+        (
+            &["chat-file"],
+            "~/.local/share/ai/%profile%/chat.txt".to_string()
+        );
+        
+        expand_path
+        (
+            &path
+            .replace( "%profile%", &self.get_profile() )
+            .replace( "%model%", &self.get_model_safe() )
+            .replace( "%provider%", &self.get_provider() )
+        )
     }
+
 
 
     fn read_chat( &self )
@@ -1379,27 +1471,31 @@ impl Ai
     (
         &mut self,
         new_id: &str
-    ) -> &mut Self
+    )
+    -> &mut Self
     {
         let file_path = self.get_chat_file_path();
         
         if let Err(e) = ensure_directory( &file_path )
         {
             self.application.get_log()
-                .error("Failed to ensure chat directory")
-                .prm("error", &e);
+            .error("Failed to ensure chat directory")
+            .prm("error", &e);
             return self;
         }
         
-        if let Err(e) = std::fs::write(&file_path, new_id) {
+        if let Err(e) = std::fs::write(&file_path, new_id)
+        {
             self.application.get_log()
-                .error("Failed to switch chat")
-                .prm("path", &file_path)
-                .prm("error", &e.to_string());
-        } else {
+            .error("Failed to switch chat")
+            .prm("path", &file_path)
+            .prm("error", &e.to_string());
+        } 
+        else
+        {
             self.application.get_log()
-                .trace("Chat switched")
-                .prm("id", new_id);
+            .trace("Chat switched")
+            .prm("id", new_id);
         }
         
         self
@@ -1425,7 +1521,8 @@ impl Ai
     (
         &mut self, 
         name: &str
-    ) -> &mut Self
+    )
+    -> &mut Self
     {
         self.chat = name.to_string();
         self
@@ -1448,21 +1545,11 @@ impl Ai
         dest_type: &str
     )
     {
-        let command = self.application.config
-        .as_ref()
-        .and_then
+        let command = self.get_config_val
         (
-            |cfg| 
-            cfg
-            ["application"]
-            ["ai"]
-            ["destination"]
-            [dest_type]
-            .as_str()
-        )
-        .unwrap_or("")
-        .to_string();
-        
+            &["destination", dest_type], 
+            String::new()
+        );
         self.run_command( data, &command, false );
     }
 
@@ -1490,19 +1577,7 @@ impl Ai
         }
 
         /* Retrive shell */
-        let shell = self.application.config
-        .as_ref()
-        .and_then
-        (
-            |cfg|
-            cfg
-            [ "application" ]
-            [ "ai" ]
-            [ "shell" ]
-            .as_str()
-        )
-        .unwrap_or( "/bin/bash" )
-        .to_string();
+        let shell = self.get_config_val(&[ "shell" ], "/bin/bash".to_string() );
 
         match std::process::Command::new
         (
@@ -1523,16 +1598,20 @@ impl Ai
                     let _ = stdin.flush();
                 }
                 
-                if wait {
-                    match child.wait() {
-                        Ok(exit_status) => {
+                if wait
+                {
+                    match child.wait()
+                    {
+                        Ok( exit_status ) =>
+                        {
                             self.application.get_log()
                             .info( "Command executed successfully" )
                             .prm( "command", command )
                             .prm( "data_bytes", data_len )
                             .prm( "exit_code", exit_status.code().unwrap_or( -1 ));
                         }
-                        Err(e) => {
+                        Err( e ) =>
+                        {
                             self.application.get_log()
                             .warning("Failed to wait for command")
                             .prm("command", command)
@@ -1560,11 +1639,11 @@ impl Ai
             {
                 self
                 .application.get_log()
-                .error("Failed to execute command")
-                .prm("command", command)
-                .prm("data_bytes", data.len())
-                .prm("error", &e.to_string());
-                println!("{}", data);
+                .error( "Failed to execute command" )
+                .prm( "command", command )
+                .prm( "data_bytes", data.len() )
+                .prm( "error", &e.to_string() );
+                println!( "{}", data );
             }
         }
     }
@@ -1633,7 +1712,7 @@ impl Ai
             else
             {
                 /* 
-                    REMOVE_ENTER: CRITICAL SECURITY LAYER
+                    REMOVE_ENTER
 
                     Removes newline and carriage return characters from LLM-generated command.
                     Prevents command injection via line breaks that could:
@@ -1644,8 +1723,6 @@ impl Ai
                     The cleaned command remains as a single line.
                     Only newline/carriage return are removed - all other characters (&&, |, ;, $, `, etc.)
                     are preserved as legitimate command syntax.
-
-                    This is a PROOF of security awareness - intentional design, not a bug.
                 */
                 let clean_command = command.replace('\n', " ").replace('\r', "");
                 self.run_destination(&clean_command, "command" );
@@ -1694,11 +1771,11 @@ impl Ai
     )
     {
         // Clone the config value to avoid borrowing self
-        let tty_device = self.application.config
-        .as_ref()
-        .and_then(|cfg| cfg["application"]["ai"]["input"]["tty_device"].as_str())
-        .unwrap_or( "/dev/tty" )
-        .to_string();
+        let tty_device = self.get_config_val
+        (
+            &[ "tty_device" ], 
+            "/dev/tty".to_string()
+        );
         
         match std::fs::OpenOptions::new().write( true ).open( &tty_device )
         {
@@ -1712,30 +1789,33 @@ impl Ai
                     {
                         libc::ioctl(fd_raw, libc::TIOCSTI, &byte)
                     };
-                    if ret != 0 {
+                    if ret != 0
+                    {
                         self.application.get_log()
-                            .error("TIOCSTI ioctl failed")
-                            .prm("byte", &byte.to_string())
-                            .prm("error", &std::io::Error::last_os_error().to_string());
+                        .error( "TIOCSTI ioctl failed" )
+                        .prm( "byte", &byte.to_string())
+                        .prm( "error", &std::io::Error::last_os_error().to_string());
+
                         break;
                     }
                 }
                 
                 self.application.get_log()
-                .info("Command injected via TIOCSTI")
-                .prm("tty", &tty_device)
-                .prm("length", cmd.len());
+                .info( "Command injected via TIOCSTI" )
+                .prm( "tty", &tty_device )
+                .prm( "length", cmd.len() );
             }
             Err(e) => 
             {
                 self.application.get_log()
-                .error("Failed to open TTY device")
-                .prm("device", &tty_device)
-                .prm("error", &e.to_string());
-                println!("{}", cmd);
+                .error( "Failed to open TTY device" )
+                .prm( "device", &tty_device )
+                .prm( "error", &e.to_string() );
+                println!( "{}", cmd );
             }
         }
     }
+
 
 
     /**************************************************************************
@@ -1747,41 +1827,47 @@ impl Ai
         Supports %profile% and %chat% placeholders
         Default: ~/.local/share/ai/%profile%/memory/%chat%.txt
     */
-    fn get_memory_file(&self) -> String
+    fn get_memory_file( &self )
+    -> String
     {
-        let path = self.application.config
-            .as_ref()
-            .and_then(|cfg| cfg["application"]["ai"]["memory"].as_str())
-            .unwrap_or("~/.local/share/ai/%profile%/memory/%chat%.txt")
-            .to_string()
-            .replace("%profile%", &self.get_profile())
-            .replace("%provider%", &self.get_provider())
-            .replace("%chat%", &self.get_chat());
-        expand_path( &path )
-    } 
+        expand_path
+        (
+            &self.get_config_val
+            (
+                &[ "memory" ], 
+                "~/.local/share/ai/%profile%/memory/%chat%.txt".to_string()
+            )
+            .replace( "%profile%", &self.get_profile() )
+            .replace( "%provider%", &self.get_provider() )
+            .replace( "%model%", &self.get_model_safe() )
+            .replace( "%chat%", &self.get_chat() )
+        )
+    }
+
 
 
     /*
         Clear memory file for current chat
     */
-    fn clear_memory(&mut self) -> &mut Self
+    fn clear_memory( &mut self )
+    -> &mut Self
     {
         let path = self.get_memory_file();
         
         match std::fs::write(&path, "")
         {
-            Ok(_) =>
+            Ok( _ ) =>
             {
                 self.application.get_log()
-                    .info("Memory cleared")
-                    .prm("path", &path);
+                .info("Memory cleared")
+                .prm("path", &path);
             }
-            Err(e) =>
+            Err( e ) =>
             {
                 self.application.get_log()
-                    .warning("Failed to clear memory")
-                    .prm("path", &path)
-                    .prm("error", &e.to_string());
+                .warning( "Failed to clear memory" )
+                .prm( "path", &path)
+                .prm( "error", &e.to_string());
             }
         }
         
@@ -1801,23 +1887,23 @@ impl Ai
         let memory_path = self.get_memory_file();
 
         // Create parent directory
-        if let Err(e) = ensure_directory(&memory_path)
+        if let Err( e ) = ensure_directory( &memory_path )
         {
             self.application.get_log()
-                .error("Failed to ensure memory directory")
-                .prm("error", &e);
+            .error( "Failed to ensure memory directory" )
+            .prm( "error", &e );
             return;
         }
 
         use std::fs::OpenOptions;
         use std::io::Write;
 
-        let line = format!("@FACT\n{}\n\n", text);
+        let line = format!( "@FACT\n{}\n\n", text );
 
         if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&memory_path)
+        .create(true)
+        .append(true)
+        .open(&memory_path)
         {
             let _ = file.write_all(line.as_bytes());
         }
@@ -1831,11 +1917,10 @@ impl Ai
     fn read_memory( &self )
     -> String
     {
-        let memory_path = self.get_memory_file();
-        
-        match std::fs::read_to_string(&memory_path)
+        let memory_path = self.get_memory_file();       
+        match std::fs::read_to_string( &memory_path )
         {
-            Ok(content) => content,
+            Ok( content ) => content,
             Err(_) => String::new(),
         }
     }
@@ -1863,7 +1948,6 @@ impl Ai
         Providers methods
     */
 
-
     /*
         Event triggered before sending HTTP request to LLM provider.
         Logs the prompt for debugging and audit purposes.
@@ -1884,11 +1968,11 @@ impl Ai
     )
     {
         self.application.get_log()
-            .dump("Prompt to LLM", prompt)
-            .prm("provider", provider)
-            .prm("model", model)
-            .prm("api", api_url)
-            .prm("type", prompt_type);
+        .dump("Prompt to LLM", prompt)
+        .prm("provider", provider)
+        .prm("model", model)
+        .prm("api", api_url)
+        .prm("type", prompt_type);
     }
 
 
@@ -1913,12 +1997,14 @@ impl Ai
     )
     {
         self.application.get_log()
-            .dump("Response from LLM", response)
-            .prm("provider", provider)
-            .prm("model", model)
-            .prm("api", api_url)
-            .prm("type", prompt_type);
+        .dump("Response from LLM", response)
+        .prm("provider", provider)
+        .prm("model", model)
+        .prm("api", api_url)
+        .prm("type", prompt_type);
     }
-}
 
+
+
+}
 

@@ -179,15 +179,13 @@ impl<'a> Provider for OllamaProvider<'a>
     /*
         Send chat request and parse response.
     */
-    fn chat( &mut self )
+    fn chat
+    (
+        &mut self,
+        prompt: &str
+    )
     {
-        let user_prompt = self.ai.get_user_prompt();
-        let prompt = self.ai.build_prompt("chat", &user_prompt);
         let name = self.get_name().to_string();
-
-        /* Write user prompt to history */
-        self.ai.write_history(self.ai.get_history_delimiter(), "");
-        self.ai.write_history("@USER", &user_prompt);
 
         let api_url = get_api_url( self.ai, &name );
         let model = self.ai.get_model();

@@ -14,84 +14,30 @@ application:
     provider_file: ~/.config/ai/%profile%/provider.txt
     # Chat file. This chat contins chat id
     chat-file: ~/.local/share/ai/%profile%/chat.txt
-    # History file
-    history: ~/.local/share/ai/%profile%/history/
-    # Buffer path
-    buffers: ~/.local/share/ai/%profile%/buffer
+    # History file %profile% %provider% %model% %chat%
+    history: ~/.local/share/ai/%profile%/history/%chat%.txt
+    # Pool path
+    pool: ~/.local/share/ai/%profile%/pool
     # Memory file for long store data
     memory: ~/.local/share/ai/%profile%/memory/%chat%.txt
-
+    #
+    token: ~/.config/ai/%profile%/tokens/%provider%.txt
+    # Socks5 proxy url socks5://host:port
+    # proxy: socks5://127.0.0.1:1080
+    # File with current model
+    model: ~/.local/share/ai/%profile%/models/%provider%.txt
+    # Maximum bytes count for chat
+    max-chat-prompt-size-byte: 10000
     # AI promts
     # Placeholders %provile% %provider% %model%
     prompts:
       chat: ~/.config/ai/%profile%/prompts/chat.txt
       summary: ~/.config/ai/%profile%/prompts/summary.txt
 
-    # AI Providers configuration
-    #    api: ling for api
-    #    token: token file
-    #    model: model id
-    #    proxy: proxy for provider
-    #    prompt: promt template file for provider
-    providers:
-      github:
-        api: https://models.github.ai/inference/chat/completions
-        # proxy: socks5://127.0.0.1:1080
-        token: ~/.config/ai/%profile%/tokens/github.txt
-        model: ~/.local/share/ai/%profile%/models/github.txt
-        models:
-        - openai/gpt-4o
-        - openai/gpt-4.1
-        - openai/gpt-4.1-mini
-      openai:
-        api: https://api.openai.com/v1/chat/completions
-        # proxy: socks5://127.0.0.1:1080
-        token: ~/.config/ai/%profile%/tokens/openai.txt
-        model: ~/.local/share/ai/%profile%/models/openai.txt
-        models:
-        - gpt-4.1
-      deepseek:
-        api: https://api.deepseek.com/v1/chat/completions
-        #proxy: socks5://127.0.0.1:1080
-        # https://console.groq.com/keys
-        token: ~/.config/ai/%profile%/tokens/deepseek.txt
-        model: ~/.local/share/ai/%profile%/models/deepseek.txt
-        models:
-        - deepseek-chat
-      groq:
-        api: https://api.groq.com/openai/v1/chat/completions
-        #proxy: socks5://127.0.0.1:1080
-        token: ~/.config/ai/%profile%/tokens/groq.txt
-        model: ~/.local/share/ai/%profile%/models/groq.txt
-        models:
-        - llama-3.3-70b-versatile
-        - llama-4-scout-17b-16e-instruct
-        - mixtral-8x7b-32768
-      together:
-        api: https://api.together.xyz/v1/chat/completions
-        #proxy: socks5://127.0.0.1:1080
-        token: ~/.config/ai/%profile%/tokens/together.txt
-        model: ~/.local/share/ai/%profile%/models/together.txt
-        models:
-        - meta-llama/Llama-3.3-70B-Instruct-Turbo
-      ollama:
-        api: http://localhost:11434/api/generate
-        model: ~/.local/share/ai/%profile%/models/local.txt
-        models:
-        - qwen3.5:9b
-        - llama3.2
-      anthropic:
-        api: https://api.anthropic.com/v1/messages
-        #proxy: socks5://127.0.0.1:1080
-        token: ~/.config/ai/%profile%/tokens/anthropic.txt
-        model: ~/.local/share/ai/%profile%/models/anthropic.txt
-        models:
-        - claude-3-5-sonnet-20241022
-
-    # Output destinations for AI response fields (command, out, buffer)
+    # Output destinations for AI response fields (command, out, pool)
     # Recommended to use only:
     #   - BusyBox built-ins: tee, cat, printf, etc.
-    #   - ai built-in commands: ai --write-buffer, ai --tiocsti
+    #   - ai built-in commands: ai --write-pool, ai --tiocsti
     # Each field can be:
     #   - omitted: use default behavior stdout
     #   - string: command to execute (receives data via stdin)
@@ -112,21 +58,66 @@ application:
     #
     #   Clipboard:
     #     X11:        `xclip -selection clipboard`
-    #     Wayland:    `wl-copy`                                  
+    #     Wayland:    `wl-copy`
     #     macOS:      `pbcopy`
     #
     #   File output:
     #     Write:      `cat > ~/file.txt`
     #     Append:     `cat >> ~/file.log`
     #
-    #   Buffer (file + stdout):
-    #     All:        `ai --write-buffer`
+    #   pool (file + stdout):
+    #     All:        `ai --write-pool`
     destination:
-      # Command processing
+      # Сommand processing
       command: "sleep 0.3 && xdotool type --clearmodifiers --delay 10 --file -"
       # Pipeline for information out processing
       message: "cat && echo"
-      # Pipeline for buffer processing
-      buffer: "ai --write-buffer"
-      # Pipeline for buffer processing
+      # Pipeline for pool processing
+      pool: "ai --write-pool"
+      # Pipeline for clipboard processing
       clipboard: "xclip -selection clipboard"
+
+    # AI overriden configuration 
+    # providers
+    #   <provider>
+    #     keys for provider
+    #     modeles:
+    #       <model>
+    #         keys for provider & model
+    #         chats:
+    #           <chat>
+    #             keys for provider & model & chat
+    providers:
+      github:
+        api: https://models.github.ai/inference/chat/completions
+        available-models:
+        - openai/gpt-4o
+        - openai/gpt-4.1
+        - openai/gpt-4.1-mini
+      openai:
+        api: https://api.openai.com/v1/chat/completions
+        available-models:
+        - gpt-4.1
+      deepseek:
+        api: https://api.deepseek.com/v1/chat/completions
+        available-models:
+        - deepseek-chat
+      groq:
+        api: https://api.groq.com/openai/v1/chat/completions
+        available-models:
+        - llama-3.3-70b-versatile
+        - llama-4-scout-17b-16e-instruct
+        - mixtral-8x7b-32768
+      together:
+        api: https://api.together.xyz/v1/chat/completions
+        available-models:
+        - meta-llama/Llama-3.3-70B-Instruct-Turbo
+      ollama:
+        api: http://localhost:11434/api/generate
+        available-models:
+        - qwen3.5:9b
+        - llama3.2
+      anthropic:
+        api: https://api.anthropic.com/v1/messages
+        available-models:
+        - claude-3-5-sonnet-20241022
