@@ -27,7 +27,7 @@ application:
     # File with current model
     model: ~/.local/share/ai/%profile%/models/%provider%.txt
     # Maximum bytes count for chat prompt
-    max-chat-prompt-size-byte: 10000
+    max-chat-prompt-size-byte: 100000
     # AI promts
     # Placeholders %provile% %provider% %model%
     prompts:

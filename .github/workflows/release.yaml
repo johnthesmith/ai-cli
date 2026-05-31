@@ -16,36 +16,69 @@ jobs:
     strategy:
       matrix:
         include:
+          # x86_64 Linux
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            name: ai-linux
+            name: ai-linux-x86_64
+          # ARM64 Linux
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: ai-linux-aarch64
+          # ARMv7 Linux (32-bit)
+          - target: armv7-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            name: ai-linux-armv7
+          # ARMv6 Linux (Raspberry Pi Zero/1)
+          - target: arm-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            name: ai-linux-armv6
+          # macOS Intel
           - target: x86_64-apple-darwin
             os: macos-latest
             name: ai-macos-intel
+          # macOS Apple Silicon
           - target: aarch64-apple-darwin
             os: macos-latest
             name: ai-macos-apple-silicon
-#          - target: x86_64-pc-windows-msvc
-#            os: windows-latest
-#            name: ai-windows.exe
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - run: cargo build --release --target ${{ matrix.target }}
+      - name: Install ARM toolchain (Linux ARM only)
+        if: contains(matrix.target, 'arm') || contains(matrix.target, 'aarch64')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi
+
+      - name: Set environment variables for ARM64
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Set environment variables for ARMv7
+        if: matrix.target == 'armv7-unknown-linux-gnueabihf'
+        run: |
+          echo "CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+
+      - name: Set environment variables for ARMv6
+        if: matrix.target == 'arm-unknown-linux-gnueabihf'
+        run: |
+          echo "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary
         shell: bash
-        run: |
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            cp target/${{ matrix.target }}/release/ai.exe ${{ matrix.name }}
-          else
-            cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
-          fi
+        run: cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
 
       - name: Sleep for 5 seconds
         run: sleep 5
@@ -56,3 +89,62 @@ jobs:
         with:
           files: ${{ matrix.name }}
           generate_release_notes: true
+
+#name: Release Binaries
+#
+#on:
+#  push:
+#    tags:
+#      - 'v*'
+#  workflow_dispatch:
+#
+#permissions:
+#  contents: write
+#
+#jobs:
+#  build:
+#    name: Build for ${{ matrix.target }}
+#    runs-on: ${{ matrix.os }}
+#    strategy:
+#      matrix:
+#        include:
+#          - target: x86_64-unknown-linux-gnu
+#            os: ubuntu-latest
+#            name: ai-linux
+#          - target: x86_64-apple-darwin
+#            os: macos-latest
+#            name: ai-macos-intel
+#          - target: aarch64-apple-darwin
+#            os: macos-latest
+#            name: ai-macos-apple-silicon
+##          - target: x86_64-pc-windows-msvc
+##            os: windows-latest
+##            name: ai-windows.exe
+#
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - uses: dtolnay/rust-toolchain@stable
+#        with:
+#          targets: ${{ matrix.target }}
+#
+#      - run: cargo build --release --target ${{ matrix.target }}
+#
+#      - name: Rename binary
+#        shell: bash
+#        run: |
+#          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+#            cp target/${{ matrix.target }}/release/ai.exe ${{ matrix.name }}
+#          else
+#            cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
+#          fi
+#
+#      - name: Sleep for 5 seconds
+#        run: sleep 5
+#        shell: bash
+#
+#      - name: Upload binary to release
+#        uses: softprops/action-gh-release@v2
+#        with:
+#          files: ${{ matrix.name }}
+#          generate_release_notes: true

@@ -129,7 +129,9 @@ impl Ai
     }
 
 
-
+    /*
+        Build yaml with session information and return it in to stdout
+    */
     fn show_info( &mut self )
     -> &mut Self
     {
@@ -138,7 +140,7 @@ impl Ai
             {
                 "log": self.application.get_log().get_file_path(),
                 "config": self.get_config_file(),
-                "version": format!( "{}\n", self.get_version()),
+                "version": self.get_version(),
                 "session": 
                 {
                     "profile": self.get_profile(),
@@ -1938,12 +1940,13 @@ impl Ai
     */
     fn write_memory
     (
-        &mut self, text: &str
+        &mut self, 
+        text: &str
     )
     {
         let memory_path = self.get_memory_file();
 
-        // Create parent directory
+        /* Create parent directory */
         if let Err( e ) = ensure_directory( &memory_path )
         {
             self.application.get_log()
@@ -1955,7 +1958,12 @@ impl Ai
         use std::fs::OpenOptions;
         use std::io::Write;
 
-        let line = format!( "@FACT\n{}\n\n", text );
+        let line = format!
+        (
+            "@FACT {}\n{}\n\n", 
+            &Moment::create().now().format( "%Y-%m-%d %H:%M:%S" ),
+            text
+        );
 
         if let Ok(mut file) = OpenOptions::new()
         .create(true)
@@ -1984,6 +1992,9 @@ impl Ai
 
 
 
+    /*
+        Send memory to stdout
+    */
     fn show_memory( &mut self )
     -> &mut Self 
     {
@@ -2060,8 +2071,5 @@ impl Ai
         .prm("api", api_url)
         .prm("type", prompt_type);
     }
-
-
-
 }
 
