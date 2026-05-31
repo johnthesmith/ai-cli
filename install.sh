@@ -64,6 +64,7 @@ cd "$CLONE_DIR"
 # Create ~/.local/bin directory
 mkdir -p "$BIN_DIR"
 
+
 # Download binary from GitHub Releases
 info "Downloading ai binary..."
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -71,8 +72,10 @@ ARCH=$(uname -m)
 case "$OS" in
     linux)
         case "$ARCH" in
-            x86_64)  FILE="ai-linux" ;;
-            aarch64) FILE="ai-linux-arm64" ;;
+            x86_64)  FILE="ai-linux-x86_64" ;;
+            aarch64) FILE="ai-linux-aarch64" ;;
+            armv7l)  FILE="ai-linux-armv7" ;;
+            armv6l)  FILE="ai-linux-armv6" ;;
             *) error "Unsupported arch: $ARCH"; exit 1 ;;
         esac ;;
     darwin)
@@ -83,6 +86,8 @@ case "$OS" in
         esac ;;
     *) error "Unsupported OS: $OS"; exit 1 ;;
 esac
+
+
 
 TAG=$(curl -s "https://api.github.com/repos/johnthesmith/ai-cli/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
 curl -L "https://github.com/johnthesmith/ai-cli/releases/download/$TAG/$FILE" -o "$BIN_DIR/ai"
