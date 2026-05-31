@@ -81,7 +81,7 @@ application:
     # providers
     #   <provider>
     #     keys for provider
-    #     modeles:
+    #     models:
     #       <model>
     #         keys for provider & model
     #         chats:
