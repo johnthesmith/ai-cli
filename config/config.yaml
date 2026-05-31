@@ -26,7 +26,7 @@ application:
     # proxy: socks5://127.0.0.1:1080
     # File with current model
     model: ~/.local/share/ai/%profile%/models/%provider%.txt
-    # Maximum bytes count for chat
+    # Maximum bytes count for chat prompt
     max-chat-prompt-size-byte: 10000
     # AI promts
     # Placeholders %provile% %provider% %model%

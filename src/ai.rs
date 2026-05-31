@@ -113,19 +113,60 @@ impl Ai
         println!( "    --clear-memory             Remove memory for current chat (global if %chat% not used)" );
         println!( "" );
         println!( "    --write-pool               Write stdin to pool file and forward to stdout" );
+        println!( "                               Example: echo 'data' | ai --write-pool");
         println!( "    --tiocsti                  Inject input directly into TTY input pool for keyboard" );
         println!( "                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
         println!( "                               on modern kernels. Only use in trusted environments." );
+        println!( "                               Example: echo 'ls -la' | ai --tiocsti" );
         println!( "" );
         println!( "Recommendations:" );
         println!( "    alias                      Set `alias 1=ai`" );
         println!( "" );
         println!( "Author:" );
-        println!( "    Still Swamp (still@catlair.net) Powered by deepseek" );
+        println!( "    Still Swamp (still@catlair.net) Build with deepseek" );
 
         self
     }
 
+
+
+    fn show_info( &mut self )
+    -> &mut Self
+    {
+        let info = serde_json::json!
+        (
+            {
+                "log": self.application.get_log().get_file_path(),
+                "config": self.get_config_file(),
+                "session": 
+                {
+                    "profile": self.get_profile(),
+                    "provider": self.get_provider(),
+                    "chat": self.get_chat(),
+                    "model": self.get_model()
+                },
+                "files":
+                {
+                    "prompt_chat": self.get_prompt_file( "chat" ),
+                    "prompt_summary": self.get_prompt_file( "summary" ),
+                    "model": self.get_model_file_path(),
+                    "memory": self.get_memory_file(),
+                    "token": self.get_token_path(),
+                    "history": self.get_history_file_path()
+                },
+                "statistics":
+                {
+                    "max_prompt_size_bytes": self.get_max_chat_prompt_size_byte(),
+                    "history_size_bytes": self.get_history_size_byte(),
+                    "memory_size_bytes": self.get_memory_size_byte()
+                }
+            }
+        );
+        
+        println!("{}", serde_yaml::to_string(&info).unwrap_or_default());
+        
+        self
+    }
 
 
     /*
@@ -411,7 +452,7 @@ impl Ai
             {
                 let provider_name = self.get_provider();
                 let user_prompt = self.get_user_prompt();
-                let prompt = self.build_prompt("chat", &user_prompt);
+                let prompt = self.build_prompt( "chat", &user_prompt );
 
                 let max_bytes = self.get_max_chat_prompt_size_byte();
                 let size = prompt.len();
@@ -651,7 +692,22 @@ impl Ai
 
 
 
-    fn get_history_file_path( &mut self )
+    /*
+        Return current history file size in bytes
+    */
+    fn get_history_size_byte( &self )
+    /* History size in bytes */
+    -> usize
+    {
+        let path = self.get_history_file_path();
+        std::fs::metadata( &path )
+        .map(|m| m.len() as usize)
+        .unwrap_or(0)
+    }
+
+
+
+    fn get_history_file_path( &self )
     -> String
     {
         expand_path
@@ -670,7 +726,8 @@ impl Ai
 
 
 
-    fn get_history( &mut self ) -> String 
+    fn get_history( &self )
+    -> String 
     {
         let history_path = self.get_history_file_path();       
         match std::fs::read_to_string(&history_path) 
@@ -733,7 +790,7 @@ impl Ai
             Ok( _ ) =>
             {
                 self.application.get_log()
-                .info("History cleared")
+                .info( "History cleared" )
                 .prm("path", &history_path);
             }
             Err( e ) =>
@@ -896,13 +953,6 @@ impl Ai
     */
 
 
-    fn get_max_chat_prompt_size_byte( &self )
-    -> usize
-    {
-        self.get_config_val(&[ "max-chat-prompt-size-byte"], 100000 )
-    }
-
-
 
     /*
         Return config file path for current profile
@@ -936,26 +986,6 @@ impl Ai
         self.get_config_val( &[ "proxy" ], String::new() )
     }
 
-
-    /*
-        Show runtime information
-    */
-    fn show_info(&mut self) -> &mut Self
-    {
-        println!( "Log:                  {}", self.application.get_log().get_file_path());
-        println!( "Config:               {}", self.get_config_file());
-        println!( "Profile:              {}", self.get_profile());
-        println!( "Provider:             {}", self.get_provider());
-        println!( "Chat:                 {}", self.get_chat());
-        println!( "Model:                {}", self.get_model() );
-        println!( "Prompt chat file:     {}", self.get_prompt_file( "chat" ));
-        println!( "Prompt summary file:  {}", self.get_prompt_file( "summary" ));
-        println!( "Model file:           {}", self.get_model_file_path() );
-        println!( "History file:         {}", self.get_history_file_path() );
-        println!( "Memory file:          {}", self.get_memory_file() );
-        println!( "Token file:           {}", self.get_token_path() );
-        self
-    }
 
 
     /*
@@ -1427,7 +1457,8 @@ impl Ai
     /*
         Return file for current chat id
     */
-    fn get_chat_file_path(&self) -> String
+    fn get_chat_file_path( &self )
+    -> String
     {
         let path = self.get_config_val
         (
@@ -1443,6 +1474,17 @@ impl Ai
             .replace( "%provider%", &self.get_provider() )
         )
     }
+
+
+    /*
+        Return max length for chat prompt
+    */
+    fn get_max_chat_prompt_size_byte( &self )
+    -> usize
+    {
+        self.get_config_val( &[ "max-chat-prompt-size-byte" ], 100000 )
+    }
+
 
 
 
@@ -1842,6 +1884,20 @@ impl Ai
             .replace( "%model%", &self.get_model_safe() )
             .replace( "%chat%", &self.get_chat() )
         )
+    }
+
+
+
+    /*
+        Return current memory file size in bytes
+    */
+    fn get_memory_size_byte( &self)
+    -> usize 
+    {
+        let path = self.get_memory_file();
+        std::fs::metadata( &path )
+        .map(|m| m.len() as usize)
+        .unwrap_or(0)
     }
 
 
