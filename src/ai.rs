@@ -138,6 +138,7 @@ impl Ai
             {
                 "log": self.application.get_log().get_file_path(),
                 "config": self.get_config_file(),
+                "version": format!( "{}\n", self.get_version()),
                 "session": 
                 {
                     "profile": self.get_profile(),
