@@ -1,3 +1,11 @@
+# Release v1.0.2
+
+## Added
+
+1. Version for `--info`.
+
+
+
 # Release v1.0.1
 
 ## Added
