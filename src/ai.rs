@@ -146,7 +146,8 @@ impl Ai
                     "profile": self.get_profile(),
                     "provider": self.get_provider(),
                     "chat": self.get_chat(),
-                    "model": self.get_model()
+                    "model": self.get_model(),
+                    "proxy":  self.read_proxy()
                 },
                 "files":
                 {
@@ -876,7 +877,7 @@ impl Ai
             /* Output message via destination */
             if !error.is_empty()
             {
-                self.run_destination( &error, "message" );
+                self.run_destination( &error, "message", true );
             }
 
             self.application.get_log().warning
@@ -1587,15 +1588,17 @@ impl Ai
     (
         &mut self, 
         data: &str, 
-        dest_type: &str
+        dest_type: &str,
+        /* true for sync execute or false for async */
+        wait: bool
     )
     {
         let command = self.get_config_val
         (
-            &["destination", dest_type], 
+            &[ "destination", dest_type ], 
             String::new()
         );
-        self.run_command( data, &command, false );
+        self.run_command( data, &command, wait );
     }
 
 
@@ -1730,13 +1733,13 @@ impl Ai
         /* Output message via destination */
         if !message.is_empty()
         {
-            self.run_destination( &message, "message" );
+            self.run_destination( &message, "message", true );
         }
 
         /* Put information to clipboard */
         if !clipboard.is_empty()
         {
-            self.run_destination( &clipboard, "clipboard" );
+            self.run_destination( &clipboard, "clipboard", true );
         }
 
         /* Execute command via destination */
@@ -1770,14 +1773,14 @@ impl Ai
                     are preserved as legitimate command syntax.
                 */
                 let clean_command = command.replace('\n', " ").replace('\r', "");
-                self.run_destination(&clean_command, "command" );
+                self.run_destination(&clean_command, "command", false );
             }
         }
 
         /* Write pool via destination */
         if !pool.is_empty()
         {
-            self.run_destination( &pool, "pool" );
+            self.run_destination( &pool, "pool", true );
         }
 
         /* Save memory */
