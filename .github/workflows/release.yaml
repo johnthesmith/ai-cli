@@ -13,33 +13,34 @@ jobs:
   build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
         include:
-          # Linux glibc (standard)
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: ai-linux-x86_64
+
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             name: ai-linux-aarch64
+
           - target: armv7-unknown-linux-gnueabihf
             os: ubuntu-latest
             name: ai-linux-armv7
+
           - target: arm-unknown-linux-gnueabihf
             os: ubuntu-latest
             name: ai-linux-armv6
-          # Linux musl (Termux, Alpine) using zig
-          - target: aarch64-unknown-linux-musl
+
+          - target: aarch64-linux-android
             os: ubuntu-latest
             name: ai-termux-aarch64
-          - target: armv7-unknown-linux-musleabihf
-            os: ubuntu-latest
-            name: ai-termux-armv7
-          # macOS
+
           - target: x86_64-apple-darwin
             os: macos-latest
             name: ai-macos-intel
+
           - target: aarch64-apple-darwin
             os: macos-latest
             name: ai-macos-apple-silicon
@@ -52,63 +53,77 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install zig for musl cross-compilation
-        if: contains(matrix.target, 'musl')
-        run: |
-          wget -q https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz
-          tar xf zig-linux-x86_64-0.13.0.tar.xz
-          echo "$(pwd)/zig-linux-x86_64-0.13.0" >> $GITHUB_PATH
+      - name: Setup Android NDK
+        if: matrix.target == 'aarch64-linux-android'
+        uses: nttld/setup-ndk@v1
 
-      - name: Install ARM toolchain (Linux glibc)
-        if: contains(matrix.target, 'gnu') && (contains(matrix.target, 'arm') || contains(matrix.target, 'aarch64'))
+      - name: Install ARM toolchain
+        if: |
+          (
+            contains( matrix.target, 'arm' ) ||
+            contains( matrix.target, 'aarch64' )
+          ) &&
+          runner.os == 'Linux' &&
+          matrix.target != 'aarch64-linux-android'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabihf \
+            gcc-arm-linux-gnueabi
 
-      - name: Set env for ARM64 glibc
+      - name: Set env for ARM64
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
-          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo \
+            "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" \
+            >> $GITHUB_ENV
 
-      - name: Set env for ARMv7 glibc
+          echo \
+            "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" \
+            >> $GITHUB_ENV
+
+      - name: Set env for ARMv7
         if: matrix.target == 'armv7-unknown-linux-gnueabihf'
         run: |
-          echo "CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo \
+            "CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" \
+            >> $GITHUB_ENV
 
-      - name: Set env for ARMv6 glibc
+          echo \
+            "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" \
+            >> $GITHUB_ENV
+
+      - name: Set env for ARMv6
         if: matrix.target == 'arm-unknown-linux-gnueabihf'
         run: |
-          echo "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo \
+            "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" \
+            >> $GITHUB_ENV
 
-      - name: Set env for ARM64 musl (zig)
-        if: matrix.target == 'aarch64-unknown-linux-musl'
-        run: |
-          echo "CC_aarch64_unknown_linux_musl=zig cc -target aarch64-linux-musl" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=zig cc -target aarch64-linux-musl" >> $GITHUB_ENV
+          echo \
+            "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" \
+            >> $GITHUB_ENV
 
-      - name: Set env for ARMv7 musl (zig)
-        if: matrix.target == 'armv7-unknown-linux-musleabihf'
+      - name: Set env for Android
+        if: matrix.target == 'aarch64-linux-android'
         run: |
-          echo "CC_armv7_unknown_linux_musleabihf=zig cc -target arm-linux-musleabihf" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_MUSLEABIHF_LINKER=zig cc -target arm-linux-musleabihf" >> $GITHUB_ENV
+          echo \
+            "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" \
+            >> $GITHUB_ENV
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          cargo build \
+            --release \
+            --target ${{ matrix.target }}
 
       - name: Rename binary
         shell: bash
         run: |
-          if [[ -f "target/${{ matrix.target }}/release/ai" ]]; then
-            cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
-          elif [[ -f "target/${{ matrix.target }}/release/ai.exe" ]]; then
-            cp target/${{ matrix.target }}/release/ai.exe ${{ matrix.name }}
-          else
-            echo "Binary not found!"
-            exit 1
-          fi
+          cp \
+            target/${{ matrix.target }}/release/ai \
+            ${{ matrix.name }}
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
