@@ -56,6 +56,8 @@ jobs:
       - name: Setup Android NDK
         if: matrix.target == 'aarch64-linux-android'
         uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
 
       - name: Install ARM toolchain
         if: |
