@@ -1,3 +1,6 @@
+надо добавить сборку под термукс.
+реально?
+
 name: Release Binaries
 
 on:
@@ -13,36 +16,24 @@ jobs:
   build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-
     strategy:
-      fail-fast: false
-
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: ai-linux-x86_64
-
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             name: ai-linux-aarch64
-
           - target: armv7-unknown-linux-gnueabihf
             os: ubuntu-latest
             name: ai-linux-armv7
-
           - target: arm-unknown-linux-gnueabihf
             os: ubuntu-latest
             name: ai-linux-armv6
-
-          - target: aarch64-linux-android
-            os: ubuntu-latest
-            name: ai-termux-aarch64
-
           - target: x86_64-apple-darwin
             os: macos-latest
             name: ai-macos-intel
-
           - target: aarch64-apple-darwin
             os: macos-latest
             name: ai-macos-apple-silicon
@@ -55,93 +46,40 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install Linux cross toolchains
-        if: |
-          runner.os == 'Linux' &&
-          matrix.target != 'aarch64-linux-android'
+      - name: Install ARM toolchain (Linux only)
+        if: (contains(matrix.target, 'arm') || contains(matrix.target, 'aarch64')) && runner.os == 'Linux'
         run: |
           sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi
 
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            gcc-arm-linux-gnueabihf \
-            gcc-arm-linux-gnueabi
-
-      - name: Configure ARM64 Linux
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+      - name: Set env for ARM64
+        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.os == 'Linux'
         run: |
-          echo \
-            "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" \
-            >> $GITHUB_ENV
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
-          echo \
-            "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" \
-            >> $GITHUB_ENV
-
-      - name: Configure ARMv7 Linux
-        if: matrix.target == 'armv7-unknown-linux-gnueabihf'
+      - name: Set env for ARMv7
+        if: matrix.target == 'armv7-unknown-linux-gnueabihf' && runner.os == 'Linux'
         run: |
-          echo \
-            "CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" \
-            >> $GITHUB_ENV
+          echo "CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
-          echo \
-            "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" \
-            >> $GITHUB_ENV
-
-      - name: Configure ARMv6 Linux
-        if: matrix.target == 'arm-unknown-linux-gnueabihf'
+      - name: Set env for ARMv6
+        if: matrix.target == 'arm-unknown-linux-gnueabihf' && runner.os == 'Linux'
         run: |
-          echo \
-            "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" \
-            >> $GITHUB_ENV
-
-          echo \
-            "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" \
-            >> $GITHUB_ENV
-
-      - name: Setup Android NDK
-        if: matrix.target == 'aarch64-linux-android'
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27c
-
-      - name: Install cargo-ndk
-        if: matrix.target == 'aarch64-linux-android'
-        run: |
-          cargo install cargo-ndk
-
-      - name: Build Android
-        if: matrix.target == 'aarch64-linux-android'
-        run: |
-          cargo ndk \
-            -t arm64-v8a \
-            build \
-            --release
+          echo "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
       - name: Build release binary
-        if: matrix.target != 'aarch64-linux-android'
-        run: |
-          cargo build \
-            --release \
-            --target ${{ matrix.target }}
-
-      - name: Rename Android binary
-        if: matrix.target == 'aarch64-linux-android'
-        run: |
-          cp \
-            target/aarch64-linux-android/release/ai \
-            ${{ matrix.name }}
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary
-        if: matrix.target != 'aarch64-linux-android'
-        run: |
-          cp \
-            target/${{ matrix.target }}/release/ai \
-            ${{ matrix.name }}
+        shell: bash
+        run: cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.name }}
           generate_release_notes: true
+
