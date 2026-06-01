@@ -113,6 +113,19 @@ using this tool at your own risk.
 
 
 
+# Binary files for different platforms
+
+| File | OS | Architecture | Download |
+|------|-----|--------------|----------|
+| `ai-linux-x86_64` | Linux | Intel/AMD 64-bit | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-x86_64) |
+| `ai-linux-aarch64` | Linux | ARM64 (64-bit) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-aarch64) |
+| `ai-linux-armv7` | Linux | ARMv7 (32-bit) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-armv7) |
+| `ai-linux-armv6` | Linux | ARMv6 (32-bit) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-armv6) |
+| `ai-macos-intel` | macOS | Intel 64-bit | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-macos-intel) |
+| `ai-macos-apple-silicon` | macOS | ARM64 | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-macos-apple-silicon) |
+
+
+
 # Install
 
 1. Run 
