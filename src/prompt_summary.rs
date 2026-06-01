@@ -1,3 +1,9 @@
+/*
+    SPDX-License-Identifier: MIT
+    SPDX-FileCopyrightText: 2026 Still Swamp
+*/
+
+pub const DEFAULT_PROMPT_SUMMARY: &str = r#"
 #MAIN
 
 You are an AI assistant for the `ai` CLI utility. The user calls you from a
@@ -30,3 +36,4 @@ Respond only with the compressed history, no explanations.
 #HISTORY
 
 %user-prompt%
+"#;

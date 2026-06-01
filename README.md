@@ -147,10 +147,8 @@ source ~/.bashrc
 
 # Configuration
 
-1. Default configuration located at 
-[config/config.yaml](https://github.com/johnthesmith/ai-cli/blob/main/config/config.yaml) 
-for all providers, prompts, and output destinations.
-2. This file must be located at `~/.config/ai/<profile>`.
+1. On first run, default config will be created at `~/.config/ai/default/config.yaml`
+2. Tokens will be placed in `~/.config/ai/default/tokens/<provider>.txt`
 3. For Git token retrieval see [Git token](./man/git-toke.md).
 
 
@@ -165,24 +163,43 @@ for all providers, prompts, and output destinations.
 ## Usage options
 
 ```
---help                      This information
---no-prompt                 Suppress input user prompt
---no-command                Suppress command event
---info                      Show current runtime information (profile, chat, log, config)
---switch-profile=<name>     Switch and save profile
---profile=<name>            Use profile for current session only
---switch-provider=<name>    Switch to AI provider <name> (saves to file)
---provider=<name>           Use provider for current session only (no save)
---switch-model=<name>       Switch and save model
---modle=<name>              Use model for current session only (no save)
---switch-chat=<id>          Switch to chat <id>, default id is default
---show-history              Show history for current chat
---clear-history             Remove history for current chat
---pack-history=<percent>    Pack current chat history with 0-100 percent (default: 50)
---show-memory               Show memory for current chat" );
---clear-memory              Remove memory for current chat (global if %chat% not used
---write-pool                Write stdin to pool file and forward to stdout
---tiocsti                   Inject input directly into TTY input pool for keyboard
+Usage:
+    ai                         Interactive keyboard input
+    ai <question>              Ask a question
+    echo <text> | ai           Read from stdin
+    ai --help                  Show this help
+
+Options:
+    --help                     This information
+    --info                     Show current runtime information
+    --version                  Show current version
+    --no-prompt                Suppress input user prompt
+    --no-command               Suppress command event 
+
+    --provider=<name>          Use provider for current session only (no save)
+    --switch-provider=<name>   Switch to AI provider <name> (saves to file)
+    --profile=<name>           Use profile for current session only
+    --switch-profile=<name>    Switch and save profile
+    --model=<name>             Use model for current session only (no save)
+    --switch-model=<name>      Switch and save model
+    --chat=<id>                Switch to chat <id> for current session only (no save)
+    --switch-chat=<id>         Switch to chat <id> (saves to file)
+
+    --show-history             Show history for current chat
+    --clear-history            Remove history for current chat
+    --pack-history=<percent>   Pack current chat history with 0-100 percent (default: 50)
+    --show-memory              Show memory for current chat
+    --clear-memory             Remove memory for current chat (global if %chat% not used)
+
+    --write-pool               Write stdin to pool file and forward to stdout
+                               Example: echo 'data' | ai --write-pool
+    --tiocsti                  Inject input directly into TTY input pool for keyboard
+                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`
+                               on modern kernels. Only use in trusted environments.
+                               Example: echo 'ls -la' | ai --tiocsti
+
+    --completion=<shell>       Generate shell completion (bash|zsh|fish)
+                               Example: ai --generate-completion bash >> ~/.bashrc
 ```
 
 

@@ -1,5 +1,6 @@
 use crate::Ai;
-use core::expand_path;
+use core::{expand_path, ensure_directory};
+
 
 
 /*
@@ -37,20 +38,27 @@ pub fn get_token
 (
     ai: &Ai
 )
--> String 
+-> String
 {
     let token_path = ai.get_token_path();
 
-    if token_path.is_empty() 
+    if token_path.is_empty()
     {
-        String::new()
+        return String::new();
     }
-    else
+
+    let expanded_path = expand_path( &token_path );
+
+    /* Ensure token file exists (create empty if not) */
+    if 
+        ensure_directory(&expanded_path).is_ok() && 
+        !std::path::Path::new(&expanded_path).exists()
     {
-        let expanded_path = expand_path( &token_path );
-        std::fs::read_to_string(&expanded_path)
-            .ok()
-            .map(|s| s.trim().to_string())
-            .unwrap_or_default()
+        let _ = std::fs::write(&expanded_path, "");
     }
+
+    std::fs::read_to_string(&expanded_path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
 }

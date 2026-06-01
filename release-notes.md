@@ -1,3 +1,12 @@
+# Release v1.0.4
+
+1. Automatic configuration file creation on first run
+0. Automatic prompt files creation (`chat.txt`, `summary.txt`) from embedded defaults
+0. Automatic token file creation (empty) when missing
+4. Configurable `request_timeout_ms` and `connect_timeout_ms`
+
+
+
 # Release v1.0.3
 
 1. Synchronous `message` output — fixes prompt/response order

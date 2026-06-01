@@ -50,7 +50,11 @@ impl<'a> OpenAICompatibleProvider<'a>
     fn create_client( &self )
     -> reqwest::blocking::Client
     {
-        let mut builder = reqwest::blocking::Client::builder();       
+        let mut builder = 
+        reqwest::blocking::Client::builder()
+        .timeout( std::time::Duration::from_millis( self.ai.get_request_timeout_ms() ))
+        .connect_timeout( std::time::Duration::from_millis( self.ai.get_connect_timeout_ms() ));
+
         let proxy_url = self.ai.read_proxy();
         if !proxy_url.is_empty() 
         {
