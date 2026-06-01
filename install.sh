@@ -29,11 +29,11 @@ info "Downloading ai binary..."
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 case "$OS" in
-    linux)
+    linux|android)  # android (Termux) обрабатывается как linux
         case "$ARCH" in
             x86_64)  FILE="ai-linux-x86_64" ;;
             aarch64) FILE="ai-linux-aarch64" ;;
-            armv7l)  FILE="ai-linux-armv7" ;;
+            armv7l|armv8l)  FILE="ai-linux-armv7" ;;
             armv6l)  FILE="ai-linux-armv6" ;;
             *) error "Unsupported arch: $ARCH"; exit 1 ;;
         esac ;;
@@ -43,9 +43,11 @@ case "$OS" in
             arm64)   FILE="ai-macos-apple-silicon" ;;
             *) error "Unsupported arch: $ARCH"; exit 1 ;;
         esac ;;
-    *) error "Unsupported OS: $OS"; exit 1 ;;
+    *)
+        error "Unsupported OS: $OS"
+        exit 1
+        ;;
 esac
-
 
 
 TAG=$(curl -s "https://api.github.com/repos/johnthesmith/ai-cli/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')

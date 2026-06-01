@@ -112,17 +112,16 @@ and executes code
 using this tool at your own risk.
 
 
-
 # Binary files for different platforms
 
-| File | OS | Architecture | Download |
-|------|-----|--------------|----------|
-| `ai-linux-x86_64` | Linux | Intel/AMD 64-bit | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-x86_64) |
-| `ai-linux-aarch64` | Linux | ARM64 (64-bit) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-aarch64) |
-| `ai-linux-armv7` | Linux | ARMv7 (32-bit) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-armv7) |
-| `ai-linux-armv6` | Linux | ARMv6 (32-bit) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-armv6) |
-| `ai-macos-intel` | macOS | Intel 64-bit | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-macos-intel) |
-| `ai-macos-apple-silicon` | macOS | ARM64 | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-macos-apple-silicon) |
+| File | OS | Architecture | Platform / Notes | Download |
+|------|-----|--------------|------------------|----------|
+| `ai-linux-x86_64` | Linux | Intel/AMD 64-bit | Standard Linux (Ubuntu, Debian, Fedora, Arch) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-x86_64) |
+| `ai-linux-aarch64` | Linux | ARM64 (64-bit) | Raspberry Pi 4/5, AWS Graviton, **Termux (Android)** | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-aarch64) |
+| `ai-linux-armv7` | Linux | ARMv7 (32-bit) | Raspberry Pi 2/3, Orange Pi, **Termux (Android 32-bit)** | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-armv7) |
+| `ai-linux-armv6` | Linux | ARMv6 (32-bit) | Raspberry Pi Zero/1, older ARM devices | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-linux-armv6) |
+| `ai-macos-intel` | macOS | Intel 64-bit | MacBook, Mac mini, iMac (Intel) | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-macos-intel) |
+| `ai-macos-apple-silicon` | macOS | ARM64 | MacBook with M1/M2/M3 chip | [Download](https://github.com/johnthesmith/ai-cli/releases/latest/download/ai-macos-apple-silicon) |
 
 
 
