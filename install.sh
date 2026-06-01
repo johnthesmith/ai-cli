@@ -22,16 +22,23 @@ warn() { echo "[WARN] $1"; }
 # Create bin directory
 mkdir -p "$BIN_DIR"
 
+
 # Download binary from GitHub Releases
 info "Downloading ai binary..."
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
+
+# Check if running in Termux (Android)
+if [[ -d "/data/data/com.termux/files/usr" ]]; then
+    OS="termux"
+fi
+
 case "$OS" in
-    linux)
+    linux|termux)
         case "$ARCH" in
             x86_64)  FILE="ai-linux-x86_64" ;;
-            aarch64) FILE="ai-linux-aarch64" ;;
-            armv7l|armv8l)  FILE="ai-linux-armv7" ;;
+            aarch64) FILE="ai-termux-aarch64" ;;
+            armv7l|armv8l)  FILE="ai-termux-armv7" ;;
             armv6l)  FILE="ai-linux-armv6" ;;
             *) error "Unsupported arch: $ARCH"; exit 1 ;;
         esac ;;
@@ -46,6 +53,7 @@ case "$OS" in
         exit 1
         ;;
 esac
+
 
 TAG=$(curl -s "https://api.github.com/repos/johnthesmith/ai-cli/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
 curl -L "https://github.com/johnthesmith/ai-cli/releases/download/$TAG/$FILE" -o "$BIN_DIR/ai"
