@@ -29,7 +29,7 @@ info "Downloading ai binary..."
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 case "$OS" in
-    linux|android)  # android (Termux) обрабатывается как linux
+    linux)
         case "$ARCH" in
             x86_64)  FILE="ai-linux-x86_64" ;;
             aarch64) FILE="ai-linux-aarch64" ;;
@@ -48,6 +48,7 @@ case "$OS" in
         exit 1
         ;;
 esac
+
 
 
 TAG=$(curl -s "https://api.github.com/repos/johnthesmith/ai-cli/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
