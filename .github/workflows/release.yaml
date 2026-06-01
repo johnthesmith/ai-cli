@@ -16,35 +16,21 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux x86_64
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: ai-linux-x86_64
-          # Linux ARM64 (Raspberry Pi 4/5, Termux ARM64)
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             name: ai-linux-aarch64
-          # Linux ARMv7 (Raspberry Pi 2/3, Termux ARMv7)
           - target: armv7-unknown-linux-gnueabihf
             os: ubuntu-latest
             name: ai-linux-armv7
-          # Linux ARMv6 (Raspberry Pi Zero/1)
           - target: arm-unknown-linux-gnueabihf
             os: ubuntu-latest
             name: ai-linux-armv6
-          # Termux ARM64 (Android)
-          - target: aarch64-unknown-linux-android
-            os: ubuntu-latest
-            name: ai-termux-aarch64
-          # Termux ARMv7 (Android)
-          - target: armv7-unknown-linux-androideabi
-            os: ubuntu-latest
-            name: ai-termux-armv7
-          # macOS Intel
           - target: x86_64-apple-darwin
             os: macos-latest
             name: ai-macos-intel
-          # macOS Apple Silicon
           - target: aarch64-apple-darwin
             os: macos-latest
             name: ai-macos-apple-silicon
@@ -54,40 +40,31 @@ jobs:
 
       - name: Setup Rust
         run: |
-          rm -rf ~/.rustup
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source "$HOME/.cargo/env"
           rustup target add ${{ matrix.target }}
 
       - name: Install ARM toolchain (Linux ARM only)
-        if: (contains(matrix.target, 'arm') || contains(matrix.target, 'aarch64')) && runner.os == 'Linux' && !contains(matrix.target, 'android')
+        if: contains(matrix.target, 'arm') || contains(matrix.target, 'aarch64')
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi
 
-      - name: Install Android toolchain (Termux)
-        if: contains(matrix.target, 'android')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-android gcc-arm-linux-androideabi
-          echo "CFLAGS=-D__ANDROID_API__=24" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_ANDROID_LINKER=aarch64-linux-android-gcc" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_ANDROIDEABI_LINKER=arm-linux-androideabi-gcc" >> $GITHUB_ENV
-
-      - name: Set env for Linux ARM64
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.os == 'Linux'
+      - name: Set env for ARM64
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
-      - name: Set env for Linux ARMv7
-        if: matrix.target == 'armv7-unknown-linux-gnueabihf' && runner.os == 'Linux'
+      - name: Set env for ARMv7
+        if: matrix.target == 'armv7-unknown-linux-gnueabihf'
         run: |
           echo "CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
-      - name: Set env for Linux ARMv6
-        if: matrix.target == 'arm-unknown-linux-gnueabihf' && runner.os == 'Linux'
+      - name: Set env for ARMv6
+        if: matrix.target == 'arm-unknown-linux-gnueabihf'
         run: |
           echo "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           echo "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
@@ -97,15 +74,7 @@ jobs:
 
       - name: Rename binary
         shell: bash
-        run: |
-          if [[ -f "target/${{ matrix.target }}/release/ai" ]]; then
-            cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
-          elif [[ -f "target/${{ matrix.target }}/release/ai.exe" ]]; then
-            cp target/${{ matrix.target }}/release/ai.exe ${{ matrix.name }}
-          else
-            echo "Binary not found!"
-            exit 1
-          fi
+        run: cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
