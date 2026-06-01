@@ -16,6 +16,7 @@ jobs:
     strategy:
       matrix:
         include:
+          # Linux glibc (standard)
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: ai-linux-x86_64
@@ -28,6 +29,14 @@ jobs:
           - target: arm-unknown-linux-gnueabihf
             os: ubuntu-latest
             name: ai-linux-armv6
+          # Linux musl (Termux, Alpine)
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            name: ai-termux-aarch64
+          - target: armv7-unknown-linux-musleabihf
+            os: ubuntu-latest
+            name: ai-termux-armv7
+          # macOS
           - target: x86_64-apple-darwin
             os: macos-latest
             name: ai-macos-intel
@@ -43,36 +52,64 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install ARM toolchain (Linux only)
-        if: (contains(matrix.target, 'arm') || contains(matrix.target, 'aarch64')) && runner.os == 'Linux'
+      - name: Install ARM toolchain (Linux glibc)
+        if: contains(matrix.target, 'gnu') && (contains(matrix.target, 'arm') || contains(matrix.target, 'aarch64'))
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi
 
-      - name: Set env for ARM64
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.os == 'Linux'
+      - name: Install musl toolchain (Termux/Alpine)
+        if: contains(matrix.target, 'musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          # For cross-compilation to ARM musl
+          sudo apt-get install -y gcc-aarch64-linux-musl gcc-arm-linux-musleabihf || true
+
+      - name: Set env for ARM64 glibc
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
-      - name: Set env for ARMv7
-        if: matrix.target == 'armv7-unknown-linux-gnueabihf' && runner.os == 'Linux'
+      - name: Set env for ARMv7 glibc
+        if: matrix.target == 'armv7-unknown-linux-gnueabihf'
         run: |
           echo "CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
-      - name: Set env for ARMv6
-        if: matrix.target == 'arm-unknown-linux-gnueabihf' && runner.os == 'Linux'
+      - name: Set env for ARMv6 glibc
+        if: matrix.target == 'arm-unknown-linux-gnueabihf'
         run: |
           echo "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           echo "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+
+      - name: Set env for ARM64 musl
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          echo "CC_aarch64_unknown_linux_musl=clang" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=clang" >> $GITHUB_ENV
+
+      - name: Set env for ARMv7 musl
+        if: matrix.target == 'armv7-unknown-linux-musleabihf'
+        run: |
+          echo "CC_armv7_unknown_linux_musleabihf=clang" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_MUSLEABIHF_LINKER=clang" >> $GITHUB_ENV
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary
         shell: bash
-        run: cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
+        run: |
+          if [[ -f "target/${{ matrix.target }}/release/ai" ]]; then
+            cp target/${{ matrix.target }}/release/ai ${{ matrix.name }}
+          elif [[ -f "target/${{ matrix.target }}/release/ai.exe" ]]; then
+            cp target/${{ matrix.target }}/release/ai.exe ${{ matrix.name }}
+          else
+            echo "Binary not found!"
+            exit 1
+          fi
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
