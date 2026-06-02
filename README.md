@@ -17,7 +17,9 @@
 * [For developers](#for-developers)
 * [Architecture](#architecture)
 
+# Philosophy
 
+**LLM decides. Human acts.**
 
 # How it works
 
