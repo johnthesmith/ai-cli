@@ -184,7 +184,7 @@ impl Ai
             }
         );
         
-        println!("{}", serde_yaml::to_string(&info).unwrap_or_default());
+        println!( "{}", serde_yaml::to_string(&info).unwrap_or_default() );
         
         self
     }
@@ -194,7 +194,7 @@ impl Ai
     /*
         Main run method
     */
-    pub fn run ( &mut self ) 
+    pub fn run( &mut self ) 
     -> &mut Self 
     {
         /* Read cli arguments */
@@ -258,7 +258,7 @@ impl Ai
             if error_code == "config-not-found"
             {
                 self.app.get_log_mut()
-                .info("Creating default configuration")
+                .info( "Creating default configuration" )
                 .eol();
                 
                 self.generate_config();
@@ -268,7 +268,7 @@ impl Ai
                 
                 if self.app.state.is_ok()
                 {
-                    self.app.get_log_mut()
+                    self.get_app_mut().get_log_mut()
                     .info( "Default configuration created successfully" )
                     .eol();
                 }
@@ -297,7 +297,7 @@ impl Ai
                     "%profile%", 
                     &self.get_profile()
                 );
-                self.app.get_log_mut().set_file_path(&file);
+                self.app.get_log_mut().set_file_path( &file );
             }
             
 
@@ -307,6 +307,7 @@ impl Ai
                 "=== Ai started =================================================="
             );
             self.app.dump_config();
+
 
 
             /*
@@ -379,6 +380,7 @@ impl Ai
                 {
                     self.set_model( &self.read_model() );
                 }
+
 
 
                 /* Help mode */
@@ -468,8 +470,8 @@ impl Ai
                         Err( e ) =>
                         {
                             self.app.get_log_mut()
-                                .error("tiocsti: failed to read stdin")
-                                .prm("error", &e.to_string());
+                            .error( "tiocsti: failed to read stdin" )
+                            .prm( "error", &e.to_string() );
                         }
                     }
                 }
@@ -617,14 +619,14 @@ impl Ai
         if !std::path::Path::new(&full_path).exists()
         {
             /* Ensure parent directory exists */
-            if let Some(parent) = std::path::Path::new(&full_path).parent()
+            if let Some( parent ) = std::path::Path::new( &full_path ).parent()
             {
                 if let Err( e ) = std::fs::create_dir_all( parent )
                 {
                     self.app.get_log_mut()
-                    .error("Failed to create prompt directory")
-                    .prm("path", &parent.to_string_lossy())
-                    .prm("error", &e);
+                    .error( "Failed to create prompt directory" )
+                    .prm( "path", &parent.to_string_lossy() )
+                    .prm( "error", &e );
                     return match prompt_type
                     {
                         "chat" => prompts::CHAT.to_string(),
@@ -1144,7 +1146,7 @@ impl Ai
     */
     fn read_proxy( &self )
     -> String
-    {
+    {   
         self.get_config_val( &[ "proxy" ], String::new() )
     }
 
@@ -1169,7 +1171,7 @@ impl Ai
     -> T
     {
         let config = &self.app.config;
-        let ai_cfg = &config["app"]["ai"];
+        let ai_cfg = &config[ "application" ][ "ai" ];
 
         let provider = self.get_provider();
         let model = self.get_model();
