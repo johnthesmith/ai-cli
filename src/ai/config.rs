@@ -3,7 +3,7 @@
     SPDX-FileCopyrightText: 2026 Still Swamp
 */
 
-pub const DEFAULT_CONFIG: &str = r#"
+pub const DEFAULT: &str = r#"
 # AI util config file
 application:
   # Log settings

@@ -68,7 +68,9 @@ impl<'a> OpenAICompatibleProvider<'a>
     }
 
 
-
+    /*
+        Parse openai response from text and return information
+    */
     fn parse_openai_response
     (
         &mut self,
@@ -78,15 +80,15 @@ impl<'a> OpenAICompatibleProvider<'a>
     (
         /* Error text */
         String,
-        /* think text */
+        /* Think text */
         String,
-        /* content text */
+        /* Content text */
         String,
-        /* prompt_tokens count */
+        /* Prompt tokens count */
         u64,
-        /* answer_tokens */
+        /* Answer tokens count */
         u64,
-        /* sucess true or false */
+        /* Sucess true or false */
         bool
     )
     {
@@ -103,8 +105,8 @@ impl<'a> OpenAICompatibleProvider<'a>
         /* Split think and raw */
         let re = Regex::new( r"(?s)<think>(.*?)</think>" ).unwrap();
         think = re.captures( raw )
-            .and_then( |cap| cap.get( 1 ).map( |m| m.as_str().to_string() ) )
-            .unwrap_or_default();
+        .and_then( |cap| cap.get( 1 ).map( |m| m.as_str().to_string() ) )
+        .unwrap_or_default();
         let clear = re.replace_all( raw, "" ).to_string();
 
         /* Get json from raw answer */
@@ -112,53 +114,55 @@ impl<'a> OpenAICompatibleProvider<'a>
         {
             Err( e ) =>
             {
-                self.ai.application.get_log()
-                    .error( "Failed to parse response" )
-                    .prm( "error", &e.to_string() )
-                    .prm( "content", &clear );
+                self.ai.app.get_log_mut()
+                .error( "Failed to parse response" )
+                .prm( "error", &e.to_string() )
+                .prm( "content", &clear );
 
-                error_msg = e.to_string();
+                error_msg = format!( "Failed to parse response: {}", e.to_string() );
                 content = clear.to_string();
                 success = false;
             }
 
             Ok( json ) =>
             {
-                if let Some(error) = json.get("error") {
-                    error_msg = error[ "message" ]
+                if let Some( error ) = json.get( "error" )
+                {
+                    error_msg = format!
+                    (
+                        "API error {}:", 
+                        error[ "message" ]
                         .as_str()
-                        .unwrap_or("Unknown API error")
-                        .to_string();
-                    content = error_msg.clone();
+                        .unwrap_or( "Unknown API error" )
+                        .to_string()
+                    );
+
+                    content = clear.to_string();
                     success = false;
                 } 
                 else
                 {
-                    content = json
-                        .get("choices")
-                        .and_then(|c| c.get(0))
-                        .and_then(|c| c.get("message"))
-                        .and_then(|m| m.get("content"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .trim()
-                        .trim_start_matches("```json")
-                        .trim_start_matches("```")
-                        .trim_end_matches("```")
-                        .trim()
-                        .to_string();
+                    content = json[ "choices" ][ 0 ][ "message" ] ["content" ]
+                    .as_str()
+                    .unwrap_or( "" )
+                    .trim()
+                    .trim_start_matches( "```json" )
+                    .trim_start_matches( "```" )
+                    .trim_end_matches( "```" )
+                    .trim()
+                    .to_string();
 
                     prompt_tokens = json
-                        .get("usage")
-                        .and_then(|u| u.get("prompt_tokens"))
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
+                    [ "usage" ]
+                    [ "prompt_tokens" ]
+                    .as_u64()
+                    .unwrap_or(0);
 
                     completion_tokens = json
-                        .get("usage")
-                        .and_then(|u| u.get("completion_tokens"))
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
+                    [ "usage" ]
+                    [ "completion_tokens" ]
+                    .as_u64()
+                    .unwrap_or(0);
 
                     success = true;
                 }
@@ -182,18 +186,18 @@ impl<'a> OpenAICompatibleProvider<'a>
     */
     fn dump_headers( &mut self, resp: &Response )
     {
-        self.ai.application.get_log().begin( "Response headers" );
+        self.ai.app.get_log_mut().begin( "Response headers" );
 
         for( name, value ) in resp.headers().iter()
         {
-            self.ai.application.get_log().trace( "" ).prm
+            self.ai.app.get_log_mut().trace( "" ).prm
             (
                 name.as_str(),
                 value.to_str().unwrap_or( "N/A" )
             );
         }
 
-        self.ai.application.get_log().end( "" );
+        self.ai.app.get_log_mut().end( "" );
     }
 }
 
@@ -278,7 +282,14 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 let mut chat_response = ChatResponse
                 {
                     think,
-                    message: if error.is_empty() { content } else { format!("Error: {}", error) },
+                    message: if error.is_empty() 
+                    {
+                        content
+                    }
+                    else
+                    {
+                        format!( "{}\n{}", error, content )
+                    },
                     prompt_tokens,
                     answer_tokens,
                     clipboard: String::new(),
@@ -353,7 +364,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
                 let provider_name = self.get_name().to_string();
                 let proxy = self.ai.read_proxy();
-                self.ai.application.get_log()
+                self.ai.app.get_log_mut()
                 .error( "API error" )
                 .prm( "error", &e.to_string() )
                 .prm( "provider", provider_name )
@@ -375,20 +386,20 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         percent: u64
     )
     {
-        self.ai.application.get_log().begin( "summary" );
+        self.ai.app.get_log_mut().begin( "summary" );
 
         let history = self.ai.get_history();
 
         if history.is_empty()
         {
-            self.ai.application.get_log().info( "No history to summarize" );
+            self.ai.app.get_log_mut().info( "No history to summarize" );
             return;
         }
 
         let blocks: Vec<&str> = history.split(self.ai.get_history_delimiter()).collect();
         if blocks.len() < 2
         {
-            self.ai.application.get_log().info( "Not enough blocks to summarize" );
+            self.ai.app.get_log_mut().info( "Not enough blocks to summarize" );
             return;
         }
 
@@ -435,7 +446,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
         match response
         {
-            Ok(resp) =>
+            Ok( resp ) =>
             {
                 /* Get raw answer */
                 let raw_answer = resp.text().unwrap_or_default();
@@ -458,7 +469,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     prompt_tokens, 
                     answer_tokens, 
                     success
-                ) = self.parse_openai_response(raw_answer);
+                ) = self.parse_openai_response( raw_answer );
 
                 self.ai.handle_summary_response
                 (
@@ -483,12 +494,12 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     &api_url, 
                     "summary"
                 );
-                self.ai.application.get_log()
-                    .error( "Summary request failed" )
-                    .prm( "error", &e.to_string() );
+                self.ai.app.get_log_mut()
+                .error( "Summary request failed" )
+                .prm( "error", &e.to_string() );
             }
         }
 
-        self.ai.application.get_log().end( "" );
+        self.ai.app.get_log_mut().end( "" );
     }
 }

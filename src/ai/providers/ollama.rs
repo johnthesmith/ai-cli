@@ -1,3 +1,11 @@
+/*
+    SPDX-License-Identifier: MIT
+    SPDX-FileCopyrightText: 2026 Still Swamp
+*/
+
+
+
+
 use reqwest::blocking::Response;
 use core::Color;
 use crate::Ai;
@@ -93,7 +101,7 @@ impl<'a> OllamaProvider<'a>
         {
             Err(e) =>
             {
-                self.ai.application.get_log()
+                self.ai.app.get_log_mut()
                     .error("Failed to parse Ollama response")
                     .prm("error", &e.to_string())
                     .prm("content", &raw);
@@ -147,18 +155,18 @@ impl<'a> OllamaProvider<'a>
     */
     fn dump_headers(&mut self, resp: &Response)
     {
-        self.ai.application.get_log().begin("Response headers");
+        self.ai.app.get_log_mut().begin("Response headers");
 
         for (name, value) in resp.headers().iter()
         {
-            self.ai.application.get_log().trace("").prm
+            self.ai.app.get_log_mut().trace("").prm
             (
                 name.as_str(),
                 value.to_str().unwrap_or("N/A")
             );
         }
 
-        self.ai.application.get_log().end("");
+        self.ai.app.get_log_mut().end("");
     }
 }
 
@@ -323,7 +331,7 @@ impl<'a> Provider for OllamaProvider<'a>
                 );
 
                 let proxy = self.ai.read_proxy();
-                self.ai.application.get_log()
+                self.ai.app.get_log_mut()
                 .error("API error")
                 .prm("error", &e.to_string())
                 .prm("provider", &name )
@@ -344,21 +352,21 @@ impl<'a> Provider for OllamaProvider<'a>
         percent: u64
     )
     {
-        self.ai.application.get_log().begin( "summary" );
+        self.ai.app.get_log_mut().begin( "summary" );
 
         let name = self.get_name().to_string();
         let history = self.ai.get_history();
 
         if history.is_empty()
         {
-            self.ai.application.get_log().info( "No history to summarize" );
+            self.ai.app.get_log_mut().info( "No history to summarize" );
             return;
         }
 
         let blocks: Vec<&str> = history.split(self.ai.get_history_delimiter()).collect();
         if blocks.len() < 2
         {
-            self.ai.application.get_log().info( "Not enough blocks to summarize" );
+            self.ai.app.get_log_mut().info( "Not enough blocks to summarize" );
             return;
         }
 
@@ -452,13 +460,13 @@ impl<'a> Provider for OllamaProvider<'a>
                     &api_url,
                     "summary"
                 );
-                self.ai.application.get_log()
+                self.ai.app.get_log_mut()
                 .error("Summary request failed")
                 .prm("error", &e.to_string());
             }
         }
 
-        self.ai.application.get_log().end("");
+        self.ai.app.get_log_mut().end("");
     }
 }
 

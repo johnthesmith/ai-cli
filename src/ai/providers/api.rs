@@ -13,20 +13,15 @@ pub fn get_api_url
 )
 -> String
 {
-    ai.application.config
-        .as_ref()
-        .and_then
-        (
-            |cfg| cfg
-            ["application"]
-            ["ai"]
-            ["providers"]
-            [provider_name]
-            ["api"]
-            .as_str()
-        )
-        .map(|s| s.to_string())
-        .unwrap_or_default()
+    ai.app.config
+    ["application"]
+    ["ai"]
+    ["providers"]
+    [provider_name]
+    ["api"]
+    .as_str()
+    .unwrap_or( "" )
+    .to_string()
 }
 
 
