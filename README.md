@@ -6,6 +6,9 @@
     0. `1 create hello-world folder` - direct query to AI;
     0. `1` - interactive query input;
 
+---
+
+* [Philosophy](#philosophy)
 * [How it works](#how-it-works)
 * [Why ai-cli](#why-ai-cli)
 * [Supported AI Providers](#supported-ai-providers)
