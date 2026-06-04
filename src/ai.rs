@@ -10,17 +10,18 @@
 */
 
 mod providers;
-mod response;
 mod config;
 mod prompts;
+mod storage;
 
 use serde_json::json;
 use serde_yaml::Value;
 use std::io::{ Read, Write, IsTerminal };
 use core::{ App, SerdeExt, State, Moment };
-use response::ChatResponse;
+use storage::Storage;
 
 
+pub const HISTORY_DELIMITER: &str = "=== AIOL9B1MZX ===";
 
 /*
     Ai applicatoin
@@ -40,7 +41,13 @@ pub struct Ai
     chat: String,
 
     /* Id of model of provider for current session */
-    model: String
+    model: String,
+
+    /* History storage */
+    history_storage: Storage, 
+
+    /* Memory storage */
+    memory_storage: Storage, 
 }
 
 
@@ -62,6 +69,8 @@ impl Ai
             provider: "github".to_string(),
             model: String::new(),
             chat: "default".to_string(),
+            history_storage: Storage::new( HISTORY_DELIMITER ),
+            memory_storage: Storage::new( HISTORY_DELIMITER )
         }
     }
 
@@ -121,7 +130,6 @@ impl Ai
         println!( "" );
         println!( "    --show-history             Show history for current chat" );
         println!( "    --clear-history            Remove history for current chat" );
-        println!( "    --pack-history=<percent>   Pack current chat history with 0-100 percent (default: 50)" );
         println!( "    --show-memory              Show memory for current chat" );
         println!( "    --clear-memory             Remove memory for current chat (global if %chat% not used)" );
         println!( "" );
@@ -166,6 +174,11 @@ impl Ai
                     "model": self.get_model(),
                     "proxy":  self.read_proxy()
                 },
+                "access":
+                {
+                    "history": self.history_storage.get_access(),
+                    "memory": self.memory_storage.get_access()
+                },
                 "files":
                 {
                     "prompt_chat": self.get_prompt_file( "chat" ),
@@ -178,8 +191,8 @@ impl Ai
                 "statistics":
                 {
                     "max_prompt_size_bytes": self.get_max_chat_prompt_size_byte(),
-                    "history_size_bytes": self.get_history_size_byte(),
-                    "memory_size_bytes": self.get_memory_size_byte()
+                    "history_size_bytes": self.history_storage.to_string().len(),
+                    "memory_size_bytes": self.memory_storage.to_string().len()
                 }
             }
         );
@@ -299,7 +312,7 @@ impl Ai
                 );
                 self.app.get_log_mut().set_file_path( &file );
             }
-            
+
 
             /* First log message */
             self.app.get_log_mut().begin
@@ -308,7 +321,19 @@ impl Ai
             );
             self.app.dump_config();
 
+            /* Open history */
+            let history_path = self.get_history_file_path();
+            self.history_storage
+            .load( &history_path )
+            .get_state()
+            .state_to( &mut self.app.state );           
 
+            /* Open memory */
+            let memory_path = self.get_memory_file();
+            self.memory_storage.
+            load( &memory_path )
+            .get_state()
+            .state_to( &mut self.app.state );           
 
             /*
                 Main section
@@ -317,6 +342,25 @@ impl Ai
             /* Check config */
             if self.app.state.is_ok()
             {
+                /* Set access rights */
+                let cli_history = self.app.config["access-history"].get_str("");
+                let cli_memory = self.app.config["access-memory"].get_str("");
+
+                let default_history = self.app.config
+                ["application"]["ai"]["access"]["history"].get_str("c");
+                let default_memory = self.app.config
+                ["application"]["ai"]["access"]["memory"].get_str("c");
+
+                self.history_storage.set_access
+                (
+                    if !cli_history.is_empty() { &cli_history } else { &default_history }
+                );
+
+                self.memory_storage.set_access
+                (
+                    if !cli_memory.is_empty() { &cli_memory } else { &default_memory }
+                );
+                
                 /* Set provider */
                 let switch_provider = self.app.config
                 [ "switch-provider" ].get_str( "" );
@@ -496,19 +540,6 @@ impl Ai
 
 
 
-                /* Pack history */
-                if let Ok(level) = self.app.config[ "pack-history" ]
-                .get_str( "" )
-                .parse::<u64>()
-                {
-                    no_prompt = true;
-                    let provider_name = self.get_provider();
-                    let mut provider = providers::create_provider( &provider_name, self );
-                    provider.summary(level);
-                }
-
-
-
                 /* Check dump-prompt flag */
                 if self.app.config[ "dump-prompt" ].get_bool( false )
                 {
@@ -527,7 +558,6 @@ impl Ai
                 }
 
 
-
                 if !no_prompt
                 {
                     let provider_name = self.get_provider();
@@ -543,21 +573,26 @@ impl Ai
                         (
                             "Prompt size {} bytes exceeds limit {} bytes.\n\
                              Please increase max-chat-prompt-size-byte in config,\n\
-                             or run 'ai --pack-history' to compress conversation history.",
+                             or run 'ai pack history --allow-history=cud' to compress conversation history.",
                             size, max_bytes
                         );
                     }
                     else
                     {
                         /* Write user prompt to history */
-                        self.write_history(self.get_history_delimiter(), "");
-                        self.write_history("@USER", &user_prompt);
+                        self.history_storage.create( "@USER", &user_prompt );
 
                         let mut provider = providers::create_provider(&provider_name, self);
                         provider.chat(&prompt);
                     }
                 }            
             }
+
+            /* Save current state */
+            self.history_storage.save( &history_path );
+            /* Save current state */
+            self.memory_storage.save( &memory_path );
+
             self.app.get_log_mut().end( "End of ai" ).eol();
         }
         
@@ -592,7 +627,11 @@ impl Ai
             &self.get_config_val
             (
                 &[ "prompts", prompt_type ],
-                format!( "~/.config/ai/%profile%/prompts/%provider%/%model%/{}.txt", prompt_type )
+                format!
+                (
+                    "~/.config/ai/app/cli/%profile%/prompts/%provider%/%model%/{}.txt", 
+                    prompt_type
+                )
             )
             .replace( "%profile%", &self.get_profile() )
             .replace( "%provider%", &self.get_provider() )
@@ -630,7 +669,6 @@ impl Ai
                     return match prompt_type
                     {
                         "chat" => prompts::CHAT.to_string(),
-                        "summary" => prompts::SUMMARY.to_string(),
                         _ => "%user-prompt%".to_string(),
                     };
                 }
@@ -639,7 +677,6 @@ impl Ai
             let default_content = match prompt_type
             {
                 "chat" => prompts::CHAT,
-                "summary" => prompts::SUMMARY,
                 _ => "",
             };
             
@@ -672,7 +709,6 @@ impl Ai
                 match prompt_type
                 {
                     "chat" => prompts::CHAT.to_string(),
-                    "summary" => prompts::SUMMARY.to_string(),
                     _ => "%user-prompt%".to_string(),
                 }
             }
@@ -792,7 +828,7 @@ impl Ai
         .replace( "%chat%", &self.get_chat() )
         .replace( "%provider%", &self.get_provider() )
         .replace( "%model%", &self.get_model() )
-        .replace( "%history-delimiter%", &self.get_history_delimiter() )
+        .replace( "%history-delimiter%", HISTORY_DELIMITER )
         .replace
         (
             "%now%", 
@@ -809,31 +845,6 @@ impl Ai
     */
 
 
-    /*
-        Return history chat delimiter
-    */
-    pub fn get_history_delimiter( &self ) 
-    -> &'static str
-    {
-        "=AIOL9B1MZX="
-    }
-
-
-
-    /*
-        Return current history file size in bytes
-    */
-    fn get_history_size_byte( &self )
-    /* History size in bytes */
-    -> usize
-    {
-        let path = self.get_history_file_path();
-        std::fs::metadata( &path )
-        .map(|m| m.len() as usize)
-        .unwrap_or(0)
-    }
-
-
 
     fn get_history_file_path( &self )
     -> String
@@ -843,7 +854,7 @@ impl Ai
             &self.get_config_val
             (
                 &[ "history" ],
-                "~/.config/ai/%profile%/history/%chat%.txt".to_string()
+                "~/.config/ai/app/cli/%profile%/history/%chat%.txt".to_string()
             )
             .replace( "%profile%", &self.get_profile() )
             .replace( "%model%", &self.get_model_safe() )
@@ -868,71 +879,16 @@ impl Ai
 
 
     /*
-        Write history
-    */
-    fn write_history
-    (
-        &mut self,
-        role: &str,
-        text: &str
-    )
-    {
-        let history_path = self.get_history_file_path();
-        
-        /* Check directory exists */
-        if let Err( e ) = core::ensure_directory( &history_path )
-        {
-            self.app.get_log_mut()
-            .error( "Failed to ensure history directory" )
-            .prm( "error", &e );
-
-            return;
-        }
-        
-        use std::fs::OpenOptions;
-        use std::io::Write;
-
-        let now = Moment::create().now().format( "%Y-%m-%d %H:%M:%S" );
-        let line = format!( "{}\nUTC {}\n{}\n\n", role, now, text );        
-        
-        if let Ok( mut file ) = OpenOptions::new()
-            .create( true )
-            .append( true )
-            .open( &history_path )
-        {
-            let _ = file.write_all( line.as_bytes() );
-        }
-    }
-
-
-
-    /*
         Clear history file
     */
-    fn clear_history( &mut self )
-    -> &mut Self
+    fn clear_history(&mut self) -> &mut Self
     {
-        let history_path = self.get_history_file_path();      
-        match std::fs::write( &history_path, "" )
-        {
-            Ok( _ ) =>
-            {
-                self.app.get_log_mut()
-                .info( "History cleared" )
-                .prm("path", &history_path);
-            }
-            Err( e ) =>
-            {
-                self.app.get_log_mut()
-                .warning( "Failed to clear history" )
-                .prm( "path", &history_path )
-                .prm( "error", &e.to_string() );
-            }
-        }
-        
+        /* Clear all blocks from memory */
+        self.history_storage.clear();
+        self.app.get_log_mut().info( "History cleared" );
+
         self
     }
-
 
 
     /*
@@ -955,63 +911,6 @@ impl Ai
 
 
 
-    pub fn handle_summary_response
-    (
-        &mut self, 
-        summary: &str,
-        error: &str,
-        think: &str, 
-        recent_history: &str, 
-        prompt_tokens: u64, 
-        answer_tokens: u64, 
-        success: bool, 
-        old_blocks: usize, 
-        kept_blocks: usize
-    )
-    {
-        if success && !summary.is_empty()
-        {
-            let new_history = format!
-            (
-                "{}\n\n{}\n\n{}{}", 
-                "@SUMMARY",
-                summary, 
-                self.get_history_delimiter(), 
-                recent_history
-            );
-
-            std::fs::write(&self.get_history_file_path(), new_history).unwrap();
-
-            self.app.get_log_mut()
-                .info( "History packed successfully" )
-                .prm( "old_blocks", old_blocks )
-                .prm( "kept_blocks", kept_blocks )
-                .prm( "prompt_tokens", prompt_tokens )
-                .prm( "answer_tokens", answer_tokens );
-
-            if !think.is_empty()
-            {
-                self.app.get_log_mut()
-                    .trace("Summary think")
-                    .prm("content", think);
-            }
-        }
-        else
-        {
-            /* Output message via destination */
-            if !error.is_empty()
-            {
-                self.run_destination( &error, "message", true );
-            }
-
-            self.app.get_log_mut().warning
-            (
-                "Failed to get summary, history unchanged"
-            );
-        }
-    }
-
-
     
     /*******************************************************************8******
         pools
@@ -1030,7 +929,7 @@ impl Ai
             &self.get_config_val
             (
                 &[ "pool" ],
-                "~/.local/share/ai/%profile%/pool.txt".to_string()
+                "~/.local/share/ai/app/cli/%profile%/pool.txt".to_string()
             )
             .replace( "%profile%", &self.get_profile() )
             .replace( "%provider%", &self.get_provider() )
@@ -1099,7 +998,7 @@ impl Ai
     fn get_config_file( &self )
     -> String
     {
-        core::expand_path("~/.config/ai/%profile%/config.yaml")
+        core::expand_path("~/.config/ai/app/cli/%profile%/config.yaml")
         .replace("%profile%", &self.get_profile())
     }
 
@@ -1250,7 +1149,7 @@ impl Ai
     */
     fn get_token_path( &self ) -> String
     {
-        let default = "~/.config/ai/%profile%/tokens/%provider%.txt".to_string();
+        let default = "~/.config/ai/app/cli/%profile%/tokens/%provider%.txt".to_string();
         let path = self.get_config_val( &[ "token" ], default );       
         core::expand_path
         (
@@ -1275,7 +1174,7 @@ impl Ai
     fn get_model_file_path( &self )
     -> String 
     {
-        let default = "~/.local/share/ai/%profile%/models/%provider%.txt".to_string();
+        let default = "~/.local/share/ai/app/cli/%profile%/models/%provider%.txt".to_string();
         let path = self.get_config_val( &[ "model" ], default );
         
         core::expand_path
@@ -1426,7 +1325,7 @@ impl Ai
         let path = self.get_config_val
         (
             &[ "provider_file" ],
-            "~/.config/ai/%profile%/provider.txt".to_string()
+            "~/.config/ai/app/cli/%profile%/provider.txt".to_string()
         );
         
         core::expand_path( &path.replace( "%profile%", &self.get_profile() ))
@@ -1502,7 +1401,7 @@ impl Ai
     fn get_profile_file_path( &self )
     -> String 
     {
-        core::expand_path( "~/.local/share/ai/profile" )
+        core::expand_path( "~/.local/share/ai/app/cli/profile" )
     }
 
 
@@ -1628,7 +1527,7 @@ impl Ai
         let path = self.get_config_val
         (
             &["chat-file"],
-            "~/.local/share/ai/%profile%/chat.txt".to_string()
+            "~/.local/share/ai/app/cli/%profile%/chat.txt".to_string()
         );
         
         core::expand_path
@@ -1860,36 +1759,134 @@ impl Ai
 
 
     /*
-        Processing chat responce
+        Processing chat response
     */
     pub fn handle_chat_response
     (
         &mut self,
-        response: &ChatResponse
+        response: &serde_json::Value
     )
     {
-        /* Replace %pool% placeholder in all fields */
+        /* Extract fields from JSON */
         let pool_path = self.get_pool_path();
-        let message = response.message.replace( "%pool%", &pool_path );
-        let command = response.command.replace( "%pool%", &pool_path );
-        let pool = response.pool.replace( "%pool%", &pool_path );
-        let memory = response.memory.replace( "%pool%", &pool_path );
-        let clipboard = response.clipboard.replace( "%pool%", &pool_path );
+        let message = response["message"].get_str( "" ).replace("%pool%", &pool_path);
+        let command = response["command"].get_str( "" ).replace("%pool%", &pool_path);
+        let pool = response["pool"].get_str( "" ).replace("%pool%", &pool_path);
+        let clipboard = response[ "clipboard" ].get_str("").replace("%pool%", &pool_path);
 
         /* Write to history if has content */
-        if !message.is_empty() || !command.is_empty() 
+        if !message.is_empty() || !command.is_empty()
         {
-            self.write_history
+            self.history_storage.create
             (
-                "@AI",
-                &format!
-                (
-                    "{}\n{}\n\n",
-                    message,
-                    command
-                )
+                "@ASSISTANT",
+                &format!( "{}\n\n{}", message, command )
             );
         }
+
+        /* Handle memory operations */
+        /* Add new entries */
+        let add = response[ "memory" ]["add"].get_array(vec![]);
+        for item in add
+        {
+            let text = item.get_str( "" );
+            if !text.is_empty()
+            {
+                self.memory_storage.create( "@ASSISTANT", &text );
+                self.app.get_log_mut()
+                .info( "Memory entry added" )
+                .prm( "text", &text );
+            }
+        }
+        
+        /* 
+            Remove entries by ID
+        */
+        let remove = response[ "memory" ][ "remove" ].get_array(vec![]);
+        for item in remove
+        {
+            let id = item.get_str("");
+            if !id.is_empty()
+            {
+                self.memory_storage.delete(&id);
+                self.app.get_log_mut()
+                .info( "Memory entry removed" )
+                .prm( "id", &id );
+            }
+        }
+        
+        /* Change entries by ID */
+        let change = response[ "memory" ][ "change" ].get_array(vec![]);
+        for item in change
+        {
+            let id = item[ "id" ].get_str( "" );
+            let role = item[ "role" ].get_str( "@ASSISTANT" );
+            let body = item[ "body" ].get_str( "" );
+            
+            if !id.is_empty() && !body.is_empty()
+            {
+                self.memory_storage.update(&id, &role, &body);
+                self.app.get_log_mut()
+                .info( "Memory entry changed" )
+                .prm( "id", &id )
+                .prm( "actor", &role )
+                .prm( "new_body", &body );
+            }
+        }
+
+
+
+        /* 
+            Handle history operations
+        */
+        /* Add new entries */
+        let add = response[ "history" ][ "add" ].get_array( vec![] );
+        for item in add
+        {
+            let text = item.get_str( "" );
+            if !text.is_empty()
+            {
+                self.history_storage.create( "@ASSISTANT", &text );
+                self.app.get_log_mut()
+                    .info( "History entry added" )
+                    .prm( "text", &text );
+            }
+        }
+
+        /* Remove entries by ID */
+        let remove = response[ "history" ][ "remove" ].get_array( vec![] );
+        for item in remove
+        {
+            let id = item.get_str( "" );
+            if !id.is_empty()
+            {
+                self.history_storage.delete(&id);
+                self.app.get_log_mut()
+                .info( "History entry removed" )
+                .prm("id", &id);
+            }
+        }
+
+        /* Change entries by ID */
+        let change = response[ "history" ][ "change" ].get_array(vec![]);
+        for item in change
+        {
+            let id = item[ "id" ].get_str( "" );
+            let role = item[ "role" ].get_str( "@ASSISTANT" );
+            let body = item[ "body" ].get_str( "" );
+            
+            if !id.is_empty() && !body.is_empty()
+            {
+                self.history_storage.update(&id, &role, &body);
+                self.app.get_log_mut()
+                .info("History entry changed")
+                .prm("id", &id)
+                .prm("actor", &role)
+                .prm("new_body", &body);
+            }
+        }
+
+
 
         /* Output message via destination */
         if !message.is_empty()
@@ -1939,17 +1936,11 @@ impl Ai
             self.run_destination( &pool, "pool", true );
         }
 
-        /* Save memory */
-        if !memory.is_empty()
-        {
-            self.write_memory(&memory);
-        }
-
         /* Log token usage */
         self.app.get_log_mut()
         .trace("Token usage")
-        .prm("prompt_tokens", response.prompt_tokens)
-        .prm("answer_tokens", response.answer_tokens);
+        .prm("prompt_tokens", response["prompt_tokens"].as_u64().unwrap_or(0))
+        .prm("answer_tokens", response["answer_tokens"].as_u64().unwrap_or(0));
     }
 
 
@@ -2029,7 +2020,7 @@ impl Ai
     /*
         Return memory file path for current chat
         Supports %profile% and %chat% placeholders
-        Default: ~/.local/share/ai/%profile%/memory/%chat%.txt
+        Default: ~/.local/share/ai/app/cli/%profile%/memory/%chat%.txt
     */
     fn get_memory_file( &self )
     -> String
@@ -2039,7 +2030,7 @@ impl Ai
             &self.get_config_val
             (
                 &[ "memory" ], 
-                "~/.local/share/ai/%profile%/memory/%chat%.txt".to_string()
+                "~/.local/share/ai/app/cli/%profile%/memory/%chat%.txt".to_string()
             )
             .replace( "%profile%", &self.get_profile() )
             .replace( "%provider%", &self.get_provider() )
@@ -2051,87 +2042,15 @@ impl Ai
 
 
     /*
-        Return current memory file size in bytes
-    */
-    fn get_memory_size_byte( &self)
-    -> usize 
-    {
-        let path = self.get_memory_file();
-        std::fs::metadata( &path )
-        .map(|m| m.len() as usize)
-        .unwrap_or(0)
-    }
-
-
-
-    /*
         Clear memory file for current chat
     */
     fn clear_memory( &mut self )
     -> &mut Self
     {
-        let path = self.get_memory_file();
-        
-        match std::fs::write(&path, "")
-        {
-            Ok( _ ) =>
-            {
-                self.app.get_log_mut()
-                .info("Memory cleared")
-                .prm("path", &path);
-            }
-            Err( e ) =>
-            {
-                self.app.get_log_mut()
-                .warning( "Failed to clear memory" )
-                .prm( "path", &path)
-                .prm( "error", &e.to_string());
-            }
-        }
-        
+        /* Clear all blocks from memory */
+        self.memory_storage.clear();
+        self.app.get_log_mut().info( "Memory cleared" );
         self
-    }
-
-
-
-    /*
-        Write memory
-    */
-    fn write_memory
-    (
-        &mut self, 
-        text: &str
-    )
-    {
-        let memory_path = self.get_memory_file();
-
-        /* Create parent directory */
-        if let Err( e ) = core::ensure_directory( &memory_path )
-        {
-            self.app.get_log_mut()
-            .error( "Failed to ensure memory directory" )
-            .prm( "error", &e );
-        }
-        else
-        {
-            use std::fs::OpenOptions;
-            use std::io::Write;
-
-            let line = format!
-            (
-                "@FACT {}\n{}\n\n", 
-                &Moment::create().now().format( "%Y-%m-%d %H:%M:%S" ),
-                text
-            );
-
-            if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&memory_path)
-            {
-                let _ = file.write_all(line.as_bytes());
-            }
-        }
     }
 
 
@@ -2264,7 +2183,6 @@ impl Ai
             "--switch-chat=",
             "--show-history",
             "--clear-history",
-            "--pack-history=",
             "--show-memory",
             "--clear-memory",
             "--write-buffer",
@@ -2385,4 +2303,3 @@ impl Ai
         self.get_config_val( &[ "connect_timeout_ms" ], 10000 )
     }
 }
-

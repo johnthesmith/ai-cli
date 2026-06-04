@@ -120,11 +120,14 @@ using this tool at your own risk.
 
 # Install
 
-1. Run 
+1. If you have existing configuration from previous versions, remove it before 
+installation. Otherwise, new configuration files will NOT be created and you may 
+experience issues.
+2. Run 
 ```
 curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh | bash
 ```
-2. Binary files: https://github.com/johnthesmith/ai-cli/releases/latest
+3. Binary files: https://github.com/johnthesmith/ai-cli/releases/latest
 
 
 # Build
@@ -155,6 +158,7 @@ source ~/.bashrc
 1. On first run, default config will be created at `~/.config/ai/default/config.yaml`
 2. Tokens will be placed in `~/.config/ai/default/tokens/<provider>.txt`
 3. For Git token retrieval see [Git token](./man/git-toke.md).
+4. Following the [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md)
 
 
 

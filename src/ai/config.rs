@@ -8,7 +8,7 @@ pub const DEFAULT: &str = r#"
 application:
   # Log settings
   log:
-    file: ~/.local/share/ai/%profile%/log.txt
+    file: ~/.local/share/ai/app/cli/%profile%/log.txt
     enabled: true
 
   # AI application
@@ -18,25 +18,25 @@ application:
     shell: /bin/bash
 
     # Providers file
-    provider_file: ~/.config/ai/%profile%/provider.txt
+    provider_file: ~/.config/ai/app/cli/%profile%/provider.txt
 
     # Chat file. This chat contains chat id
-    chat-file: ~/.local/share/ai/%profile%/chat.txt
+    chat-file: ~/.local/share/ai/app/cli/%profile%/chat.txt
 
     # History file (placeholders: %profile% %provider% %model% %chat%)
-    history: ~/.local/share/ai/%profile%/history/%chat%.txt
+    history: ~/.local/share/ai/app/cli/%profile%/history/%chat%.txt
 
     # Pool path
-    pool: ~/.local/share/ai/%profile%/pool
+    pool: ~/.local/share/ai/app/cli/%profile%/pool
 
     # Memory file for long store data
-    memory: ~/.local/share/ai/%profile%/memory/%chat%.txt
+    memory: ~/.local/share/ai/app/cli/%profile%/memory/%chat%.txt
 
     # Token file (placeholder: %profile% %provider%)
-    token: ~/.config/ai/%profile%/tokens/%provider%.txt
+    token: ~/.config/ai/app/cli/%profile%/tokens/%provider%.txt
 
     # File with current model
-    model: ~/.local/share/ai/%profile%/models/%provider%.txt
+    model: ~/.local/share/ai/app/cli/%profile%/models/%provider%.txt
 
     # Maximum bytes count for chat prompt
     max-chat-prompt-size-byte: 100000
@@ -52,8 +52,8 @@ application:
 
     # AI prompts (placeholders: %profile% %provider% %model%)
     prompts:
-      chat: ~/.config/ai/%profile%/prompts/chat.txt
-      summary: ~/.config/ai/%profile%/prompts/summary.txt
+      chat: ~/.config/ai/app/cli/%profile%/prompts/chat.txt
+      summary: ~/.config/ai/app/cli/%profile%/prompts/summary.txt
 
     # Output destinations
     destination:

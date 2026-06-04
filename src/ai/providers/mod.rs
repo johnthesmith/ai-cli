@@ -1,3 +1,10 @@
+/*
+    SPDX-License-Identifier: MIT
+    SPDX-FileCopyrightText: 2026 Still Swamp
+*/
+
+
+
 mod default;
 mod ollama;
 pub mod api;
@@ -29,19 +36,6 @@ pub trait Provider
     (
         &mut self,
         prompt: &str
-    );
-
-
-
-    /*
-        Send summarization request and parse response.
-        Returns structured SummaryResponse with summary text and tokens.
-    */
-    fn summary
-    (
-        &mut self,
-        /* Packing percent from 0 to 100 ( all will be packing ) */ 
-        percent: u64
     );
 }
 

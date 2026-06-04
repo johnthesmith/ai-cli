@@ -1,3 +1,10 @@
+/*
+    SPDX-License-Identifier: MIT
+    SPDX-FileCopyrightText: 2026 Still Swamp
+*/
+
+
+
 use crate::Ai;
 use core::{expand_path, ensure_directory};
 

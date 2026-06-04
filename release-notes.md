@@ -1,9 +1,22 @@
+# Release v1.0.8
+
+1. Follows [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md).
+0. Access control (`c`/`u`/`d` permissions) and `auto-mnemomorph` mode (full AI control over history/memory)
+0. Removed `--pack-history` command (history compaction now handled by AI via natural language)
+
+
+# Release v1.0.7
+
+1. Refactoring
+
+
+
 # Release v1.0.4
 
 1. Automatic configuration file creation on first run
 0. Automatic prompt files creation (`chat.txt`, `summary.txt`) from embedded defaults
 0. Automatic token file creation (empty) when missing
-4. Configurable `request_timeout_ms` and `connect_timeout_ms`
+0. Configurable `request_timeout_ms` and `connect_timeout_ms`
 
 
 

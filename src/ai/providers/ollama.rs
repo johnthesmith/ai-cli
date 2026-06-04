@@ -5,15 +5,12 @@
 
 
 
-
 use reqwest::blocking::Response;
 use core::Color;
 use crate::Ai;
-use crate::ai::response::ChatResponse;
 use super::api::get_api_url;
 use super::Provider;
-
-
+use core::SerdeExt;
 
 /*
     Ollama Provider for local LLM.
@@ -23,6 +20,8 @@ pub struct OllamaProvider<'a>
 {
     /* Shared reference to AI instance (config, token, logs) */
     ai: &'a mut Ai,
+    /* Provider name (github, openai, deepseek, groq, together) */
+    name: String,
 }
 
 
@@ -42,6 +41,7 @@ impl<'a> OllamaProvider<'a>
         Self
         {
             ai: ai,
+            name: "ollama".to_string()
         }
     }
 
@@ -225,25 +225,18 @@ impl<'a> Provider for OllamaProvider<'a>
         */        
         match response
         {
-            Ok(resp) =>
+            Ok( resp ) =>
             {
                 /* Dump headers */
-                self.dump_headers(&resp);
+                self.dump_headers( &resp );
 
-                /* Get full answer */             
+                /* Get full answer */
                 let full_answer = resp.text().unwrap_or_default();
 
                 /* Event */
-                self.ai.on_after_response
-                (
-                    &full_answer, 
-                    &name, 
-                    &model, 
-                    &api_url, 
-                    "chat"
-                );
+                self.ai.on_after_response( &full_answer, &self.name, &model, &api_url, "chat");
 
-                /* Get ollama fields */
+                /* Get openai fields*/
                 let
                 (
                     error,
@@ -252,62 +245,69 @@ impl<'a> Provider for OllamaProvider<'a>
                     prompt_tokens,
                     answer_tokens,
                     result
-                ) = self.parse_ollama_response(full_answer);
+                ) = self.parse_ollama_response( full_answer );
 
-                let mut chat_response = ChatResponse
-                {
-                    think,
-                    message: if error.is_empty() { content } else { format!("Error: {}", error) },
-                    prompt_tokens,
-                    answer_tokens,
-                    clipboard: String::new(),
-                    command: String::new(),
-                    pool: String::new(),
-                    memory: String::new()
-                };
-                
+                let mut response_json = serde_json::json!
+                (
+                    {
+                        "think": think,
+                        "prompt_tokens": prompt_tokens,
+                        "answer_tokens": answer_tokens
+                    }
+                );
+
                 if result
                 {
                     /* Get ai tool json from content */
-                    match serde_json::from_str::<serde_json::Value>(&chat_response.message)
+                    match serde_json::from_str::<serde_json::Value>( &content )
                     {
-                        Ok(ai_json) =>
+                        Ok(mut ai_json) =>
                         {
-                            chat_response.command = ai_json["command"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string();
+                            /* Normalize string fields */
+                            if let Some(obj) = ai_json.as_object_mut()
+                            {
+                                response_json[ "message" ] = serde_json::json!
+                                (
+                                    obj[ "message" ].get_str( "" ).replace( "\\n", "\n" )
+                                );
 
-                            chat_response.message = ai_json["message"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string()
-                            .replace("\\n", "\n");
-                            
-                            chat_response.pool = ai_json["pool"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string()
-                            .replace("\\n", "\n");
-                            
-                            chat_response.memory = ai_json["memory"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string()
-                            .replace("\\n", "\n");
+                                response_json[ "pool" ] = serde_json::json!
+                                (
+                                    obj[ "pool" ].get_str( "" ).replace( "\\n", "\n" )
+                                );
 
-                            chat_response.clipboard = ai_json["clipboard"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string()
-                            .replace("\\n", "\n");
+                                response_json[ "clipboard" ] = serde_json::json!
+                                (
+                                    obj["clipboard"].get_str( "" ).replace( "\\n", "\n" )
+                                );
+
+                                response_json[ "history" ] = obj[ "history" ].clone();
+                                response_json[ "memory" ] = obj[ "memory" ].clone();
+                            }
                         }
-                        Err(_) =>
+                        Err( _ ) =>
                         {
+                            /* If not JSON, set message from content */
+                            response_json[ "message" ] = serde_json::json!( content );
                         }
                     }
                 }
-                self.ai.handle_chat_response(&chat_response);
+                else
+                {
+                    /* Error response from API */
+                    let message = if error.is_empty()
+                    {
+                        content
+                    }
+                    else
+                    {
+                        format!( "{}\n{}", error, content )
+                    };
+                    response_json[ "message" ] = serde_json::json!(message);
+                }
+
+                self.ai.handle_chat_response( &response_json );
+
             }
             Err(e) =>
             {
@@ -340,133 +340,4 @@ impl<'a> Provider for OllamaProvider<'a>
             }
         }      
     }
-
-
-
-    /*
-        Send summarization request and parse response.
-    */
-    fn summary
-    (
-        &mut self,
-        percent: u64
-    )
-    {
-        self.ai.app.get_log_mut().begin( "summary" );
-
-        let name = self.get_name().to_string();
-        let history = self.ai.get_history();
-
-        if history.is_empty()
-        {
-            self.ai.app.get_log_mut().info( "No history to summarize" );
-            return;
-        }
-
-        let blocks: Vec<&str> = history.split(self.ai.get_history_delimiter()).collect();
-        if blocks.len() < 2
-        {
-            self.ai.app.get_log_mut().info( "Not enough blocks to summarize" );
-            return;
-        }
-
-        /* Calculate split point based on percent (0-100) */
-        let percent = percent.clamp(0, 100);
-        let split_point = (blocks.len() as f64 * (percent as f64 / 100.0)).round() as usize;
-        let split_point = split_point.max(1).min(blocks.len() - 1);
-
-        let old_history = blocks[..split_point].join(self.ai.get_history_delimiter());
-        let recent_history = blocks[split_point..].join(self.ai.get_history_delimiter());
-
-        let old_blocks = split_point;
-        let kept_blocks = blocks.len() - split_point;
-
-        /* Build summary prompt */
-        let prompt = self.ai.build_prompt( "summary", &old_history );
-
-        /* Send request */
-        let api_url = get_api_url( self.ai, &name );
-        let model = self.ai.get_model();
-        let client = self.create_client();
-
-        /* Trigger before request event */
-        self.ai.on_before_request
-        (
-            &prompt,
-            &name,
-            &model,
-            &api_url,
-            "summary"
-        );
-
-        let payload = serde_json::json!
-        ({
-            "model": model,
-            "prompt": prompt,
-            "stream": false
-        });
-
-        let response = client.post(&api_url)
-        .json(&payload)
-        .send();
-
-        match response
-        {
-            Ok(resp) =>
-            {
-                /* Get raw answer */
-                let raw_answer = resp.text().unwrap_or_default();
-
-                /* Event */
-                self.ai.on_after_response
-                (
-                    &raw_answer,
-                    &name,
-                    &model,
-                    &api_url,
-                    "summary"
-                );
-
-                let
-                (
-                    error,
-                    think,
-                    summary,
-                    prompt_tokens,
-                    answer_tokens,
-                    success
-                ) = self.parse_ollama_response(raw_answer);
-
-                self.ai.handle_summary_response
-                (
-                    &summary,
-                    &error,
-                    &think,
-                    &recent_history,
-                    prompt_tokens,
-                    answer_tokens,
-                    success,
-                    old_blocks,
-                    kept_blocks
-                );
-            }
-            Err( e ) =>
-            {
-                self.ai.on_after_response
-                (
-                    &e.to_string(),
-                    &name,
-                    &model,
-                    &api_url,
-                    "summary"
-                );
-                self.ai.app.get_log_mut()
-                .error("Summary request failed")
-                .prm("error", &e.to_string());
-            }
-        }
-
-        self.ai.app.get_log_mut().end("");
-    }
 }
-
