@@ -1,7 +1,7 @@
 # Release v1.0.8
 
 1. Follows [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md).
-0. Access control (`c`/`u`/`d` permissions) and `auto-mnemomorph` mode (full AI control over history/memory)
+0. Access control (`c`/`u`/`d` permissions) and [auto-mnemomorph](./ai-cli#for-developers) mode (full AI control over history/memory)
 0. Removed `--pack-history` command (history compaction now handled by AI via natural language)
 
 
