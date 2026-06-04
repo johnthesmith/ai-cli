@@ -18,6 +18,7 @@
 * [Run](#run)
 * [Security](#security)
 * [For developers](#for-developers)
+* [auto-mnemomorph](#auto-mnemomorph)
 * [Architecture](#architecture)
 
 # Philosophy
