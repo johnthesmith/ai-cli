@@ -133,6 +133,11 @@ impl Ai
         println!( "    --show-memory              Show memory for current chat" );
         println!( "    --clear-memory             Remove memory for current chat (global if %chat% not used)" );
         println!( "" );
+        println!( "    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)" );
+        println!( "                               Example: --access-history=cud" );
+        println!( "    --access-memory=<mode>     Set memory access rights (c=create, u=update, d=delete)" );
+        println!( "                               Example: --access-memory=cud" );
+        println!( "" );
         println!( "    --write-pool               Write stdin to pool file and forward to stdout" );
         println!( "                               Example: echo 'data' | ai --write-pool");
         println!( "    --tiocsti                  Inject input directly into TTY input pool for keyboard" );
@@ -343,13 +348,13 @@ impl Ai
             if self.app.state.is_ok()
             {
                 /* Set access rights */
-                let cli_history = self.app.config["access-history"].get_str("");
-                let cli_memory = self.app.config["access-memory"].get_str("");
+                let cli_history = self.app.config[ "access-history" ].get_str("");
+                let cli_memory = self.app.config[ "access-memory" ].get_str("");
 
                 let default_history = self.app.config
-                ["application"]["ai"]["access"]["history"].get_str("c");
+                [ "application" ][ "ai" ][ "access" ][ "history" ].get_str("c");
                 let default_memory = self.app.config
-                ["application"]["ai"]["access"]["memory"].get_str("c");
+                [ "application" ][ "ai" ][ "access" ][ "memory" ].get_str("c");
 
                 self.history_storage.set_access
                 (

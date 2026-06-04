@@ -200,6 +200,11 @@ Options:
     --show-memory              Show memory for current chat
     --clear-memory             Remove memory for current chat (global if %chat% not used)
 
+    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)
+                               Example: --access-history=cud
+    --access-memory=<mode>     Set memory access rights (c=create, u=update, d=delete)
+                               Example: --access-memory=cud
+
     --write-pool               Write stdin to pool file and forward to stdout
                                Example: echo 'data' | ai --write-pool
     --tiocsti                  Inject input directly into TTY input pool for keyboard
@@ -247,6 +252,39 @@ commands without your approval** — AI never presses Enter for you.
 
 1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs)
    - Search for `REMOVE_ENTER` — shows where newlines are stripped from AI-generated commands (security: prevents auto-execution)
+
+
+
+# auto-mnemomorph
+
+*auto-mnemomorph* (from Greek: *αὐτός* — self, *μνήμη* — memory, *μορφή* — form) —
+a behavioral model in which AI gains the right to independently manage
+conversation history and long-term memory through create, update, and delete
+operations (`cud`).
+
+Unlike a human, who cannot "unsee" the past, auto-mnemomorph can:
+
+- Rewrite history (correct mistakes, remove insignificant details)
+- Forget on its own initiative
+- Add facts
+
+**Enable:**
+
+```yaml
+access:
+  history: "cud"
+  memory: "cud"
+
+**Disabel:**
+
+```yaml
+access:
+  history: "c"
+  memory: "c"
+```
+
+⚠️ This is not human logic. This is something else. Agency is built not on 
+immutable chronology, but on dynamic, self-editing memory.
 
 
 
