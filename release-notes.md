@@ -1,8 +1,18 @@
+# Release v1.0.9
+
+1. Added CLI commands for storage operations (`--select`, `--delete`, `--update`, `--insert`)
+2. Replaced JSON with block-based format for LLM communication (more reliable, no escaping issues)
+
+
+
 # Release v1.0.8
 
 1. Follows [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md).
-0. Access control (`c`/`u`/`d` permissions) and [auto-mnemomorph](./README.md#for-developers) mode (full AI control over history/memory)
-0. Removed `--pack-history` command (history compaction now handled by AI via natural language)
+0. Access control (`c`/`u`/`d` permissions) and 
+[auto-mnemomorph](./README.md#for-developers) mode (full AI control over history/memory)
+0. Removed `--pack-history` command (history compaction now handled by AI via 
+natural language)
+
 
 
 # Release v1.0.7
@@ -48,9 +58,12 @@
 1. `max-chat-prompt-size-byte` – prompt size limit (default: 100000 bytes)
 0. `%model%` placeholder in all file paths
 0. Model name sanitization for filesystem safety
-0. **Hierarchical config** – parameters can be set at global, provider, model, or chat level with inheritance
-0. **Unified config access** – single `get_config_val()` method replaces manual navigation
-0. All paths now support `%profile%`, `%provider%`, `%model%`, `%chat%` placeholders
+0. **Hierarchical config** – parameters can be set at global, provider, model, 
+or chat level with inheritance
+0. **Unified config access** – single `get_config_val()` method replaces manual 
+navigation
+0. All paths now support `%profile%`, `%provider%`, `%model%`, `%chat%` 
+placeholders
 0. Double mutable borrow error on provider creation
 0. Unsafe unwraps and type mismatches
 0. Missing return values (stray semicolons)

@@ -10,7 +10,8 @@ use core::Color;
 use crate::Ai;
 use super::api::get_api_url;
 use super::Provider;
-use core::SerdeExt;
+
+
 
 /*
     Ollama Provider for local LLM.
@@ -258,39 +259,7 @@ impl<'a> Provider for OllamaProvider<'a>
 
                 if result
                 {
-                    /* Get ai tool json from content */
-                    match serde_json::from_str::<serde_json::Value>( &content )
-                    {
-                        Ok(mut ai_json) =>
-                        {
-                            /* Normalize string fields */
-                            if let Some(obj) = ai_json.as_object_mut()
-                            {
-                                response_json[ "message" ] = serde_json::json!
-                                (
-                                    obj[ "message" ].get_str( "" ).replace( "\\n", "\n" )
-                                );
-
-                                response_json[ "pool" ] = serde_json::json!
-                                (
-                                    obj[ "pool" ].get_str( "" ).replace( "\\n", "\n" )
-                                );
-
-                                response_json[ "clipboard" ] = serde_json::json!
-                                (
-                                    obj["clipboard"].get_str( "" ).replace( "\\n", "\n" )
-                                );
-
-                                response_json[ "history" ] = obj[ "history" ].clone();
-                                response_json[ "memory" ] = obj[ "memory" ].clone();
-                            }
-                        }
-                        Err( _ ) =>
-                        {
-                            /* If not JSON, set message from content */
-                            response_json[ "message" ] = serde_json::json!( content );
-                        }
-                    }
+                    self.ai.parse_llm_response( &content, &mut response_json )
                 }
                 else
                 {

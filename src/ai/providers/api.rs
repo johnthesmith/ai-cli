@@ -6,7 +6,12 @@
 
 
 use crate::Ai;
-use core::{expand_path, ensure_directory};
+use core::
+{
+    expand_path, 
+    ensure_directory, 
+    SerdeExt
+};
 
 
 
@@ -21,13 +26,12 @@ pub fn get_api_url
 -> String
 {
     ai.app.config
-    ["application"]
-    ["ai"]
-    ["providers"]
-    [provider_name]
-    ["api"]
-    .as_str()
-    .unwrap_or( "" )
+    [ "application" ]
+    [ "ai" ]
+    [ "providers" ]
+    [ provider_name ]
+    [ "api" ]
+    .get_str( "" )
     .to_string()
 }
 
@@ -59,8 +63,8 @@ pub fn get_token
         let _ = std::fs::write(&expanded_path, "");
     }
 
-    std::fs::read_to_string(&expanded_path)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .unwrap_or_default()
+    std::fs::read_to_string( &expanded_path )
+    .ok()
+    .map(|s| s.trim().to_string())
+    .unwrap_or_default()
 }

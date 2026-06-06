@@ -91,6 +91,8 @@ Access modes, can execute without confirmation
 that bypasses confirmations
 - [Shell-GPT](https://github.com/TheR1D/shell_gpt) — can execute commands with 
 `--execute` flag
+- [aichat](https://github.com/sigoden/aichat) — can execute commands with 
+`--execute` flag
 - [Aider](https://github.com/paul-gauthier/aider) — autonomous agent that writes 
 and executes code
 
@@ -166,63 +168,16 @@ source ~/.bashrc
 # Run
 
 ```bash
+1 --help
 1 your question
-```
-
-
-## Usage options
-
-```
-Usage:
-    ai                         Interactive keyboard input
-    ai <question>              Ask a question
-    echo <text> | ai           Read from stdin
-    ai --help                  Show this help
-
-Options:
-    --help                     This information
-    --info                     Show current runtime information
-    --version                  Show current version
-    --no-prompt                Suppress input user prompt
-    --no-command               Suppress command event 
-
-    --provider=<name>          Use provider for current session only (no save)
-    --switch-provider=<name>   Switch to AI provider <name> (saves to file)
-    --profile=<name>           Use profile for current session only
-    --switch-profile=<name>    Switch and save profile
-    --model=<name>             Use model for current session only (no save)
-    --switch-model=<name>      Switch and save model
-    --chat=<id>                Switch to chat <id> for current session only (no save)
-    --switch-chat=<id>         Switch to chat <id> (saves to file)
-
-    --show-history             Show history for current chat
-    --clear-history            Remove history for current chat
-    --pack-history=<percent>   Pack current chat history with 0-100 percent (default: 50)
-    --show-memory              Show memory for current chat
-    --clear-memory             Remove memory for current chat (global if %chat% not used)
-
-    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)
-                               Example: --access-history=cud
-    --access-memory=<mode>     Set memory access rights (c=create, u=update, d=delete)
-                               Example: --access-memory=cud
-
-    --write-pool               Write stdin to pool file and forward to stdout
-                               Example: echo 'data' | ai --write-pool
-    --tiocsti                  Inject input directly into TTY input pool for keyboard
-                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`
-                               on modern kernels. Only use in trusted environments.
-                               Example: echo 'ls -la' | ai --tiocsti
-
-    --completion=<shell>       Generate shell completion (bash|zsh|fish)
-                               Example: ai --generate-completion bash >> ~/.bashrc
 ```
 
 
 
 # LLM Response Contract
 
-The AI assistant returns strict JSON. The full format description and rules are 
-in the prompt file: 
+The AI assistant must return strict block structure. The full format description and 
+rules are in the prompt file:
 [prompt.txt](https://github.com/johnthesmith/ai-cli/blob/main/config/prompt.txt)
 
 
@@ -275,8 +230,9 @@ Unlike a human, who cannot "unsee" the past, auto-mnemomorph can:
 access:
   history: "cud"
   memory: "cud"
+```
 
-**Disabel:**
+**Disable:**
 
 ```yaml
 access:
@@ -284,8 +240,8 @@ access:
   memory: "c"
 ```
 
-⚠️ This is not human logic. This is something else. Agency is built not on 
-immutable chronology, but on dynamic, self-editing memory.
+⚠️ This is not human logic. Agency is built not on immutable chronology, but on 
+dynamic, self-editing memory.
 
 
 

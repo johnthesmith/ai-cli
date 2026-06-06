@@ -21,7 +21,7 @@ use core::{ App, SerdeExt, State, Moment };
 use storage::Storage;
 
 
-pub const HISTORY_DELIMITER: &str = "=== AIOL9B1MZX ===";
+pub const HISTORY_DELIMITER: &str = "===AIOL9B1MZX===";
 
 /*
     Ai applicatoin
@@ -66,9 +66,9 @@ impl Ai
         {
             app: App::create(),
             profile: "default".to_string(),
-            provider: "github".to_string(),
+            provider: String::new(),
             model: String::new(),
-            chat: "default".to_string(),
+            chat: String::new(),
             history_storage: Storage::new( HISTORY_DELIMITER ),
             memory_storage: Storage::new( HISTORY_DELIMITER )
         }
@@ -104,56 +104,72 @@ impl Ai
     fn help( &mut self )
     -> &mut Self
     {
-        println!( "{}\n", self.get_version() );
-        println!( "" );
-        println!( "Usage:" );
-        println!( "    ai                         Interactive keyboard input" );
-        println!( "    ai <question>              Ask a question" );
-        println!( "    echo <text> | ai           Read from stdin" );
-        println!( "    ai --help                  Show this help" );
-        println!( "" );
-        println!( "Options:" );
-        println!( "    --help                     This information" );
-        println!( "    --info                     Show current runtime information" );
-        println!( "    --version                  Show current version" );
-        println!( "    --no-prompt                Suppress input user prompt" );
-        println!( "    --no-command               Suppress command event " );
-        println!( "" );
-        println!( "    --provider=<name>          Use provider for current session only (no save)" );
-        println!( "    --switch-provider=<name>   Switch to AI provider <name> (saves to file)" );
-        println!( "    --profile=<name>           Use profile for current session only" );
-        println!( "    --switch-profile=<name>    Switch and save profile" );
-        println!( "    --model=<name>             Use model for current session only (no save)" );
-        println!( "    --switch-model=<name>      Switch and save model" );
-        println!( "    --chat=<id>                Switch to chat <id> for current session only (no save)" );
-        println!( "    --switch-chat=<id>         Switch to chat <id> (saves to file)" );
-        println!( "" );
-        println!( "    --show-history             Show history for current chat" );
-        println!( "    --clear-history            Remove history for current chat" );
-        println!( "    --show-memory              Show memory for current chat" );
-        println!( "    --clear-memory             Remove memory for current chat (global if %chat% not used)" );
-        println!( "" );
-        println!( "    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)" );
-        println!( "                               Example: --access-history=cud" );
-        println!( "    --access-memory=<mode>     Set memory access rights (c=create, u=update, d=delete)" );
-        println!( "                               Example: --access-memory=cud" );
-        println!( "" );
-        println!( "    --write-pool               Write stdin to pool file and forward to stdout" );
-        println!( "                               Example: echo 'data' | ai --write-pool");
-        println!( "    --tiocsti                  Inject input directly into TTY input pool for keyboard" );
-        println!( "                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
-        println!( "                               on modern kernels. Only use in trusted environments." );
-        println!( "                               Example: echo 'ls -la' | ai --tiocsti" );
-        println!( "" );
-        println!( "    --completion=<shell>       Generate shell completion (bash|zsh|fish)" );
-        println!( "                               Example: ai --generate-completion bash >> ~/.bashrc" );
-        println!( "" );
-        println!( "Recommendations:" );
-        println!( "    alias                      Set `alias 1=ai`" );
-        println!( "" );
-        println!( "Author:" );
-        println!( "    Still Swamp (still@catlair.net) Build with deepseek" );
-
+        println!("{}\n", self.get_version());
+        println!("");
+        println!("Usage:");
+        println!("    ai                         Interactive keyboard input");
+        println!("    ai <question>              Ask a question");
+        println!("    echo <text> | ai           Read from stdin");
+        println!("    ai --help                  Show this help");
+        println!("Pattern:");
+        println!("    ai [ message] [--<action>=<key>][--<argument>=<value>]");
+        println!("");
+        println!("Optins:");
+        println!("    --help|-?|-h               Same as --show=help");
+        println!("    --info|-h                  Same as --show=info");
+        println!("    --version|-v               Same as --show=version");
+        println!("");
+        println!("    --no-prompt                Suppress input user prompt");
+        println!("    --no-command               Suppress command event");
+        println!("");
+        println!("Session:");
+        println!("    --profile=<id>             Use profile for current session only");
+        println!("    --provider|-p=<id>         Use provider for current session only");
+        println!("    --model|-m=<id>            Use model for current session only");
+        println!("    --chat|-c=<id>             Use chat for current session only");
+        println!("    --switch-profile=<id>      Permanently switch profile");
+        println!("    --switch-provider=<id>     Permanently switch provider");
+        println!("    --switch-model=<id>        Permanently switch model");
+        println!("    --switch-chat=<id>         Permanently switch chat");
+        println!("");
+        println!("Access for LLM");
+        println!("    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)");
+        println!("                               Example: --access-history=cud");
+        println!("    --access-memory=<mode>     Set memory access rights (c=create, u=update, d=delete)");
+        println!("                               Example: --access-memory=cud");
+        println!("");
+        println!("Storage operations with target history|memory" );
+        println!("    --history                  Show full history for chat");
+        println!("    --memory                   Show full memory" );
+        println!("    --clear-history            Remove history content for current chat" );
+        println!("    --clear-memory             Remove memory content for current chat" );
+        println!("    --select-histroy=<id>      Show fact by id from history" );
+        println!("    --select-memory=<id>       Show fact by id from memory" );
+        println!("    --delete-history=<id>      Delete fact by id from history" );
+        println!("    --delete-memory=<id>       Delete fact by id from memory" );
+        println!("    --update-history=<id>      Update fact by id in history" );
+        println!("    --update-memory=<id>       Update fact by id in memory" );
+        println!("    --insert-history=<id>      Insert new fact into history" );
+        println!("    --insert-memory=<id>       Insert new fact into memory" );
+        println!("    --actor=<actor>            Actor for insert/update (default: @ASSISTANT)");
+        println!("    --body=<text>              Body for insert/update (or from stdin)");
+        println!("");
+        println!("Specific:");
+        println!("    --write-pool               Write stdin to pool file and forward to stdout");
+        println!("                               Example: echo 'data' | ai --write-pool");
+        println!("    --tiocsti                  Inject input directly into TTY input buffer for keyboard");
+        println!("                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`");
+        println!("                               on modern kernels. Only use in trusted environments.");
+        println!("                               Example: echo 'ls -la' | ai --tiocsti");
+        println!("");
+        println!("    --completion=<shell>       Generate shell completion (bash|zsh|fish)");
+        println!("                               Example: ai --completion=bash >> ~/.bashrc");
+        println!("");
+        println!("Recommendations:");
+        println!("    alias                      Set `alias 1=ai`");
+        println!("");
+        println!("Author:");
+        println!("    Still Swamp (still@catlair.net) Powered by deepseek");
         self
     }
 
@@ -237,8 +253,6 @@ impl Ai
             no_prompt = true;
         }
 
-
-
         /* Set profile for current session */
         let profile = self.app.config[ "profile" ].get_str( "" );
         if !profile.is_empty()
@@ -258,7 +272,6 @@ impl Ai
 
         /* Get default config path */
         let path = self.get_config_file();
-
         /* Read config */
         self.app.read_config( &path ).read_cli();
 
@@ -326,20 +339,6 @@ impl Ai
             );
             self.app.dump_config();
 
-            /* Open history */
-            let history_path = self.get_history_file_path();
-            self.history_storage
-            .load( &history_path )
-            .get_state()
-            .state_to( &mut self.app.state );           
-
-            /* Open memory */
-            let memory_path = self.get_memory_file();
-            self.memory_storage.
-            load( &memory_path )
-            .get_state()
-            .state_to( &mut self.app.state );           
-
             /*
                 Main section
             */
@@ -347,6 +346,11 @@ impl Ai
             /* Check config */
             if self.app.state.is_ok()
             {
+                /* Read current values */
+                self.set_provider( &self.read_provider() );
+                self.set_model( &self.read_model() );
+                self.set_chat( &self.read_chat() );
+                
                 /* Set access rights */
                 let cli_history = self.app.config[ "access-history" ].get_str("");
                 let cli_memory = self.app.config[ "access-memory" ].get_str("");
@@ -365,202 +369,336 @@ impl Ai
                 (
                     if !cli_memory.is_empty() { &cli_memory } else { &default_memory }
                 );
-                
-                /* Set provider */
-                let switch_provider = self.app.config
-                [ "switch-provider" ].get_str( "" );
-                if !switch_provider.is_empty()
+
+
+
+                /* Collect actions from config into a map (copy values) */
+                let mut actions = Vec::new();
+
+                if let Some(mapping) = self.app.config.as_mapping()
                 {
-                    no_prompt = true;
-                    self.switch_provider( &switch_provider );
-                }
-
-                /* Set profile for current session */
-                let provider = self.app.config
-                [ "provider" ].get_str( "" );
-                if !provider.is_empty()
-                {
-                    self.set_provider( &provider );
-                }
-                else
-                {
-                    self.set_provider( &self.read_provider() );
-                }
-
-                /* Switch chat */
-                let switch_chat = self.app.config
-                [ "switch-chat" ].get_str( "" );
-                if !switch_chat.is_empty()
-                {
-                    no_prompt = true;
-                    self.switch_chat(&switch_chat);
-                }
-
-                /* Set chat for current session */
-                let session_chat = self.app.config
-                [ "chat" ].get_str( "" );
-                if !session_chat.is_empty()
-                {
-                    self.set_chat( &session_chat );
-                }
-                else
-                {
-                    self.set_chat( &self.read_chat() );
-                }
-
-
-                /* Switch model */
-                let switch_model = self.app.config
-                [ "switch-model" ].get_str( "" );
-                if !switch_model.is_empty()
-                {
-                    no_prompt = true;
-                    self.switch_model( &switch_model );
-                }
-
-                /* Set model for current session */
-                let session_model = self.app.config
-                [ "model" ].get_str( "" );
-                if !session_model.is_empty()
-                {
-                    self.set_model( &session_model );
-                }
-                else
-                {
-                    self.set_model( &self.read_model() );
-                }
-
-
-
-                /* Help mode */
-                if self.app.config[ "help" ]
-                .as_bool().unwrap_or( false )
-                {
-                    no_prompt = true;
-                    self.help();
-                }
-
-
-
-                /* Show version */
-                if self.app.config[ "version" ]
-                .as_bool().unwrap_or( false )
-                {
-                    no_prompt = true;
-                    println!( "{}\n", self.get_version() );
-                }
-
-
-
-                /* Generate completion mode */
-                if let Some( shell ) 
-                = self.app.config[ "completion" ].as_str()
-                {
-                    no_prompt = true;
-                    print!( "{}", self.generate_completion( shell ));
-                }
-
-
-
-                /* Check clear-history flag */
-                if self.app.config[ "clear-history" ]
-                .get_bool( false )
-                {
-                    no_prompt = true;
-                    self.clear_history();
-                }
-
-
-
-                /* Check clear-memory flag */
-                if self.app.config[ "clear-memory" ]
-                .get_bool( false )
-                {
-                    no_prompt = true;
-                    self.clear_memory();
-                }
-
-
-
-                /* Check write-pool flag */
-                if self.app.config[ "write-pool" ].get_bool( false )
-                {
-                    no_prompt = true;
-                    
-                    let mut input = String::new();
-                    if let Ok( _ ) 
-                    = std::io::stdin().read_to_string( &mut input )
+                    for (key, value) in mapping
                     {
-                        self.write_pool( &input ); 
+                        let action = key.get_str("").to_string();
+                        let target = value.get_str("").to_string();
+                        actions.push((action, target));
                     }
                 }
 
-
-
-                /* Check tiocsti flag */
-                if self.app.config[ "tiocsti" ].get_bool( false )
+                /* Execute actions from collected map */
+                for( action, target ) in &actions
                 {
-                    no_prompt = true;
-                    /* Read from stdin */
-                    let mut input = String::new();
-                    match std::io::stdin().read_to_string( &mut input )
+                    match action.as_str()
                     {
-                        Ok( 0 ) => 
+                        "m" | "model" => 
                         {
+                            self.set_model( &target );
+                        }
+
+
+                        "p" | "provider" => 
+                        {
+                            self.set_provider( &target );
+                        }
+
+
+                        "c" | "chat" => 
+                        {
+                            self.set_chat( &target );
+                        }
+                        
+
+                        "switch-model" => 
+                        {
+                            no_prompt = true;
                             self
-                            .app
-                            .get_log_mut()
-                            .warning( "tiocsti: stdin is empty" );
+                            .switch_model( &target )
+                            .set_model( &target );
                         }
-                        Ok(_) =>
+
+
+                        "switch-provider" => 
                         {
-                            self.input_tiocsti( &input );
+                            no_prompt = true;
+                            self
+                            .switch_provider( &target )
+                            .set_provider( &target );
                         }
-                        Err( e ) =>
+
+
+                        "switch-chat" => 
                         {
-                            self.app.get_log_mut()
-                            .error( "tiocsti: failed to read stdin" )
-                            .prm( "error", &e.to_string() );
+                            no_prompt = true;
+                            self
+                            .switch_chat( &target )
+                            .set_chat( &target );
                         }
+
+                        _ => {}
                     }
                 }
 
+                /* Open history */
+                let history_path = self.get_history_file_path();
+                self.history_storage
+                .load( &history_path )
+                .get_state()
+                .state_to( &mut self.app.state );           
 
+                /* Open memory */
+                let memory_path = self.get_memory_file();
+                self.memory_storage.
+                load( &memory_path )
+                .get_state()
+                .state_to( &mut self.app.state );                         
 
-                /* History request */
-                if self.app.config[ "show-history" ].get_bool( false )
+                /* Execute actions from collected map */
+                for( action, target ) in &actions
                 {
-                    no_prompt = true;
-                    self.show_history();
+                    match action.as_str()
+                    {
+                        "v" | "version" =>
+                        {
+                            no_prompt = true;
+                            println!( "{}", self.get_version() );
+                        }
+
+                        
+                        "?" | "h" | "help" =>
+                        {
+                            no_prompt = true;
+                            self.help();
+                        }
+
+
+
+                        "i" | "info" =>
+                        {
+                            no_prompt = true;
+                            self.show_info();
+                        }
+
+
+                        
+                        "history" | "show-history" => 
+                        {
+                            no_prompt = true;
+                            self.show_history();
+                        }
+
+
+                        "memory" |  "show-memory" => 
+                        {
+                            no_prompt = true;
+                            self.show_memory();
+                        }
+
+
+                        "prompt" | "show-prompt" => 
+                        {
+                            no_prompt = true;
+                            let user_prompt = self.get_user_prompt();
+                            let prompt = self.build_prompt( &user_prompt, "chat" );
+                            println!( "{}", prompt );
+                        }                        
+
+
+
+                        "write-pool" => 
+                        {
+                            no_prompt = true;
+                            
+                            let mut input = String::new();
+                            if let Ok( _ ) 
+                            = std::io::stdin().read_to_string( &mut input )
+                            {
+                                self.write_pool( &input ); 
+                            }
+                        }
+
+
+
+                        "clear-history" => 
+                        {
+                            no_prompt = true;
+                            self.clear_history();
+                        }
+
+
+                        "clear-memory" => 
+                        {
+                            no_prompt = true;
+                            self.clear_memory();
+                        }
+
+
+
+                        "tiocsti" => 
+                        {
+                            no_prompt = true;
+                            /* Read from stdin */
+                            let mut input = String::new();
+                            match std::io::stdin().read_to_string( &mut input )
+                            {
+                                Ok( 0 ) => 
+                                {
+                                    self
+                                    .app
+                                    .get_log_mut()
+                                    .warning( "tiocsti: stdin is empty" );
+                                }
+                                Ok( _ ) =>
+                                {
+                                    self.input_tiocsti( &input );
+                                }
+                                Err( e ) =>
+                                {
+                                    self.app.get_log_mut()
+                                    .error( "tiocsti: failed to read stdin" )
+                                    .prm( "error", &e.to_string() );
+                                }
+                            }
+                        }
+
+
+                        "completion" => 
+                        {
+                            /* Generate completion mode */
+                            if !target.is_empty()
+                            {
+                                no_prompt = true;
+                                print!( "{}", self.generate_completion( target ));
+                            }
+                        }
+
+                        "select-history" =>
+                        {
+                            no_prompt = true;
+                            if !target.is_empty()
+                            {
+                                let (actor, body) = self.history_storage.select( &target );
+                                println!("{}\n\n{}", actor, body);
+                            }
+                        }
+
+                        "select-memory" =>
+                        {
+                            no_prompt = true;
+                            if !target.is_empty()
+                            {
+                                let (actor, body) = self.history_storage.select( &target );
+                                println!("{}\n\n{}", actor, body);
+                            }
+                        }
+
+
+                        "delete-history" => 
+                        {
+                            {
+                                no_prompt = true;
+                                if !target.is_empty()
+                                {
+                                    self.history_storage.delete( &target );
+                                }
+                            }
+                        }
+
+
+                        "delete-memory" => 
+                        {
+                            {
+                                no_prompt = true;
+                                if !target.is_empty()
+                                {
+                                    self.memory_storage.delete( &target );
+                                }
+                            }
+                        }
+
+
+                        "insert-history" =>
+                        {
+                            no_prompt = true;
+                            let actor = self.app.config[ "actor" ].get_str("@USER");
+                            let mut body = self.app.config[ "body" ].get_str( "" );
+                            
+                            if body.is_empty()
+                            {
+                                let mut input = String::new();
+                                std::io::stdin().read_to_string(&mut input).ok();
+                                body = input.trim().to_string();
+                            }
+                            
+                            if !body.is_empty()
+                            {
+                                self.history_storage.create( &actor, &body );
+                            }
+                        }
+
+                        "insert-memory" =>
+                        {
+                            no_prompt = true;
+                            let actor = self.app.config[ "actor" ].get_str( "@USER" );
+                            let mut body = self.app.config[ "body" ].get_str("");
+                            
+                            if body.is_empty()
+                            {
+                                let mut input = String::new();
+                                std::io::stdin().read_to_string(&mut input).ok();
+                                body = input.trim().to_string();
+                            }
+                            
+                            if !body.is_empty()
+                            {
+                                self.memory_storage.create( &actor, &body );
+                            }
+                        }
+
+                        "update-history" =>
+                        {
+                            no_prompt = true;
+                            let actor = self.app.config[ "actor" ].get_str( "@USER" );
+                            let mut body = self.app.config[ "body" ].get_str("");
+                            
+                            if !target.is_empty()
+                            {
+                                if body.is_empty()
+                                {
+                                    let mut input = String::new();
+                                    std::io::stdin().read_to_string(&mut input).ok();
+                                    body = input.trim().to_string();
+                                }                               
+                                if !body.is_empty()
+                                {
+                                    self.history_storage.update( &target, &actor, &body );
+                                }
+                            }
+                        }
+
+                        "update-memory" =>
+                        {
+                            no_prompt = true;
+                            let actor = self.app.config[ "actor" ].get_str( "@USER" );
+                            let mut body = self.app.config["body"].get_str("");
+                            
+                            if !target.is_empty()
+                            {
+                                if body.is_empty()
+                                {
+                                    let mut input = String::new();
+                                    std::io::stdin().read_to_string(&mut input).ok();
+                                    body = input.trim().to_string();
+                                }
+                                if !body.is_empty()
+                                {
+                                    self.memory_storage.update( &target, &actor, &body );
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
 
-
-
-                /* Memory request */
-                if self.app.config[ "show-memory" ].get_bool( false )
-                {
-                    no_prompt = true;
-                    self.show_memory();
-                }
-
-
-
-                /* Check dump-prompt flag */
-                if self.app.config[ "dump-prompt" ].get_bool( false )
-                {
-                    no_prompt = true;
-                    let user_prompt = self.get_user_prompt();
-                    let prompt = self.build_prompt( &user_prompt, "chat" );
-                    println!( "{}", prompt );
-                }
-
-
-
-                if self.app.config[ "info" ].get_bool( false )
-                {
-                    no_prompt = true;
-                    self.show_info();
-                }
 
 
                 if !no_prompt
@@ -594,8 +732,10 @@ impl Ai
             }
 
             /* Save current state */
+            let history_path = self.get_history_file_path();
             self.history_storage.save( &history_path );
             /* Save current state */
+            let memory_path = self.get_memory_file();
             self.memory_storage.save( &memory_path );
 
             self.app.get_log_mut().end( "End of ai" ).eol();
@@ -1211,6 +1351,7 @@ impl Ai
             &["available-models"],
             vec![]
         );
+
         available.first().cloned().unwrap_or_else(|| "gpt-4.1".to_string())
     }
 
@@ -1825,16 +1966,16 @@ impl Ai
         for item in change
         {
             let id = item[ "id" ].get_str( "" );
-            let role = item[ "role" ].get_str( "@ASSISTANT" );
+            let actor = item[ "actor" ].get_str( "@USER" );
             let body = item[ "body" ].get_str( "" );
             
             if !id.is_empty() && !body.is_empty()
             {
-                self.memory_storage.update(&id, &role, &body);
+                self.memory_storage.update( &id, &actor, &body );
                 self.app.get_log_mut()
                 .info( "Memory entry changed" )
                 .prm( "id", &id )
-                .prm( "actor", &role )
+                .prm( "actor", &actor )
                 .prm( "new_body", &body );
             }
         }
@@ -1877,17 +2018,17 @@ impl Ai
         for item in change
         {
             let id = item[ "id" ].get_str( "" );
-            let role = item[ "role" ].get_str( "@ASSISTANT" );
+            let actor = item[ "actor" ].get_str( "@ASSISTANT" );
             let body = item[ "body" ].get_str( "" );
             
             if !id.is_empty() && !body.is_empty()
             {
-                self.history_storage.update(&id, &role, &body);
+                self.history_storage.update( &id, &actor, &body );
                 self.app.get_log_mut()
-                .info("History entry changed")
-                .prm("id", &id)
-                .prm("actor", &role)
-                .prm("new_body", &body);
+                .info( "History entry changed" )
+                .prm( "id", &id)
+                .prm( "actor", &actor)
+                .prm( "new_body", &body);
             }
         }
 
@@ -2149,11 +2290,11 @@ impl Ai
     )
     {
         self.app.get_log_mut()
-        .dump("Response from LLM", response)
-        .prm("provider", provider)
-        .prm("model", model)
-        .prm("api", api_url)
-        .prm("type", prompt_type);
+        .dump( "Response from LLM", response )
+        .prm( "provider", provider )
+        .prm( "model", model )
+        .prm( "api", api_url )
+        .prm( "type", prompt_type );
     }
 
 
@@ -2172,29 +2313,65 @@ impl Ai
         shell: &str
     ) -> String
     {
-        let options = 
+        let options =
         [
+            // Help & Info
             "--help",
+            "--info",
+            "--version",
+            "--help",
+            "--info",
+            "--version",
+
+            // Session control
             "--no-prompt",
             "--no-command",
-            "--info",
-            "--provider=",
-            "--switch-provider=",
+
+            // Profile & provider & model & chat (temporary)
             "--profile=",
-            "--switch-profile=",
+            "--provider=",
             "--model=",
-            "--switch-model=",
             "--chat=",
+
+            // Permanent switch
+            "--switch-profile=",
+            "--switch-provider=",
+            "--switch-model=",
             "--switch-chat=",
-            "--show-history",
+
+            // LLM access rights (CUD)
+            "--access-history=",
+            "--access-memory=",
+
+            // Storage operations: history
+            "--history",
             "--clear-history",
-            "--show-memory",
+            "--select-history=",
+            "--delete-history=",
+            "--update-history=",
+            "--insert-history=",
+
+            // Storage operations: memory
+            "--memory",
             "--clear-memory",
-            "--write-buffer",
+            "--select-memory=",
+            "--delete-memory=",
+            "--update-memory=",
+            "--insert-memory=",
+
+            // Actor & body for insert/update
+            "--actor=",
+            "--body=",
+
+            // Specific features
+            "--write-pool",
             "--tiocsti",
-            "--completion",
-        ];
-        
+
+            // Shell completion
+            "--completion=bash",
+            "--completion=zsh",
+            "--completion=fish",
+        ];        
         let options_str = options.join(" ");
         
         match shell
@@ -2307,4 +2484,199 @@ impl Ai
     {
         self.get_config_val( &[ "connect_timeout_ms" ], 10000 )
     }
+
+
+
+    /*
+        Parse LLM response in block format
+        Splits response by HISTORY_DELIMITER, extracts block name and content,
+        then executes corresponding actions (message, command, history, memory, etc.)
+    */
+    pub fn parse_llm_response
+    (
+        &mut self, 
+        content: &str, 
+        response_json: &mut serde_json::Value
+    )
+    {
+        self.get_app_mut().get_log_mut().dump( "llm content", content );
+        let history_delimiter = HISTORY_DELIMITER;
+        let blocks: Vec<&str> = content.split( history_delimiter ).collect();
+        for block in blocks
+        {
+            let block = block.trim();
+            if !block.is_empty()
+            {               
+                let lines: Vec<&str> = block.lines().collect();
+                if !lines.is_empty()
+                {
+                    let block_name = lines[0].trim();
+                    let block_content = &lines[1..].join( "\n" );
+                    match block_name
+                    {
+                        "message" =>
+                        {
+                            response_json[ "message" ] = serde_json::json!
+                            (
+                                block_content
+                            );
+                        }
+                        "command" =>
+                        {
+                            response_json[ "command" ] = serde_json::json!
+                            (
+                                block_content
+                            );
+                        }
+                        "pool" =>
+                        {
+                            response_json["pool"] = serde_json::json!
+                            (
+                                block_content
+                            );
+                        }
+                        "clipboard" =>
+                        {
+                            response_json[ "clipboard" ] = serde_json::json!
+                            (
+                                block_content
+                            );
+                        }
+                        
+                        "history-add" =>
+                        {
+                            if response_json[ "history" ][ "add" ].is_null()
+                            {
+                                response_json
+                                [ "history" ]
+                                [ "add" ] = serde_json::json!([]);
+                            }
+
+                            response_json[ "history" ][ "add" ]
+                            .as_array_mut()
+                            .unwrap()
+                            .push(serde_json::json!( block_content ));
+                        }
+
+                        "history-remove" =>
+                        {
+                            if response_json[ "history" ][ "add" ].is_null()
+                            {
+                                response_json
+                                [ "history" ]
+                                [ "remove" ] = serde_json::json!([]);
+                            }
+                            response_json[ "history" ][ "remove" ] = serde_json::json!
+                            (
+                                [ block_content.trim().to_string() ]
+                            );
+                        }
+
+                        "history-change" =>
+                        {
+                            if response_json[ "history" ][ "change" ].is_null()
+                            {
+                                response_json[ "history" ][ "change" ] = serde_json::json!([]);
+                            }
+                            
+                            let lines: Vec<&str> = block_content.lines().collect();
+
+                            if lines.len() >= 3
+                            {
+                                let id = lines[0].trim();
+                                let actor = lines[1].trim();
+                                let body = lines[2..].join("\n").trim().to_string();
+                                
+                                response_json[ "history" ][ "change" ]
+                                .as_array_mut()
+                                .unwrap()
+                                .push
+                                (
+                                    serde_json::json!
+                                    (
+                                        {
+                                            "id": id,
+                                            "actor": actor,
+                                            "body": body
+                                        }
+                                    )
+                                );
+                            }
+                        }
+
+                        "memory-add" =>
+                        {
+                            if response_json[ "memory" ][ "add" ].is_null()
+                            {
+                                response_json
+                                [ "memory" ]
+                                [ "add" ] = serde_json::json!([]);
+                            }
+
+                            response_json[ "memory" ][ "add" ]
+                            .as_array_mut()
+                            .unwrap()
+                            .push(serde_json::json!(block_content));
+                        }
+
+                        "memory-remove" =>
+                        {
+                            if response_json[ "memory" ][ "remove" ].is_null()
+                            {
+                                response_json
+                                [ "memory" ]
+                                [ "remove" ] = serde_json::json!([]);
+                            }
+
+                            response_json[ "memory" ][ "remove" ]
+                            .as_array_mut()
+                            .unwrap()
+                            .push(serde_json::json!
+                            (
+                                block_content.trim().to_string()) 
+                            );
+                        }
+
+                        "memory-change" =>
+                        {
+                            if response_json["memory"]["change"].is_null()
+                            {
+                                response_json
+                                ["memory"]
+                                ["change"] = serde_json::json!([]);
+                            }
+
+                            let lines: Vec<&str> = block_content.lines().collect();
+
+                            if lines.len() >= 3
+                            {
+                                let key = lines[0].trim();
+                                let actor = lines[1].trim();
+                                let body = lines[2..].join("\n").trim().to_string();
+
+                                response_json["memory"]["change"]
+                                .as_array_mut()
+                                .unwrap()
+                                .push
+                                (
+                                    serde_json::json!
+                                    (
+                                        {
+                                            "id": key,
+                                            "actor": actor,
+                                            "body": body
+                                        }
+                                    )
+                                );
+                            }
+                        }
+
+                        "end" => { break; }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
 }

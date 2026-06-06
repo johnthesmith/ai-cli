@@ -11,9 +11,10 @@ use reqwest::blocking::Response;
 use core::Color;
 
 use crate::Ai;
-use super::api::{get_api_url, get_token};
+use super::api::{ get_api_url, get_token };
 use super::Provider;
-use core::SerdeExt;
+
+
 
 /*
     Default Provider for OpenAI-compatible APIs.
@@ -271,7 +272,14 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 let full_answer = resp.text().unwrap_or_default();
 
                 /* Event */
-                self.ai.on_after_response( &full_answer, &self.name, &model, &api_url, "chat");
+                self.ai.on_after_response
+                (
+                    &full_answer, 
+                    &self.name, 
+                    &model, 
+                    &api_url, 
+                    "chat"
+                );
 
                 /* Get openai fields*/
                 let
@@ -295,39 +303,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
                 if result
                 {
-                    /* Get ai tool json from content */
-                    match serde_json::from_str::<serde_json::Value>( &content )
-                    {
-                        Ok(mut ai_json) =>
-                        {
-                            /* Normalize string fields */
-                            if let Some(obj) = ai_json.as_object_mut()
-                            {
-                                response_json[ "message" ] = serde_json::json!
-                                (
-                                    obj[ "message" ].get_str( "" ).replace( "\\n", "\n" )
-                                );
-
-                                response_json[ "pool" ] = serde_json::json!
-                                (
-                                    obj[ "pool" ].get_str( "" ).replace( "\\n", "\n" )
-                                );
-                                
-                                response_json[ "clipboard" ] = serde_json::json!
-                                (
-                                    obj["clipboard"].get_str( "" ).replace( "\\n", "\n" )
-                                );
-                                
-                                response_json[ "history" ] = obj[ "history" ].clone();
-                                response_json[ "memory" ] = obj[ "memory" ].clone();
-                            }
-                        }
-                        Err( _ ) =>
-                        {
-                            /* If not JSON, set message from content */
-                            response_json[ "message" ] = serde_json::json!( content );
-                        }
-                    }
+                    self.ai.parse_llm_response( &content, &mut response_json )
                 }
                 else
                 {
@@ -340,11 +316,11 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     {
                         format!( "{}\n{}", error, content )
                     };
-                    response_json[ "message" ] = serde_json::json!(message);
+                    response_json[ "message" ] = serde_json::json!( message );
                 }
 
-                self.ai.handle_chat_response( &response_json );
 
+                self.ai.handle_chat_response( &response_json );
             }
             Err( e ) =>
             {
