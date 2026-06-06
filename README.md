@@ -158,7 +158,9 @@ source ~/.bashrc
 
 # Configuration
 
-1. On first run, default config will be created at `~/.config/ai/default/config.yaml`
+1. On first run, default config will be created at 
+`~/.config/ai/default/config.yaml` from 
+[config](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/config.rs)
 2. Tokens will be placed in `~/.config/ai/default/tokens/<provider>.txt`
 3. For Git token retrieval see [Git token](./man/git-toke.md).
 4. Following the [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md)
@@ -177,7 +179,8 @@ source ~/.bashrc
 # LLM Response Contract
 
 The AI assistant must return strict block structure. The full format description 
-and rules are in the [prompt file](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/config.rs)
+and rules are in the 
+[prompt file](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/prompts.rs)
 
 
 
@@ -205,8 +208,9 @@ commands without your approval** — AI never presses Enter for you.
 
 # For developers
 
-1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs)
-   - Search for `REMOVE_ENTER` — shows where newlines are stripped from AI-generated commands (security: prevents auto-execution)
+1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs).
+2. Search for `REMOVE_ENTER` — shows where newlines are stripped from 
+AI-generated commands (security: prevents auto-execution)
 
 
 
