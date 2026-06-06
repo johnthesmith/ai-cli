@@ -176,9 +176,9 @@ source ~/.bashrc
 
 # LLM Response Contract
 
-The AI assistant must return strict block structure. The full format description and 
-rules are in the prompt file:
-[prompt.txt](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/config.rs)
+The AI assistant must return strict block structure. The full format description 
+and rules are in the [prompt 
+file](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/config.rs)
 
 
 
