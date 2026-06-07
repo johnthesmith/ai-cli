@@ -171,7 +171,7 @@ source ~/.bashrc
 
 ```bash
 1 --help
-1 your question
+1 hello
 ```
 
 
