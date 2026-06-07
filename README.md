@@ -18,7 +18,7 @@
 * [Run](#run)
 * [Security](#security)
 * [For developers](#for-developers)
-* [auto-mnemomorph](#auto-mnemomorph)
+* [Automnemomorph](#automnemomorph)
 * [Architecture](#architecture)
 
 # Philosophy
@@ -133,6 +133,7 @@ curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh
 3. Binary files: https://github.com/johnthesmith/ai-cli/releases/latest
 
 
+
 # Build
 
 1. This is an alternative to [Install](#install).
@@ -141,12 +142,10 @@ curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh
     0. `git`
     0. `curl`
     0. `build-essential`
-    0. `pkg-config`
-    0. `libssl-dev`
 3. Download and run instalation script:
 
 ```
-sudo apt install git curl build-essential pkg-config libssl-dev
+sudo apt install git curl build-essential
 curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/build.sh > build.sh
 less build.sh
 chmod +x build.sh
@@ -186,11 +185,11 @@ and rules are in the
 
 # Security
 
-⚠️  **IMPORTANT: This utility does NOT execute commands automatically.**
+⚠️  **IMPORTANT**: This utility does NOT execute commands automatically.
 
 - Always review the command printed in your terminal before pressing Enter.
 - The AI may generate dangerous commands (e.g., `rm -rf /*`, `dd`, `sudo`).
-- Never execute commands you don't understand or trust.
+- Never execute commands you don't understand.
 - This utility does NOT automatically execute commands — you must press Enter to 
 confirm.
 - Recursive `ai|ai` pipelines may cause the tool to hang, but **cannot execute 
@@ -206,7 +205,7 @@ commands without your approval** — AI never presses Enter for you.
 
 
 
-# For developers
+## For developers
 
 1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs).
 2. Search for `REMOVE_ENTER` — shows where newlines are stripped from 
