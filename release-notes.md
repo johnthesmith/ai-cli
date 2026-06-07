@@ -1,3 +1,9 @@
+# Release v1.0.11
+
+1. Minor documentation updates
+
+
+
 # Release v1.0.10
 
 1. Fixed `delete` operation (now properly accumulates multiple IDs)
@@ -5,6 +11,7 @@
 0. Updated system prompt (block-based format, clarified role attribution)
 0. **Important:** Remove old configs prompts memory and history before 
 update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
+
 
 
 # Release v1.0.9
