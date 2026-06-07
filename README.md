@@ -216,11 +216,10 @@ AI-generated commands (security: prevents auto-execution)
 
 # Automnemomorph
 
-1. See 
-[automnemomorph.md](https://github.com/johnthesmith/scraps/blob/main/en/automnemomorph.md) 
-for the full concept and philosophical background.
-
-Unlike a human, who cannot "unsee" the past, auto-mnemomorph can:
+See 
+[automnemomorph](https://github.com/johnthesmith/scraps/blob/main/en/automnemomorph.md) 
+for the full concept and philosophical background. Unlike a human, who cannot 
+"unsee" the past, auto-mnemomorph can:
 - Rewrite history (correct mistakes, remove insignificant details)
 - Forget on its own initiative
 - Add facts
