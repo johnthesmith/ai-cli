@@ -21,7 +21,7 @@ use core::{ App, SerdeExt, State, Moment };
 use storage::Storage;
 
 
-pub const HISTORY_DELIMITER: &str = "===AIOL9B1MZX===";
+pub const BLOCK_DELIMITER: &str = "===AIOL9B1MZX===";
 
 /*
     Ai applicatoin
@@ -69,8 +69,8 @@ impl Ai
             provider: String::new(),
             model: String::new(),
             chat: String::new(),
-            history_storage: Storage::new( HISTORY_DELIMITER ),
-            memory_storage: Storage::new( HISTORY_DELIMITER )
+            history_storage: Storage::new( BLOCK_DELIMITER ),
+            memory_storage: Storage::new( BLOCK_DELIMITER )
         }
     }
 
@@ -965,20 +965,25 @@ impl Ai
             "/bin/bash".to_string()
         );
 
+        let input = input
+        .replace( BLOCK_DELIMITER, "<block-delimiter>" )
+        .replace( "%block-delimiter%", "<block-delimiter>" );
+
         let result = template
         .replace( "%history%", &self.get_history() )
         .replace( "%memory%", &self.read_memory() )
-        .replace( "%user-prompt%", input )
+        .replace( "%user-prompt%", &input )
         .replace( "%shell%", &shell )
         .replace( "%chat%", &self.get_chat() )
         .replace( "%provider%", &self.get_provider() )
         .replace( "%model%", &self.get_model() )
-        .replace( "%history-delimiter%", HISTORY_DELIMITER )
         .replace
         (
             "%now%", 
             &Moment::create().now().format( "%Y-%m-%d %H:%M:%S" )
-        );
+        )
+        .replace( "%block-delimiter%", BLOCK_DELIMITER )
+        ;
 
         result
     }
@@ -2489,7 +2494,7 @@ impl Ai
 
     /*
         Parse LLM response in block format
-        Splits response by HISTORY_DELIMITER, extracts block name and content,
+        Splits response by BLOCK_DELIMITER, extracts block name and content,
         then executes corresponding actions (message, command, history, memory, etc.)
     */
     pub fn parse_llm_response
@@ -2500,8 +2505,8 @@ impl Ai
     )
     {
         self.get_app_mut().get_log_mut().dump( "llm content", content );
-        let history_delimiter = HISTORY_DELIMITER;
-        let blocks: Vec<&str> = content.split( history_delimiter ).collect();
+        let block_delimiter = BLOCK_DELIMITER;
+        let blocks: Vec<&str> = content.split( block_delimiter ).collect();
         for block in blocks
         {
             let block = block.trim();
@@ -2535,6 +2540,7 @@ impl Ai
                                 block_content
                             );
                         }
+
                         "clipboard" =>
                         {
                             response_json[ "clipboard" ] = serde_json::json!
@@ -2560,15 +2566,21 @@ impl Ai
 
                         "history-remove" =>
                         {
-                            if response_json[ "history" ][ "add" ].is_null()
+                            if response_json[ "history" ][ "remove" ].is_null()
                             {
                                 response_json
                                 [ "history" ]
                                 [ "remove" ] = serde_json::json!([]);
                             }
-                            response_json[ "history" ][ "remove" ] = serde_json::json!
+                            response_json[ "history" ][ "remove" ]
+                            .as_array_mut()
+                            .unwrap()
+                            .push
                             (
-                                [ block_content.trim().to_string() ]
+                                serde_json::json!
+                                (
+                                    block_content.trim().to_string()
+                                ) 
                             );
                         }
 
@@ -2627,13 +2639,15 @@ impl Ai
                                 [ "memory" ]
                                 [ "remove" ] = serde_json::json!([]);
                             }
-
                             response_json[ "memory" ][ "remove" ]
                             .as_array_mut()
                             .unwrap()
-                            .push(serde_json::json!
+                            .push
                             (
-                                block_content.trim().to_string()) 
+                                serde_json::json!
+                                (
+                                    block_content.trim().to_string()
+                                ) 
                             );
                         }
 

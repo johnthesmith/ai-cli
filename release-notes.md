@@ -1,7 +1,16 @@
+# Release v1.0.10
+
+1. Fixed `delete` operation (now properly accumulates multiple IDs)
+0. Added block delimiter isolation for user prompt (prevents accidental injection)
+0. Updated system prompt (block-based format, clarified role attribution)
+0. **Important:** Remove old configs prompts memory and history before 
+update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
+
+
 # Release v1.0.9
 
 1. Added CLI commands for storage operations (`--select`, `--delete`, `--update`, `--insert`)
-2. Replaced JSON with block-based format for LLM communication (more reliable, no escaping issues)
+0. Replaced JSON with block-based format for LLM communication (more reliable, no escaping issues)
 
 
 

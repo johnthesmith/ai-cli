@@ -214,15 +214,13 @@ AI-generated commands (security: prevents auto-execution)
 
 
 
-# auto-mnemomorph
+# Automnemomorph
 
-*auto-mnemomorph* (from Greek: *αὐτός* — self, *μνήμη* — memory, *μορφή* — form) —
-a behavioral model in which AI gains the right to independently manage
-conversation history and long-term memory through create, update, and delete
-operations (`cud`).
+1. See 
+[automnemomorph.md](https://github.com/johnthesmith/scraps/blob/main/en/automnemomorph.md) 
+for the full concept and philosophical background.
 
 Unlike a human, who cannot "unsee" the past, auto-mnemomorph can:
-
 - Rewrite history (correct mistakes, remove insignificant details)
 - Forget on its own initiative
 - Add facts
