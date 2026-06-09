@@ -143,7 +143,7 @@ impl Ai
         println!( "    --switch-provider=<id>     Permanently switch provider" );
         println!( "    --switch-model=<id>        Permanently switch model" );
         println!( "    --switch-chat=<id>         Permanently switch chat" );
-        println!( "    --switch-prompt-id=<id>    Permanently switch prompt" );
+        println!( "    --switch-prompt-id=<id>    Permanently switch prompt default|automnemomorf" );
         println!( "" );
         println!( "Access for LLM" );
         println!( "    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)" );

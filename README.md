@@ -217,19 +217,30 @@ for the full concept and philosophical background. Unlike a human, who cannot
 
 **Enable:**
 
+```
+ai --switch-prompt-id=automnemomorf
+```
+
 ```yaml
 access:
   history: "cud"
   memory: "cud"
+  prompt: "cud"
 ```
 
 **Disable:**
+
+```
+ai --switch-prompt-id=default
+```
 
 ```yaml
 access:
   history: "c"
   memory: "c"
+  prompt: "r"
 ```
+
 
 ⚠️ This is not human logic. Agency is built not on immutable chronology, but on 
 dynamic, self-editing memory.
