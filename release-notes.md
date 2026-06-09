@@ -1,3 +1,13 @@
+# Release v1.0.12
+
+1. Added `PROMPT_AUTOMNEMOMORF` — full automnemomorph behavior (AI can modify history/memory/prompt on its own initiative)
+0. Default prompt restrictions: AI cannot modify `prompt` facts, only `memory` and `history` on user request
+0. Fixed prompt loading: default prompts auto-created if missing or empty
+0. **Important:** Remove old configs prompts memory and history before 
+update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
+
+
+
 # Release v1.0.11
 
 1. Minor documentation updates

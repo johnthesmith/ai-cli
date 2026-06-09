@@ -19,6 +19,7 @@
 * [Security](#security)
 * [For developers](#for-developers)
 * [Automnemomorph](#automnemomorph)
+* [Fact Protocol](#fact-protocol)
 * [Architecture](#architecture)
 
 # Philosophy
@@ -174,15 +175,6 @@ source ~/.bashrc
 ```
 
 
-
-# LLM Response Contract
-
-The AI assistant must return strict block structure. The full format description 
-and rules are in the 
-[prompt file](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/prompts.rs)
-
-
-
 # Security
 
 ⚠️  **IMPORTANT**: This utility does NOT execute commands automatically.
@@ -241,6 +233,64 @@ access:
 
 ⚠️ This is not human logic. Agency is built not on immutable chronology, but on 
 dynamic, self-editing memory.
+
+
+
+# Fact Protocol
+
+The AI assistant must return strict block structure. The full format description 
+and rules are in the 
+[prompt file](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/prompts.rs)
+
+AI communicates using named blocks instead of JSON. Each block represents a 
+single fact or operation. Both user requests and AI responses follow the same 
+fact block structure. This creates a uniform way to represent all information.
+
+## Why not json
+
+JSON requires escaping quotes and newlines inside strings. LLMs often produce 
+invalid JSON — missing commas, unescaped quotes, broken multiline strings. Fact 
+blocks need no escaping, work naturally with multiline content, and LLMs 
+generate them correctly. How It Works
+
+Each fact block starts with a delimiter and contains five fields:
+```
+<delimiter>
+<id>
+<type>
+<actor>
+<action>
+<content>
+```
+
+1. id — unique identifier of the fact (- for new facts)
+2. type — history (chat), memory (long-term), prompt (system)
+3. actor — user, assistant, system, etc
+4. action — operation type
+    1. read - llm must use this fact
+    1. message - Send output to user (STDOUT)
+    2. command - Propose shell command
+    3. pool	Save - large data to pool file
+    4. clipboard - Copy to clipboard
+    5. add - Add new fact
+    6. remove	Delete fact by id
+    7. change	Replace existing fact
+5. content — any text (can be multiline)
+
+## How LLM Operates
+
+1. Receives history as list of facts
+2. Each fact has id, type, actor, action, content
+3. LLM can add, remove, or change any fact
+4. Returns new facts in same format
+5. No special parsing — facts are facts
+
+## Benefits
+
+1. User and AI speak same language over cli
+2. History, memory, prompt is just list of facts
+3. LLM naturally manipulates facts
+4. Full automnemomorph behavior
 
 
 

@@ -10,34 +10,29 @@ application:
   log:
     file: ~/.local/share/ai/app/cli/%profile%/log.txt
     enabled: true
-
   # AI application
   ai:
     # Shell binary for command execution (default: /bin/bash)
     # Must support '-c' argument (POSIX-compatible).
     shell: /bin/bash
-
     # Providers file
-    provider_file: ~/.config/ai/app/cli/%profile%/provider.txt
-
+    provider-file: ~/.config/ai/app/cli/%profile%/provider.txt
     # Chat file. This chat contains chat id
     chat-file: ~/.local/share/ai/app/cli/%profile%/chat.txt
-
     # History file (placeholders: %profile% %provider% %model% %chat%)
     history: ~/.local/share/ai/app/cli/%profile%/history/%chat%.txt
-
     # Pool path
     pool: ~/.local/share/ai/app/cli/%profile%/pool
-
     # Memory file for long store data
-    memory: ~/.local/share/ai/app/cli/%profile%/memory/%chat%.txt
-
+    memory: ~/.local/share/ai/app/cli/%profile%/memory.txt
+    # File with current id prompt (placeholders: %profile% %provider% %model% %caht%)
+    prompt-file-id: ~/.local/share/ai/app/cli/%profile%/prompt.txt
+    # File with current original prompt (%profile% %provider% %model% %caht%)
+    prompt-file: ~/.local/share/ai/app/cli/%profile%/prompts/%prompt-id%.txt
     # Token file (placeholder: %profile% %provider%)
     token: ~/.config/ai/app/cli/%profile%/tokens/%provider%.txt
-
     # File with current model
     model: ~/.local/share/ai/app/cli/%profile%/models/%provider%.txt
-
     # Maximum bytes count for chat prompt
     max-chat-prompt-size-byte: 100000
 
@@ -46,24 +41,27 @@ application:
 
     # Request timeout in milliseconds (total time for the entire request)
     request_timeout_ms: 30000
-
     # Connection timeout in milliseconds (time to establish connection)
     connect_timeout_ms: 10000
-
-    # AI prompts (placeholders: %profile% %provider% %model%)
-    prompts:
-      chat: ~/.config/ai/app/cli/%profile%/prompts/chat.txt
-
+    # Access control for AI operations
+    # Each string consists of letters: c (create), r (read), u (update), d (delete)
+    # Modes:
+    #   normal      : "c"   - AI can only add, not modify or delete
+    #   auto-mnemomorph : "cud" - AI can create, update, delete (full control)
+    # For normal mode, keep only 'c' to prevent accidental deletions
+    # For auto-mnemomorph mode, set "cud" to allow full memory/history editing
+    access:
+      history: "cud"
+      memory: "cud"
+      prompt: "cud"
     # Output destinations
     destination:
       command: "sleep 0.3 && xdotool type --clearmodifiers --delay 10 --file -"
       message: "cat && echo"
       pool: "ai --write-pool"
       clipboard: "xclip -selection clipboard"
-
     # AI providers configuration
     providers:
-
       github:
         api: https://models.github.ai/inference/chat/completions
         available-models:
@@ -104,35 +102,30 @@ application:
           - microsoft/phi-4-mini-reasoning
           - microsoft/phi-4-multimodal-instruct
           - microsoft/phi-4-reasoning
-
       openai:
         api: https://api.openai.com/v1/chat/completions
         available-models:
           - gpt-4.1
-
       deepseek:
         api: https://api.deepseek.com/v1/chat/completions
         available-models:
-          - deepseek-chat
-
+          - deepseek-v4-flash
+          - deepseek-v4-pro
       groq:
         api: https://api.groq.com/openai/v1/chat/completions
         available-models:
           - llama-3.3-70b-versatile
           - llama-4-scout-17b-16e-instruct
           - mixtral-8x7b-32768
-
       together:
         api: https://api.together.xyz/v1/chat/completions
         available-models:
           - meta-llama/Llama-3.3-70B-Instruct-Turbo
-
       ollama:
         api: http://localhost:11434/api/generate
         available-models:
           - qwen3.5:9b
           - llama3.2
-
       anthropic:
         api: https://api.anthropic.com/v1/messages
         available-models:

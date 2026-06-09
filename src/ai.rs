@@ -22,6 +22,9 @@ use storage::Storage;
 
 
 pub const BLOCK_DELIMITER: &str = "===AIOL9B1MZX===";
+pub const USER: &str = "user";
+pub const ASSISTANT: &str = "assistant";
+pub const SYSTEM: &str = "sys";
 
 /*
     Ai applicatoin
@@ -43,11 +46,17 @@ pub struct Ai
     /* Id of model of provider for current session */
     model: String,
 
+    /* Id of current prompt */
+    prompt_id: String,
+
     /* History storage */
     history_storage: Storage, 
 
     /* Memory storage */
     memory_storage: Storage, 
+
+    /* Prompt storage */
+    prompt_storage: Storage, 
 }
 
 
@@ -69,8 +78,10 @@ impl Ai
             provider: String::new(),
             model: String::new(),
             chat: String::new(),
+            prompt_id: "default".to_string(),
             history_storage: Storage::new( BLOCK_DELIMITER ),
-            memory_storage: Storage::new( BLOCK_DELIMITER )
+            memory_storage: Storage::new( BLOCK_DELIMITER ),
+            prompt_storage: Storage::new( BLOCK_DELIMITER )
         }
     }
 
@@ -104,72 +115,76 @@ impl Ai
     fn help( &mut self )
     -> &mut Self
     {
-        println!("{}\n", self.get_version());
-        println!("");
-        println!("Usage:");
-        println!("    ai                         Interactive keyboard input");
-        println!("    ai <question>              Ask a question");
-        println!("    echo <text> | ai           Read from stdin");
-        println!("    ai --help                  Show this help");
-        println!("Pattern:");
-        println!("    ai [ message] [--<action>=<key>][--<argument>=<value>]");
-        println!("");
-        println!("Optins:");
-        println!("    --help|-?|-h               Same as --show=help");
-        println!("    --info|-h                  Same as --show=info");
-        println!("    --version|-v               Same as --show=version");
-        println!("");
-        println!("    --no-prompt                Suppress input user prompt");
-        println!("    --no-command               Suppress command event");
-        println!("");
-        println!("Session:");
-        println!("    --profile=<id>             Use profile for current session only");
-        println!("    --provider|-p=<id>         Use provider for current session only");
-        println!("    --model|-m=<id>            Use model for current session only");
-        println!("    --chat|-c=<id>             Use chat for current session only");
-        println!("    --switch-profile=<id>      Permanently switch profile");
-        println!("    --switch-provider=<id>     Permanently switch provider");
-        println!("    --switch-model=<id>        Permanently switch model");
-        println!("    --switch-chat=<id>         Permanently switch chat");
-        println!("");
-        println!("Access for LLM");
-        println!("    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)");
-        println!("                               Example: --access-history=cud");
-        println!("    --access-memory=<mode>     Set memory access rights (c=create, u=update, d=delete)");
-        println!("                               Example: --access-memory=cud");
-        println!("");
-        println!("Storage operations with target history|memory" );
-        println!("    --history                  Show full history for chat");
-        println!("    --memory                   Show full memory" );
-        println!("    --clear-history            Remove history content for current chat" );
-        println!("    --clear-memory             Remove memory content for current chat" );
-        println!("    --select-histroy=<id>      Show fact by id from history" );
-        println!("    --select-memory=<id>       Show fact by id from memory" );
-        println!("    --delete-history=<id>      Delete fact by id from history" );
-        println!("    --delete-memory=<id>       Delete fact by id from memory" );
-        println!("    --update-history=<id>      Update fact by id in history" );
-        println!("    --update-memory=<id>       Update fact by id in memory" );
-        println!("    --insert-history=<id>      Insert new fact into history" );
-        println!("    --insert-memory=<id>       Insert new fact into memory" );
-        println!("    --actor=<actor>            Actor for insert/update (default: @ASSISTANT)");
-        println!("    --body=<text>              Body for insert/update (or from stdin)");
-        println!("");
-        println!("Specific:");
-        println!("    --write-pool               Write stdin to pool file and forward to stdout");
-        println!("                               Example: echo 'data' | ai --write-pool");
-        println!("    --tiocsti                  Inject input directly into TTY input buffer for keyboard");
-        println!("                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`");
-        println!("                               on modern kernels. Only use in trusted environments.");
-        println!("                               Example: echo 'ls -la' | ai --tiocsti");
-        println!("");
-        println!("    --completion=<shell>       Generate shell completion (bash|zsh|fish)");
-        println!("                               Example: ai --completion=bash >> ~/.bashrc");
-        println!("");
-        println!("Recommendations:");
-        println!("    alias                      Set `alias 1=ai`");
-        println!("");
-        println!("Author:");
-        println!("    Still Swamp (still@catlair.net) Powered by deepseek");
+        println!( "{}\n", self.get_version());
+        println!( "" );
+        println!( "Usage:" );
+        println!( "    ai                         Interactive keyboard input" );
+        println!( "    ai <question>              Ask a question" );
+        println!( "    echo <text> | ai           Read from stdin" );
+        println!( "    ai --help                  Show this help" );
+        println!( "Pattern:" );
+        println!( "    ai [ message] [--<action>=<key>][--<argument>=<value>]" );
+        println!( "" );
+        println!( "Optins:" );
+        println!( "    --help|-?|-h               Same as --show=help" );
+        println!( "    --info|-h                  Same as --show=info" );
+        println!( "    --version|-v               Same as --show=version" );
+        println!( "" );
+        println!( "    --no-prompt                Suppress input user prompt" );
+        println!( "    --no-command               Suppress command event" );
+        println!( "" );
+        println!( "Session:" );
+        println!( "    --profile=<id>             Use profile for current session only" );
+        println!( "    --provider|-p=<id>         Use provider for current session only" );
+        println!( "    --model|-m=<id>            Use model for current session only" );
+        println!( "    --chat|-c=<id>             Use chat for current session only" );
+        println!( "    --prompt-id=<id>           Use prompt-id for current session only" );
+        println!( "    --switch-profile=<id>      Permanently switch profile" );
+        println!( "    --switch-provider=<id>     Permanently switch provider" );
+        println!( "    --switch-model=<id>        Permanently switch model" );
+        println!( "    --switch-chat=<id>         Permanently switch chat" );
+        println!( "    --switch-prompt-id=<id>    Permanently switch prompt" );
+        println!( "" );
+        println!( "Access for LLM" );
+        println!( "    --access-history=<mode>    Set history access rights (c=create, u=update, d=delete)" );
+        println!( "                               Example: --access-history=cud" );
+        println!( "    --access-memory=<mode>     Set memory access rights (c=create, u=update, d=delete)" );
+        println!( "                               Example: --access-memory=cud" );
+        println!( "" );
+        println!( "Storage operations with target history|memory" );
+        println!( "    --history                  Show full history for chat" );
+        println!( "    --memory                   Show full memory" );
+        println!( "    --prompt                   Show full prompt" );
+        println!( "    --prompt-origin            Show original prompt" );
+        println!( "    --clear-history            Remove history content for current chat" );
+        println!( "    --clear-memory             Remove memory content for current chat" );
+        println!( "    --select-histroy=<id>      Show fact by id from history" );
+        println!( "    --select-memory=<id>       Show fact by id from memory" );
+        println!( "    --delete-history=<id>      Delete fact by id from history" );
+        println!( "    --delete-memory=<id>       Delete fact by id from memory" );
+        println!( "    --update-history=<id>      Update fact by id in history" );
+        println!( "    --update-memory=<id>       Update fact by id in memory" );
+        println!( "    --insert-history=<id>      Insert new fact into history" );
+        println!( "    --insert-memory=<id>       Insert new fact into memory" );
+        println!( "    --actor=<actor>            Actor for insert/update (default: assistant)" );
+        println!( "    --body=<text>              Body for insert/update (or from stdin)" );
+        println!( "" );
+        println!( "Specific:" );
+        println!( "    --write-pool               Write stdin to pool file and forward to stdout" );
+        println!( "                               Example: echo 'data' | ai --write-pool" );
+        println!( "    --tiocsti                  Inject input directly into TTY input buffer for keyboard" );
+        println!( "                               Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`" );
+        println!( "                               on modern kernels. Only use in trusted environments." );
+        println!( "                               Example: echo 'ls -la' | ai --tiocsti" );
+        println!( "" );
+        println!( "    --completion=<shell>       Generate shell completion (bash|zsh|fish)" );
+        println!( "                               Example: ai --completion=bash >> ~/.bashrc" );
+        println!( "" );
+        println!( "Recommendations:" );
+        println!( "    alias                      Set `alias 1=ai`" );
+        println!( "" );
+        println!( "Author:" );
+        println!( "    Still Swamp (still@catlair.net) Powered by deepseek" );
         self
     }
 
@@ -193,17 +208,18 @@ impl Ai
                     "provider": self.get_provider(),
                     "chat": self.get_chat(),
                     "model": self.get_model(),
+                    "prompt-id": self.get_prompt_id(),
                     "proxy":  self.read_proxy()
                 },
                 "access":
                 {
                     "history": self.history_storage.get_access(),
-                    "memory": self.memory_storage.get_access()
+                    "memory": self.memory_storage.get_access(),
+                    "prompt": self.prompt_storage.get_access()
                 },
                 "files":
                 {
-                    "prompt_chat": self.get_prompt_file( "chat" ),
-                    "prompt_summary": self.get_prompt_file( "summary" ),
+                    "prompt": self.get_prompt_origin_file(),
                     "model": self.get_model_file_path(),
                     "memory": self.get_memory_file(),
                     "token": self.get_token_path(),
@@ -213,7 +229,8 @@ impl Ai
                 {
                     "max_prompt_size_bytes": self.get_max_chat_prompt_size_byte(),
                     "history_size_bytes": self.history_storage.to_string().len(),
-                    "memory_size_bytes": self.memory_storage.to_string().len()
+                    "memory_size_bytes": self.memory_storage.to_string().len(),
+                    "prompt_size_bytes": self.prompt_storage.to_string().len()
                 }
             }
         );
@@ -350,24 +367,54 @@ impl Ai
                 self.set_provider( &self.read_provider() );
                 self.set_model( &self.read_model() );
                 self.set_chat( &self.read_chat() );
+                self.set_prompt_id( &self.read_prompt_id() );
                 
                 /* Set access rights */
-                let cli_history = self.app.config[ "access-history" ].get_str("");
-                let cli_memory = self.app.config[ "access-memory" ].get_str("");
+                let cli_history = self.app.config[ "access-history" ].get_str( "" );
+                let cli_memory = self.app.config[ "access-memory" ].get_str( "" );
+                let cli_prompt = self.app.config[ "access-prompt" ].get_str( "" );
 
                 let default_history = self.app.config
-                [ "application" ][ "ai" ][ "access" ][ "history" ].get_str("c");
+                [ "application" ][ "ai" ][ "access" ][ "history" ].get_str( "c" );
                 let default_memory = self.app.config
-                [ "application" ][ "ai" ][ "access" ][ "memory" ].get_str("c");
+                [ "application" ][ "ai" ][ "access" ][ "memory" ].get_str( "c" );
+                let default_prompt = self.app.config
+                [ "application" ][ "ai" ][ "access" ][ "prompt" ].get_str( "c" );
 
                 self.history_storage.set_access
                 (
-                    if !cli_history.is_empty() { &cli_history } else { &default_history }
+                    if !cli_history.is_empty() 
+                    {
+                        &cli_history
+                    }
+                    else
+                    {
+                        &default_history
+                    }
                 );
 
                 self.memory_storage.set_access
                 (
-                    if !cli_memory.is_empty() { &cli_memory } else { &default_memory }
+                    if !cli_memory.is_empty()
+                    {
+                        &cli_memory
+                    }
+                    else
+                    {
+                        &default_memory
+                    }
+                );
+
+                self.prompt_storage.set_access
+                (
+                    if !cli_prompt.is_empty()
+                    {
+                        &cli_prompt
+                    }
+                    else
+                    {
+                        &default_prompt
+                    }
                 );
 
 
@@ -379,8 +426,8 @@ impl Ai
                 {
                     for (key, value) in mapping
                     {
-                        let action = key.get_str("").to_string();
-                        let target = value.get_str("").to_string();
+                        let action = key.get_str( "" ).to_string();
+                        let target = value.get_str( "" ).to_string();
                         actions.push((action, target));
                     }
                 }
@@ -405,6 +452,11 @@ impl Ai
                         "c" | "chat" => 
                         {
                             self.set_chat( &target );
+                        }
+
+                        "prompt-id" => 
+                        {
+                            self.set_prompt_id( &target );
                         }
                         
 
@@ -434,6 +486,14 @@ impl Ai
                             .set_chat( &target );
                         }
 
+                        "switch-prompt-id" => 
+                        {
+                            no_prompt = true;
+                            self
+                            .write_prompt_id( &target )
+                            .set_prompt_id( &target );
+                        }
+
                         _ => {}
                     }
                 }
@@ -449,6 +509,13 @@ impl Ai
                 let memory_path = self.get_memory_file();
                 self.memory_storage.
                 load( &memory_path )
+                .get_state()
+                .state_to( &mut self.app.state );                         
+
+                /* Open prompt */
+                let prompt_path = self.get_prompt_origin_file();
+                self.prompt_storage.
+                load( &prompt_path )
                 .get_state()
                 .state_to( &mut self.app.state );                         
 
@@ -498,7 +565,15 @@ impl Ai
                         {
                             no_prompt = true;
                             let user_prompt = self.get_user_prompt();
-                            let prompt = self.build_prompt( &user_prompt, "chat" );
+                            let prompt = self.build_prompt( &user_prompt );
+                            println!( "{}", prompt );
+                        }                        
+
+
+                        "prompt-origin" | "show-prompt-origin" => 
+                        {
+                            no_prompt = true;
+                            let prompt = self.prompt_storage.to_string();
                             println!( "{}", prompt );
                         }                        
 
@@ -560,7 +635,6 @@ impl Ai
                             }
                         }
 
-
                         "completion" => 
                         {
                             /* Generate completion mode */
@@ -576,8 +650,11 @@ impl Ai
                             no_prompt = true;
                             if !target.is_empty()
                             {
-                                let (actor, body) = self.history_storage.select( &target );
-                                println!("{}\n\n{}", actor, body);
+                                println!
+                                (
+                                    "{}", 
+                                    self.history_storage.to_string_by_id( &target )
+                                );
                             }
                         }
 
@@ -586,8 +663,11 @@ impl Ai
                             no_prompt = true;
                             if !target.is_empty()
                             {
-                                let (actor, body) = self.history_storage.select( &target );
-                                println!("{}\n\n{}", actor, body);
+                                println!
+                                (
+                                    "{}",
+                                    self.memory_storage.to_string_by_id( &target )
+                                );
                             }
                         }
 
@@ -619,7 +699,7 @@ impl Ai
                         "insert-history" =>
                         {
                             no_prompt = true;
-                            let actor = self.app.config[ "actor" ].get_str("@USER");
+                            let actor = self.app.config[ "actor" ].get_str( USER );
                             let mut body = self.app.config[ "body" ].get_str( "" );
                             
                             if body.is_empty()
@@ -631,15 +711,15 @@ impl Ai
                             
                             if !body.is_empty()
                             {
-                                self.history_storage.create( &actor, &body );
+                                self.history_storage.create( "history", &actor, "read", &body );
                             }
                         }
 
                         "insert-memory" =>
                         {
                             no_prompt = true;
-                            let actor = self.app.config[ "actor" ].get_str( "@USER" );
-                            let mut body = self.app.config[ "body" ].get_str("");
+                            let actor = self.app.config[ "actor" ].get_str( USER );
+                            let mut body = self.app.config[ "body" ].get_str( "" );
                             
                             if body.is_empty()
                             {
@@ -650,15 +730,16 @@ impl Ai
                             
                             if !body.is_empty()
                             {
-                                self.memory_storage.create( &actor, &body );
+                                self.memory_storage.create( "memory", &actor, "read", &body );
                             }
                         }
 
                         "update-history" =>
                         {
                             no_prompt = true;
-                            let actor = self.app.config[ "actor" ].get_str( "@USER" );
-                            let mut body = self.app.config[ "body" ].get_str("");
+                            let actor = self.app.config[ "actor" ].get_str( USER );
+                            let action = self.app.config[ "action" ].get_str( "read" );
+                            let mut body = self.app.config[ "body" ].get_str( "" );
                             
                             if !target.is_empty()
                             {
@@ -670,7 +751,7 @@ impl Ai
                                 }                               
                                 if !body.is_empty()
                                 {
-                                    self.history_storage.update( &target, &actor, &body );
+                                    self.history_storage.update( &target, "history", &actor, &action, &body );
                                 }
                             }
                         }
@@ -678,20 +759,21 @@ impl Ai
                         "update-memory" =>
                         {
                             no_prompt = true;
-                            let actor = self.app.config[ "actor" ].get_str( "@USER" );
-                            let mut body = self.app.config["body"].get_str("");
+                            let actor = self.app.config[ "actor" ].get_str( USER );
+                            let action = self.app.config[ "action" ].get_str( "read" );
+                            let mut body = self.app.config[ "body" ].get_str( "" );
                             
                             if !target.is_empty()
                             {
                                 if body.is_empty()
                                 {
                                     let mut input = String::new();
-                                    std::io::stdin().read_to_string(&mut input).ok();
+                                    std::io::stdin().read_to_string( &mut input ).ok();
                                     body = input.trim().to_string();
                                 }
                                 if !body.is_empty()
                                 {
-                                    self.memory_storage.update( &target, &actor, &body );
+                                    self.memory_storage.update( &target, "memory", &actor, &action, &body );
                                 }
                             }
                         }
@@ -705,7 +787,7 @@ impl Ai
                 {
                     let provider_name = self.get_provider();
                     let user_prompt = self.get_user_prompt();
-                    let prompt = self.build_prompt( "chat", &user_prompt );
+                    let prompt = self.build_prompt( &user_prompt );
 
                     let max_bytes = self.get_max_chat_prompt_size_byte();
                     let size = prompt.len();
@@ -723,7 +805,7 @@ impl Ai
                     else
                     {
                         /* Write user prompt to history */
-                        self.history_storage.create( "@USER", &user_prompt );
+                        self.history_storage.create( "history", USER, "read", &user_prompt );
 
                         let mut provider = providers::create_provider(&provider_name, self);
                         provider.chat(&prompt);
@@ -734,9 +816,14 @@ impl Ai
             /* Save current state */
             let history_path = self.get_history_file_path();
             self.history_storage.save( &history_path );
+
             /* Save current state */
             let memory_path = self.get_memory_file();
             self.memory_storage.save( &memory_path );
+
+            /* Save current state */
+            let prompt_path = self.get_prompt_origin_file();
+            self.prompt_storage.save( &prompt_path );
 
             self.app.get_log_mut().end( "End of ai" ).eol();
         }
@@ -747,8 +834,117 @@ impl Ai
 
 
     /**************************************************************************
-        Prompt Building
+        Prompt secion
     */
+
+    /*
+        Return file name with id of prompt
+    */
+    fn get_prompt_id_file( &self )
+    -> String
+    {
+        core::expand_path
+        (
+            &self.get_config_val
+            (
+                &[ "prompt-file-id" ],
+                "~/.local/share/ai/app/cli/%profile%/prompt.md"
+                .to_string()
+            )
+            .replace( "%profile%", &self.get_profile() )
+            .replace( "%model%", &self.get_model_safe() )
+            .replace( "%provider%", &self.get_provider() )
+            .replace( "%chat%", &self.get_chat() )
+        )
+    }
+
+
+
+    /*
+        Return currnt prompt id
+    */
+    fn read_prompt_id( &self )
+    -> String 
+    {
+        let prompt_path = self.get_prompt_id_file();
+        match std::fs::read_to_string( &prompt_path ) 
+        {
+            Ok( content ) => content,
+            Err(_) => String::new(),
+        }
+    }
+
+
+
+    /*
+        Write profile in to file
+    */
+    fn write_prompt_id
+    (
+        &mut self,
+        name: &str
+    ) -> &mut Self
+    {
+        let path = self.get_prompt_id_file();
+
+        if let Err(e) = std::fs::write( &path, name )
+        {
+            /* Set state for app */
+            self.app.state.set_state
+            (
+                "prompt-id-write-error",
+                json!
+                (
+                    {
+                        "path": path,
+                        "error": e.to_string()
+                    }
+                )
+            );
+            /* Write in to log */
+            self.app.get_log_mut()
+            .error( "Failed to write prompt id" )
+            .prm( "path", &path )
+            .prm( "error", &e.to_string() );
+        }
+        else
+        {
+            self.app.get_log_mut()
+            .trace( "Prompt id saved" )
+            .prm( "name", name );
+        }
+
+        self
+    }
+
+
+
+    /*
+        Return chat for current session
+    */
+    fn get_prompt_id( &self )
+    -> String
+    {
+        self.prompt_id.clone()
+    }
+
+
+
+    /*
+        Set chat for current session
+    */
+    fn set_prompt_id
+    (
+        &mut self,
+        id: &str
+    )
+    -> &mut Self
+    {
+        self.prompt_id = id.to_string();
+        self
+    }
+
+
 
     /*
         Return prompt file path for chat
@@ -757,13 +953,9 @@ impl Ai
             %provider%,
             %chat%,
             %model%
+            %prompt-id%
     */
-    fn get_prompt_file
-    (
-        &self, 
-        /* chat | summary */
-        prompt_type: &str
-    )
+    fn get_prompt_origin_file( &self )
     /* Return prompt file name */
     -> String
     {
@@ -771,96 +963,20 @@ impl Ai
         (
             &self.get_config_val
             (
-                &[ "prompts", prompt_type ],
-                format!
-                (
-                    "~/.config/ai/app/cli/%profile%/prompts/%provider%/%model%/{}.txt", 
-                    prompt_type
-                )
+                &[ "prompt-file" ],
+                "~/.local/share/ai/app/cli/%profile%/prompts/%prompt-id%.txt"
+                .to_string(), 
             )
             .replace( "%profile%", &self.get_profile() )
             .replace( "%provider%", &self.get_provider() )
             .replace( "%model%", &self.get_model_safe() )
             .replace( "%chat%", &self.get_chat() )
+            .replace( "%prompt-id%", &self.get_prompt_id() )
         )
     }
 
 
-         
-    /*
-        Read prompt template from file
-    */
-    fn read_prompt
-    (
-        &mut self, 
-        prompt_type: &str
-    )
-    -> String
-    {
-        let full_path = self.get_prompt_file( prompt_type );
         
-        /* If file doesn't exist, create it from binary */
-        if !std::path::Path::new(&full_path).exists()
-        {
-            /* Ensure parent directory exists */
-            if let Some( parent ) = std::path::Path::new( &full_path ).parent()
-            {
-                if let Err( e ) = std::fs::create_dir_all( parent )
-                {
-                    self.app.get_log_mut()
-                    .error( "Failed to create prompt directory" )
-                    .prm( "path", &parent.to_string_lossy() )
-                    .prm( "error", &e );
-                    return match prompt_type
-                    {
-                        "chat" => prompts::CHAT.to_string(),
-                        _ => "%user-prompt%".to_string(),
-                    };
-                }
-            }
-            
-            let default_content = match prompt_type
-            {
-                "chat" => prompts::CHAT,
-                _ => "",
-            };
-            
-            if let Err(e) = std::fs::write(&full_path, default_content)
-            {
-                self.app.get_log_mut()
-                .error("Failed to create prompt file")
-                .prm("path", &full_path)
-                .prm("error", &e);
-                return default_content.to_string();
-            }
-            
-            self.app.get_log_mut()
-            .info("Default prompt created")
-            .prm("path", &full_path)
-            .prm("type", prompt_type);
-        }
-        
-        /* Read prompt file */
-        match std::fs::read_to_string(&full_path)
-        {
-            Ok( content ) => content,
-            Err( e ) =>
-            {
-                self.app.get_log_mut()
-                .error( "Failed to read prompt file" )
-                .prm( "path", &full_path )
-                .prm( "error", &e );
-                
-                match prompt_type
-                {
-                    "chat" => prompts::CHAT.to_string(),
-                    _ => "%user-prompt%".to_string(),
-                }
-            }
-        }
-    }
-
-
     /*
         Return user prompt combining stdin pipe, CLI arguments, and interactive input.
 
@@ -885,23 +1001,22 @@ impl Ai
             let mut pool = String::new();
             match stdin.read_to_string(&mut pool)
             {
-                Ok(0) => 
+                Ok( 0 ) => 
                 {
                     /* Pipe exists but empty - do nothing, prompt stays empty */
                 }
-                Ok(_) => 
+                Ok( _ ) => 
                 {
                     prompt.push_str(pool.trim());
                 }
-                Err(e) => 
+                Err( e ) => 
                 {
                     self.app.get_log_mut()
-                        .error("Failed to read from stdin pipe")
-                        .prm("error", &e.to_string());
+                        .error( "Failed to read from stdin pipe" )
+                        .prm( "error", &e.to_string());
                 }
             }
         }
-
 
 
         /*
@@ -950,13 +1065,13 @@ impl Ai
     fn build_prompt
     (
         &mut self, 
-        prompt_type: &str, 
         /* User prompt */
         input: &str
     )
     -> String 
     {
-        let template = self.read_prompt( prompt_type );
+        self.ensure_prompt();
+        let template = self.prompt_storage.to_string();
 
         /* Retrive shell */
         let shell = self.get_config_val
@@ -975,6 +1090,9 @@ impl Ai
         .replace( "%user-prompt%", &input )
         .replace( "%shell%", &shell )
         .replace( "%chat%", &self.get_chat() )
+        .replace( "%user%", USER )
+        .replace( "%assistant%", ASSISTANT )
+        .replace( "%system%", SYSTEM )
         .replace( "%provider%", &self.get_provider() )
         .replace( "%model%", &self.get_model() )
         .replace
@@ -990,11 +1108,52 @@ impl Ai
 
 
 
+    /*
+        Ensure prompt storage is loaded and valid
+        If storage is empty:
+            - Check if prompt file exists
+            - If not, create default prompt based on prompt_id
+            - Save to file and load into storage
+            - If file exists but storage empty, load from file
+    */
+    fn ensure_prompt( &mut self )
+    -> &mut Self
+    {
+        let prompt_path = self.get_prompt_origin_file();
+        if self.prompt_storage.blocks.is_empty()
+        {
+            if
+            !std::path::Path::new( &prompt_path ).exists() 
+            || std::fs::metadata( &prompt_path )
+            .map(|m| m.len() == 0)
+            .unwrap_or(false)
+            {
+                let prompt_id = self.get_prompt_id();
+                let default_prompt = match prompt_id.as_str()
+                {
+                    "automnemomorf" => prompts::PROMPT_AUTOMNEMOMORF.to_string(),
+                    _ => prompts::PROMPT_DEFAULT.to_string(),
+                };
+                
+                let _ = std::fs::write(&prompt_path, &default_prompt);
+                self.prompt_storage.parse(&default_prompt);
+                self.prompt_storage.save(&prompt_path);
+            }
+            else
+            {
+                self.prompt_storage.load(&prompt_path);
+            }
+        }
+        
+        self
+    }
+
+
+
+
     /**************************************************************************
         History
     */
-
-
 
     fn get_history_file_path( &self )
     -> String
@@ -1031,7 +1190,7 @@ impl Ai
     /*
         Clear history file
     */
-    fn clear_history(&mut self) -> &mut Self
+    fn clear_history( &mut self ) -> &mut Self
     {
         /* Clear all blocks from memory */
         self.history_storage.clear();
@@ -1130,7 +1289,6 @@ impl Ai
     */
 
 
-
     /*
         Return config file path for current profile
     */
@@ -1148,8 +1306,8 @@ impl Ai
     fn get_config_file( &self )
     -> String
     {
-        core::expand_path("~/.config/ai/app/cli/%profile%/config.yaml")
-        .replace("%profile%", &self.get_profile())
+        core::expand_path( "~/.config/ai/app/cli/%profile%/config.yaml" )
+        .replace( "%profile%", &self.get_profile())
     }
 
 
@@ -1391,8 +1549,8 @@ impl Ai
         else
         {
             self.app.get_log_mut()
-            .trace("Model switched")
-            .prm("id", id);
+            .trace( "Model switched" )
+            .prm( "id", id);
         }
 
         self
@@ -1475,7 +1633,7 @@ impl Ai
     {
         let path = self.get_config_val
         (
-            &[ "provider_file" ],
+            &[ "provider-file" ],
             "~/.config/ai/app/cli/%profile%/provider.txt".to_string()
         );
         
@@ -1631,15 +1789,15 @@ impl Ai
             );
             /* Write in to log */
             self.app.get_log_mut()
-            .error("Failed to write profile")
-            .prm("path", &path)
-            .prm("error", &e.to_string());
+            .error( "Failed to write profile" )
+            .prm( "path", &path)
+            .prm( "error", &e.to_string());
         } 
         else
         {
             self.app.get_log_mut()
             .trace( "Profile saved" )
-            .prm("name", name);
+            .prm( "name", name);
         }
         
         self
@@ -1736,23 +1894,23 @@ impl Ai
         if let Err(e) = core::ensure_directory( &file_path )
         {
             self.app.get_log_mut()
-            .error("Failed to ensure chat directory")
-            .prm("error", &e);
+            .error( "Failed to ensure chat directory" )
+            .prm( "error", &e);
             return self;
         }
         
         if let Err(e) = std::fs::write(&file_path, new_id)
         {
             self.app.get_log_mut()
-            .error("Failed to switch chat")
-            .prm("path", &file_path)
-            .prm("error", &e.to_string());
+            .error( "Failed to switch chat" )
+            .prm( "path", &file_path)
+            .prm( "error", &e.to_string());
         } 
         else
         {
             self.app.get_log_mut()
-            .trace("Chat switched")
-            .prm("id", new_id);
+            .trace( "Chat switched" )
+            .prm( "id", new_id);
         }
         
         self
@@ -1872,18 +2030,18 @@ impl Ai
                         Err( e ) =>
                         {
                             self.app.get_log_mut()
-                            .warning("Failed to wait for command")
-                            .prm("command", command)
-                            .prm("error", &e.to_string());
+                            .warning( "Failed to wait for command" )
+                            .prm( "command", command)
+                            .prm( "error", &e.to_string());
                         }
                     }
                 }
                 else 
                 {
                     self.app.get_log_mut()
-                    .info("Command spawned (no wait)")
-                    .prm("command", command)
-                    .prm("data_bytes", data_len);
+                    .info( "Command spawned (no wait)" )
+                    .prm( "command", command)
+                    .prm( "data_bytes", data_len);
                     
                     std::thread::spawn
                     (
@@ -1915,183 +2073,180 @@ impl Ai
     pub fn handle_chat_response
     (
         &mut self,
-        response: &serde_json::Value
+        /* Content form llm */
+        content: &str
     )
     {
-        /* Extract fields from JSON */
-        let pool_path = self.get_pool_path();
-        let message = response["message"].get_str( "" ).replace("%pool%", &pool_path);
-        let command = response["command"].get_str( "" ).replace("%pool%", &pool_path);
-        let pool = response["pool"].get_str( "" ).replace("%pool%", &pool_path);
-        let clipboard = response[ "clipboard" ].get_str("").replace("%pool%", &pool_path);
+        let content = &content.replace( "%pool%", &self.get_pool_path() );
+        self.app.get_log_mut().dump( "LLM response", content );
 
-        /* Write to history if has content */
-        if !message.is_empty() || !command.is_empty()
-        {
-            self.history_storage.create
-            (
-                "@ASSISTANT",
-                &format!( "{}\n\n{}", message, command )
-            );
-        }
+        let mut storage = Storage::new( BLOCK_DELIMITER );
+        storage.parse( content );
 
-        /* Handle memory operations */
-        /* Add new entries */
-        let add = response[ "memory" ]["add"].get_array(vec![]);
-        for item in add
+        if !storage.blocks.is_empty()
         {
-            let text = item.get_str( "" );
-            if !text.is_empty()
+            for( id, ( typ, actor, action, body )) in storage.blocks.iter()
             {
-                self.memory_storage.create( "@ASSISTANT", &text );
-                self.app.get_log_mut()
-                .info( "Memory entry added" )
-                .prm( "text", &text );
-            }
-        }
+                match( typ.as_str(), action.as_str())
+                {
+                    ( _, "message" ) =>
+                    {
+                        self.history_storage.create
+                        (
+                            "history",
+                            ASSISTANT,
+                            "read",
+                            body
+                        );
+                        self.run_destination( &body, "message", true );
+                    }
+
+                    ( _, "pool" ) =>
+                    {
+                        self.run_destination( &body, "pool", true );
+                    }
+
+                    ( _, "clipboard" ) =>
+                    {
+                        self.run_destination( &body, "clipboard", true );
+                    }
+
+                    /* Execute command via destination */
+                    ( _, "command" ) =>
+                    {
+                        self.history_storage.create
+                        (
+                            "history",
+                            ASSISTANT,
+                            "read",
+                            body
+                        );
+                        /* Check if command execution is disabled */
+                        if self.app.config[ "no-command" ].get_bool( false )
+                        {
+                            self.app.get_log_mut()
+                            .info( "Command execution disabled by --no-command" )
+                            .prm( "command", &body );
+                        }
+                        else
+                        {
+                            /* 
+                                REMOVE_ENTER
+
+                                Removes newline and carriage return characters 
+                                from LLM-generated command. Prevents command 
+                                injection via line breaks that could:
+                                1. Terminate the current command
+                                2. Inject arbitrary new commands
+                                3. Execute hidden malicious code
+
+                                The cleaned command remains as a single line. 
+                                Only newline/carriage return are removed all 
+                                other characters (&&, |, ;, $, `, etc.) are 
+                                preserved as legitimate command syntax.
+                            */
+                            let clean_command = body.replace( '\n', " " ).replace( '\r', "" );
+                            self.run_destination( &clean_command, "command", false );
+                        }
+                    }
+
+                    /* Handle memory operations */
+                    ( "memory", "add" ) =>
+                    {
+                        self.memory_storage.create
+                        (   
+                            &typ, 
+                            &actor, 
+                            "read", 
+                            &body
+                        );
+                        self.app.get_log_mut()
+                        .info( "Memory entry added" )
+                        .prm( "text", &body );
+                    }
         
-        /* 
-            Remove entries by ID
-        */
-        let remove = response[ "memory" ][ "remove" ].get_array(vec![]);
-        for item in remove
-        {
-            let id = item.get_str("");
-            if !id.is_empty()
-            {
-                self.memory_storage.delete(&id);
-                self.app.get_log_mut()
-                .info( "Memory entry removed" )
-                .prm( "id", &id );
-            }
-        }
+                    /* Remove entries by ID */
+                    ( "memory", "remove" ) =>
+                    {
+                        self.memory_storage.delete( &id );
+                        self.app.get_log_mut()
+                        .info( "Memory entry removed" )
+                        .prm( "id", &id );
+                    }
         
-        /* Change entries by ID */
-        let change = response[ "memory" ][ "change" ].get_array(vec![]);
-        for item in change
-        {
-            let id = item[ "id" ].get_str( "" );
-            let actor = item[ "actor" ].get_str( "@USER" );
-            let body = item[ "body" ].get_str( "" );
-            
-            if !id.is_empty() && !body.is_empty()
-            {
-                self.memory_storage.update( &id, &actor, &body );
-                self.app.get_log_mut()
-                .info( "Memory entry changed" )
-                .prm( "id", &id )
-                .prm( "actor", &actor )
-                .prm( "new_body", &body );
+                    /* Change entries by ID */
+                    ( "memory", "change" ) =>
+                    {
+                        self.memory_storage.update
+                        (
+                            &id,
+                            &typ,
+                            &actor,
+                            "read",
+                            &body
+                        );
+                        self.app.get_log_mut()
+                        .info( "Memory entry changed" )
+                        .prm( "id", &id )               
+                        .prm( "actor", &actor )
+                        .prm( "new_body", &body );
+                    }
+
+
+                    /* Handle history operations */
+                    ( "history", "add" ) =>
+                    {
+                        self.history_storage.create
+                        (   
+                            &typ, 
+                            &actor, 
+                            "read", 
+                            &body
+                        );
+                        self.app.get_log_mut()
+                        .info( "History entry added" )
+                        .prm( "text", &body );
+                    }
+        
+                    /* Remove entries by ID */
+                    ( "history", "remove" ) =>
+                    {
+                        self.history_storage.delete( &id );
+                        self.app.get_log_mut()
+                        .info( "History entry removed" )
+                        .prm( "id", &id );
+                    }
+        
+                    /* Change entries by ID */
+                    ( "history", "change" ) =>
+                    {
+                        self.history_storage.update
+                        (
+                            &id,
+                            &typ,
+                            &actor,
+                            "read",
+                            &body
+                        );
+                        self.app.get_log_mut()
+                        .info( "History entry changed" )
+                        .prm( "id", &id )               
+                        .prm( "actor", &actor )
+                        .prm( "new_body", &body );
+                    }
+
+                    _ =>
+                    {
+                        self.app.get_log_mut()
+                        .warning( "Unknown block" )
+                        .prm( "type", typ )
+                        .prm( "actor", actor )
+                        .prm( "action", action )
+                        .prm( "body", &body );
+                    }
+                }
             }
         }
-
-
-
-        /* 
-            Handle history operations
-        */
-        /* Add new entries */
-        let add = response[ "history" ][ "add" ].get_array( vec![] );
-        for item in add
-        {
-            let text = item.get_str( "" );
-            if !text.is_empty()
-            {
-                self.history_storage.create( "@ASSISTANT", &text );
-                self.app.get_log_mut()
-                    .info( "History entry added" )
-                    .prm( "text", &text );
-            }
-        }
-
-        /* Remove entries by ID */
-        let remove = response[ "history" ][ "remove" ].get_array( vec![] );
-        for item in remove
-        {
-            let id = item.get_str( "" );
-            if !id.is_empty()
-            {
-                self.history_storage.delete(&id);
-                self.app.get_log_mut()
-                .info( "History entry removed" )
-                .prm("id", &id);
-            }
-        }
-
-        /* Change entries by ID */
-        let change = response[ "history" ][ "change" ].get_array(vec![]);
-        for item in change
-        {
-            let id = item[ "id" ].get_str( "" );
-            let actor = item[ "actor" ].get_str( "@ASSISTANT" );
-            let body = item[ "body" ].get_str( "" );
-            
-            if !id.is_empty() && !body.is_empty()
-            {
-                self.history_storage.update( &id, &actor, &body );
-                self.app.get_log_mut()
-                .info( "History entry changed" )
-                .prm( "id", &id)
-                .prm( "actor", &actor)
-                .prm( "new_body", &body);
-            }
-        }
-
-
-
-        /* Output message via destination */
-        if !message.is_empty()
-        {
-            self.run_destination( &message, "message", true );
-        }
-
-        /* Put information to clipboard */
-        if !clipboard.is_empty()
-        {
-            self.run_destination( &clipboard, "clipboard", true );
-        }
-
-        /* Execute command via destination */
-        if !command.is_empty()
-        {
-            /* Check if command execution is disabled */
-            if self.app.config[ "no-command" ].get_bool( false )
-            {
-                self.app.get_log_mut()
-                .info( "Command execution disabled by --no-command" )
-                .prm( "command", &command );
-            }
-            else
-            {
-                /* 
-                    REMOVE_ENTER
-
-                    Removes newline and carriage return characters from LLM-generated command.
-                    Prevents command injection via line breaks that could:
-                    1. Terminate the current command
-                    2. Inject arbitrary new commands
-                    3. Execute hidden malicious code
-
-                    The cleaned command remains as a single line.
-                    Only newline/carriage return are removed - all other characters (&&, |, ;, $, `, etc.)
-                    are preserved as legitimate command syntax.
-                */
-                let clean_command = command.replace( '\n', " ").replace('\r', "");
-                self.run_destination( &clean_command, "command", false );
-            }
-        }
-
-        /* Write pool via destination */
-        if !pool.is_empty()
-        {
-            self.run_destination( &pool, "pool", true );
-        }
-
-        /* Log token usage */
-        self.app.get_log_mut()
-        .trace("Token usage")
-        .prm("prompt_tokens", response["prompt_tokens"].as_u64().unwrap_or(0))
-        .prm("answer_tokens", response["answer_tokens"].as_u64().unwrap_or(0));
     }
 
 
@@ -2255,14 +2410,14 @@ impl Ai
         &mut self,
         /* Full prompt text that will be sent to LLM */
         prompt: &str,
-        /* Provider name (e.g., "github", "openai", "deepseek") */
+        /* Provider name (e.g., "github", "openai", "deepseek" ) */
         provider: &str,
-        /* Model identifier (e.g., "gpt-4.1", "deepseek-chat", "claude-3-5-sonnet") */
+        /* Model identifier (e.g., "gpt-4.1", "deepseek-chat", "claude-3-5-sonnet" ) */
         model: &str,
         /* API endpoint URL for the request */
         api_url: &str,
-        /* Type of request: "chat" for conversation, "summary" for history compression */
-        prompt_type: &str
+        /* Promt id */
+        prompt_id: &str
     )
     {
         self.app.get_log_mut()
@@ -2270,7 +2425,7 @@ impl Ai
         .prm( "provider", provider )
         .prm( "model", model )
         .prm( "api", api_url )
-        .prm( "type", prompt_type );
+        .prm( "prompt-id", prompt_id );
     }
 
 
@@ -2284,14 +2439,14 @@ impl Ai
         &mut self,
         /* Raw response text from LLM */
         response: &str,
-        /* Provider name (e.g., "github", "openai", "deepseek") */
+        /* Provider name (e.g., "github", "openai", "deepseek" ) */
         provider: &str,
         /* Model identifier used for the request */
         model: &str,
         /* API endpoint URL used for the request */
         api_url: &str,
-        /* Type of request: "chat" or "summary" */
-        prompt_type: &str
+        /* Promt id */
+        prompt_id: &str
     )
     {
         self.app.get_log_mut()
@@ -2299,7 +2454,7 @@ impl Ai
         .prm( "provider", provider )
         .prm( "model", model )
         .prm( "api", api_url )
-        .prm( "type", prompt_type );
+        .prm( "promtp-id", prompt_id );
     }
 
 
@@ -2347,6 +2502,7 @@ impl Ai
             // LLM access rights (CUD)
             "--access-history=",
             "--access-memory=",
+            "--access-prompt=",
 
             // Storage operations: history
             "--history",
@@ -2364,6 +2520,12 @@ impl Ai
             "--update-memory=",
             "--insert-memory=",
 
+            // Prompt
+            "--prompt",
+            "--show-prompt",
+            "--prompt-origin",
+            "--show-prompt-origin",
+
             // Actor & body for insert/update
             "--actor=",
             "--body=",
@@ -2377,7 +2539,7 @@ impl Ai
             "--completion=zsh",
             "--completion=fish",
         ];        
-        let options_str = options.join(" ");
+        let options_str = options.join( " " );
         
         match shell
         {
@@ -2408,12 +2570,12 @@ impl Ai
             "_ai() {",
             "    local cur prev words cword",
             "    _init_completion || return",
-            &format!("    COMPREPLY=($(compgen -W '{}' -- \"$cur\"))", options),
+            &format!( "    COMPREPLY=($(compgen -W '{}' -- \"$cur\"))", options),
             "}",
             "complete -F _ai ai",
             "complete -F _ai 1\n",
         ]
-        .join("\n")
+        .join( "\n" )
     }
 
 
@@ -2429,9 +2591,9 @@ impl Ai
     -> String
     {
         let args = options.iter()
-            .map(|o| format!("  '{}'", o))
+            .map(|o| format!( "  '{}'", o))
             .collect::<Vec<_>>()
-            .join(" \\\n");
+            .join( " \\\n" );
         
         [
             "#compdef ai",
@@ -2443,7 +2605,7 @@ impl Ai
             "}",
             "_ai\n",
         ]
-        .join("\n")
+        .join( "\n" )
     }
 
 
@@ -2489,208 +2651,4 @@ impl Ai
     {
         self.get_config_val( &[ "connect_timeout_ms" ], 10000 )
     }
-
-
-
-    /*
-        Parse LLM response in block format
-        Splits response by BLOCK_DELIMITER, extracts block name and content,
-        then executes corresponding actions (message, command, history, memory, etc.)
-    */
-    pub fn parse_llm_response
-    (
-        &mut self, 
-        content: &str, 
-        response_json: &mut serde_json::Value
-    )
-    {
-        self.get_app_mut().get_log_mut().dump( "llm content", content );
-        let block_delimiter = BLOCK_DELIMITER;
-        let blocks: Vec<&str> = content.split( block_delimiter ).collect();
-        for block in blocks
-        {
-            let block = block.trim();
-            if !block.is_empty()
-            {               
-                let lines: Vec<&str> = block.lines().collect();
-                if !lines.is_empty()
-                {
-                    let block_name = lines[0].trim();
-                    let block_content = &lines[1..].join( "\n" );
-                    match block_name
-                    {
-                        "message" =>
-                        {
-                            response_json[ "message" ] = serde_json::json!
-                            (
-                                block_content
-                            );
-                        }
-                        "command" =>
-                        {
-                            response_json[ "command" ] = serde_json::json!
-                            (
-                                block_content
-                            );
-                        }
-                        "pool" =>
-                        {
-                            response_json["pool"] = serde_json::json!
-                            (
-                                block_content
-                            );
-                        }
-
-                        "clipboard" =>
-                        {
-                            response_json[ "clipboard" ] = serde_json::json!
-                            (
-                                block_content
-                            );
-                        }
-                        
-                        "history-add" =>
-                        {
-                            if response_json[ "history" ][ "add" ].is_null()
-                            {
-                                response_json
-                                [ "history" ]
-                                [ "add" ] = serde_json::json!([]);
-                            }
-
-                            response_json[ "history" ][ "add" ]
-                            .as_array_mut()
-                            .unwrap()
-                            .push(serde_json::json!( block_content ));
-                        }
-
-                        "history-remove" =>
-                        {
-                            if response_json[ "history" ][ "remove" ].is_null()
-                            {
-                                response_json
-                                [ "history" ]
-                                [ "remove" ] = serde_json::json!([]);
-                            }
-                            response_json[ "history" ][ "remove" ]
-                            .as_array_mut()
-                            .unwrap()
-                            .push
-                            (
-                                serde_json::json!
-                                (
-                                    block_content.trim().to_string()
-                                ) 
-                            );
-                        }
-
-                        "history-change" =>
-                        {
-                            if response_json[ "history" ][ "change" ].is_null()
-                            {
-                                response_json[ "history" ][ "change" ] = serde_json::json!([]);
-                            }
-                            
-                            let lines: Vec<&str> = block_content.lines().collect();
-
-                            if lines.len() >= 3
-                            {
-                                let id = lines[0].trim();
-                                let actor = lines[1].trim();
-                                let body = lines[2..].join("\n").trim().to_string();
-                                
-                                response_json[ "history" ][ "change" ]
-                                .as_array_mut()
-                                .unwrap()
-                                .push
-                                (
-                                    serde_json::json!
-                                    (
-                                        {
-                                            "id": id,
-                                            "actor": actor,
-                                            "body": body
-                                        }
-                                    )
-                                );
-                            }
-                        }
-
-                        "memory-add" =>
-                        {
-                            if response_json[ "memory" ][ "add" ].is_null()
-                            {
-                                response_json
-                                [ "memory" ]
-                                [ "add" ] = serde_json::json!([]);
-                            }
-
-                            response_json[ "memory" ][ "add" ]
-                            .as_array_mut()
-                            .unwrap()
-                            .push(serde_json::json!(block_content));
-                        }
-
-                        "memory-remove" =>
-                        {
-                            if response_json[ "memory" ][ "remove" ].is_null()
-                            {
-                                response_json
-                                [ "memory" ]
-                                [ "remove" ] = serde_json::json!([]);
-                            }
-                            response_json[ "memory" ][ "remove" ]
-                            .as_array_mut()
-                            .unwrap()
-                            .push
-                            (
-                                serde_json::json!
-                                (
-                                    block_content.trim().to_string()
-                                ) 
-                            );
-                        }
-
-                        "memory-change" =>
-                        {
-                            if response_json["memory"]["change"].is_null()
-                            {
-                                response_json
-                                ["memory"]
-                                ["change"] = serde_json::json!([]);
-                            }
-
-                            let lines: Vec<&str> = block_content.lines().collect();
-
-                            if lines.len() >= 3
-                            {
-                                let key = lines[0].trim();
-                                let actor = lines[1].trim();
-                                let body = lines[2..].join("\n").trim().to_string();
-
-                                response_json["memory"]["change"]
-                                .as_array_mut()
-                                .unwrap()
-                                .push
-                                (
-                                    serde_json::json!
-                                    (
-                                        {
-                                            "id": key,
-                                            "actor": actor,
-                                            "body": body
-                                        }
-                                    )
-                                );
-                            }
-                        }
-
-                        "end" => { break; }
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
 }

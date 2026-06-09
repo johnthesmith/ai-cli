@@ -241,25 +241,16 @@ impl<'a> Provider for OllamaProvider<'a>
                 let
                 (
                     error,
-                    think,
+                    _, //think,
                     content,
-                    prompt_tokens,
-                    answer_tokens,
+                    _, //prompt_tokens,
+                    _, //answer_tokens,
                     result
                 ) = self.parse_ollama_response( full_answer );
 
-                let mut response_json = serde_json::json!
-                (
-                    {
-                        "think": think,
-                        "prompt_tokens": prompt_tokens,
-                        "answer_tokens": answer_tokens
-                    }
-                );
-
                 if result
                 {
-                    self.ai.parse_llm_response( &content, &mut response_json )
+                    self.ai.handle_chat_response( &content )
                 }
                 else
                 {
@@ -272,11 +263,8 @@ impl<'a> Provider for OllamaProvider<'a>
                     {
                         format!( "{}\n{}", error, content )
                     };
-                    response_json[ "message" ] = serde_json::json!(message);
+                    println!( "{}", message );
                 }
-
-                self.ai.handle_chat_response( &response_json );
-
             }
             Err(e) =>
             {
@@ -301,11 +289,11 @@ impl<'a> Provider for OllamaProvider<'a>
 
                 let proxy = self.ai.read_proxy();
                 self.ai.app.get_log_mut()
-                .error("API error")
-                .prm("error", &e.to_string())
-                .prm("provider", &name )
-                .prm("api", api_url)
-                .prm("proxy", proxy);
+                .error( "API error" )
+                .prm( "error", &e.to_string() )
+                .prm( "provider", &name )
+                .prm( "api", api_url )
+                .prm( "proxy", proxy );
             }
         }      
     }

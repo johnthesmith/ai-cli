@@ -245,7 +245,11 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         (
             {
                 "messages": [{ "role": "user", "content": prompt }],
-                "model": model
+                "model": model,
+//                "thinking":
+//                {
+//                    "type": "disabled"
+//                }
             }
         );
 
@@ -285,25 +289,16 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 let
                 (
                     error,
-                    think, 
+                    _, //think, 
                     content, 
-                    prompt_tokens, 
-                    answer_tokens,
+                    _, //prompt_tokens, 
+                    _, //answer_tokens,
                     result
                 ) = self.parse_openai_response( full_answer );
 
-                let mut response_json = serde_json::json!
-                (
-                    {
-                        "think": think,
-                        "prompt_tokens": prompt_tokens,
-                        "answer_tokens": answer_tokens
-                    }
-                );
-
                 if result
                 {
-                    self.ai.parse_llm_response( &content, &mut response_json )
+                    self.ai.handle_chat_response( &content )
                 }
                 else
                 {
@@ -316,12 +311,10 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     {
                         format!( "{}\n{}", error, content )
                     };
-                    response_json[ "message" ] = serde_json::json!( message );
+                    println!( "{}", message );
                 }
-
-
-                self.ai.handle_chat_response( &response_json );
             }
+
             Err( e ) =>
             {
                 /* event */

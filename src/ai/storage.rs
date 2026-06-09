@@ -6,7 +6,9 @@
 /*
     Storage interface for CRUD operations on facts
     Each fact = one block in text file
-    Format: [ID]\nCONTENT\n\n
+
+    %block-delimiter%\n<id>\n<type>\n<actor>\n<action>\n<content>\n
+
     Blocks are loaded into memory and saved on demand
 */
 
@@ -28,7 +30,21 @@ pub struct Storage
     /* Storage state */
     state: State,
     /* In-memory blocks loaded once  id -> actor,body */
-    blocks: BTreeMap<String, (String, String)>, 
+    pub blocks: BTreeMap
+    <
+        /* id */
+        String, 
+        (
+            /* type = history | memory | prompt */
+            String, 
+            /* actor = system | assistant | user */
+            String,
+            /* action = read | message | command | pool |clipboard | add | remove | delete */
+            String,
+            /* fact body */
+            String
+        )
+    >, 
     delimiter: String
 }
 
@@ -60,19 +76,63 @@ impl Storage
 
 
     /*
+        Parse blocks from string content
+        Returns number of blocks parsed
+    */
+    pub fn parse
+    (
+        &mut self, 
+        content: &str
+    ) 
+    {
+        for block in content.split( &self.delimiter )
+        {
+            let block = block.trim();
+            if !block.is_empty()
+            {
+                let lines: Vec<&str> = block.lines().collect();
+                if lines.len() >= 4
+                {
+                    let id = lines[0].trim().to_string();
+                    let typ = lines[1].trim().to_string();
+                    let actor = lines[2].trim().to_string();
+                    let action = lines[3].trim().to_string();
+                    let body = if lines.len() >=5 
+                    {
+                        lines[4..].join("\n").trim().to_string() 
+                    }
+                    else
+                    {
+                        "".to_string()
+                    };
+
+                    let final_id = if id == "-" { self.generate_id() } else { id };
+                    self.blocks.insert( final_id, (typ, actor, action, body));
+                }
+            }
+        }
+    }
+
+
+
+    /*
         Load storage from file
         File format:
             delimiter line
             id line
+            typ line
             actor line
+            action line
             body line(s)
             delimiter line
-            id line
-            actor line
-            body line(s)
             ...
     */
-    pub fn load( &mut self, path: &str ) -> &mut Self
+    pub fn load
+    (
+        &mut self, 
+        path: &str
+    )
+    -> &mut Self
     {
         let content = match fs::read_to_string(path)
         {
@@ -83,38 +143,26 @@ impl Storage
                 {
                     return self;
                 }
-                self.state.set_state("storage-load-error", json!({
-                    "path": path,
-                    "error": e.to_string()
-                }));
+                self.state.set_state
+                (
+                    "storage-load-error", json!
+                    (
+                        {
+                            "path": path,
+                            "error": e.to_string()
+                        }
+                    )
+                );
                 return self;
             }
         };
 
         self.blocks.clear();
-
-        for block in content.split(&self.delimiter)
-        {
-            let block = block.trim();
-            if block.is_empty()
-            {
-                continue;
-            }
-            let lines: Vec<&str> = block.lines().collect();
-            if lines.len() >= 3
-            {
-                let id = lines[0].trim().to_string();
-                let actor = lines[1].trim().to_string();
-                let body = lines[3..]
-                .join("\n")
-                .trim()
-                .to_string();
-                self.blocks.insert( id, ( actor, body ));
-            }
-        }
-
+        self.parse(&content);
+        
         self
     }
+
 
 
     /*
@@ -225,8 +273,14 @@ impl Storage
     */
     pub fn create
     (
-        &mut self, 
+        &mut self,
+        /* Type of fact history|memory|prompt*/
+        typ: &str,
+        /* Actor system|assistant|user*/
         actor: &str,
+        /* Action = read | message | command | pool |clipboard | add | remove | delete */
+        action: &str,
+        /* Content of fact */
         content: &str
     ) -> &mut Self
     {
@@ -237,8 +291,10 @@ impl Storage
             (
                 id.clone(), 
                 (
+                    typ.to_string(),                   
                     actor.to_string(), 
-                    content.to_string()
+                    action.to_string(), 
+                    content.to_string()                    
                 )
             );
         }
@@ -268,8 +324,15 @@ impl Storage
     pub fn update
     (
         &mut self,
+        /* Id */
         id: &str,
+        /* Type of fact history|memory|prompt*/
+        typ: &str,
+        /* Actor system|assistant|user*/
         actor: &str,
+        /* Action = read | message | command | pool |clipboard | add | remove | delete */
+        action: &str,
+        /* Content of fact */
         content: &str
     )
     -> &mut Self
@@ -279,7 +342,12 @@ impl Storage
             self.blocks.insert
             (
                 id.to_string(), 
-                (actor.to_string(), content.to_string())
+                (
+                    typ.to_string(),                   
+                    actor.to_string(), 
+                    action.to_string(), 
+                    content.to_string()                    
+                )
             );
         }
         else
@@ -343,15 +411,24 @@ impl Storage
     )
     ->
     (
+        /* Type */
+        String,
         /* Actor (user, agent, etc.) */
+        String,
+        /* Action */
         String,
         /* Body (fact content) */
         String
     )
     {
-        if let Some((actor, body)) = self.blocks.get(id)
+        if let Some(( typ, actor, action, body )) = self.blocks.get( id )
         {
-            ( actor.clone(), body.clone() )
+            ( 
+                typ.clone(),
+                actor.clone(), 
+                action.clone(),
+                body.clone()
+            )
         }
         else
         {
@@ -360,8 +437,37 @@ impl Storage
                 "storage-select-not-found",
                 json!({ "id": id })
             );
-            ( String::new(), String::new() )
+            ( String::new(), String::new(), String::new(), String::new() )
         }
+    }
+
+
+
+    /*
+        Get fact by ID as string with delimiter
+    */
+    pub fn to_string_by_id
+    ( 
+        &self, 
+        id: &str
+    )
+    -> String
+    {
+        if let Some((typ, actor, action, body)) = self.blocks.get( id )
+        {
+            return format!
+            (
+                "{}\n{}\n{}\n{}\n{}\n{}\n\n",
+                self.delimiter,
+                id,
+                typ,
+                actor,
+                action,
+                body
+            );
+        }
+        
+        String::new()
     }
 
 
@@ -369,23 +475,14 @@ impl Storage
     /*
         Get all facts as single string with delimiter
     */
-    pub fn to_string(&self) -> String
+    pub fn to_string( &self )
+    -> String
     {
         let mut content = String::new();
 
-        for (id, (actor, body)) in &self.blocks
+        for( id, _ ) in &self.blocks
         {
-            content.push_str
-            (
-                &format!
-                (
-                    "{}\n{}\n{}\n\n{}\n\n",
-                    self.delimiter,
-                    id,
-                    actor,
-                    body
-                )
-            );
+            content.push_str( &self.to_string_by_id( id ));
         }
 
         content
@@ -395,16 +492,15 @@ impl Storage
 
     /*
     */
-
     pub fn set_access
     (
         &mut self, 
         access: &str
     ) -> &mut Self
     {
-        self.allow_create = access.contains('c');
-        self.allow_update = access.contains('u');
-        self.allow_delete = access.contains('d');
+        self.allow_create = access.contains( 'c' );
+        self.allow_update = access.contains( 'u' );
+        self.allow_delete = access.contains( 'd' );
         self
     }
 
@@ -414,9 +510,9 @@ impl Storage
     -> String
     {
         let mut access = String::new();
-        if self.allow_create { access.push('c'); }
-        if self.allow_update { access.push('u'); }
-        if self.allow_delete { access.push('d'); }
+        if self.allow_create { access.push( 'c' ); }
+        if self.allow_update { access.push( 'u' ); }
+        if self.allow_delete { access.push( 'd' ); }
         access
     }
 }
