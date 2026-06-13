@@ -242,10 +242,6 @@ access:
 ```
 
 
-⚠️ This is not human logic. Agency is built not on immutable chronology, but on 
-dynamic, self-editing memory.
-
-
 
 # Fact Protocol
 

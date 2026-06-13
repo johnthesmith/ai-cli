@@ -1,3 +1,14 @@
+# Release v1.0.13
+
+1. Refactored prompts toward simplification
+0. Refactored LLM interaction protocol
+0. Added mnemonic mode to reflect LLM memory operations — show-mnemonic
+0. Added configuration mode — think
+0. **Important:** Remove old configs prompts memory and history before 
+update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
+
+
+
 # Release v1.0.12
 
 1. Added `PROMPT_AUTOMNEMOMORF` — full automnemomorph behavior (AI can modify history/memory/prompt on its own initiative)

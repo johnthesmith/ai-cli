@@ -19,12 +19,12 @@ use serde_yaml::Value;
 use std::io::{ Read, Write, IsTerminal };
 use core::{ App, SerdeExt, State, Moment };
 use storage::Storage;
-
-
-pub const BLOCK_DELIMITER: &str = "===AIOL9B1MZX===";
+ 
 pub const USER: &str = "user";
 pub const ASSISTANT: &str = "assistant";
-pub const SYSTEM: &str = "sys";
+pub const TOOL: &str = "aicli";
+
+
 
 /*
     Ai applicatoin
@@ -79,9 +79,9 @@ impl Ai
             model: String::new(),
             chat: String::new(),
             prompt_id: "default".to_string(),
-            history_storage: Storage::new( BLOCK_DELIMITER ),
-            memory_storage: Storage::new( BLOCK_DELIMITER ),
-            prompt_storage: Storage::new( BLOCK_DELIMITER )
+            history_storage: Storage::new(),
+            memory_storage: Storage::new(),
+            prompt_storage: Storage::new()
         }
     }
 
@@ -202,6 +202,7 @@ impl Ai
                 "log": self.get_app().get_log().get_file_path(),
                 "config": self.get_config_file(),
                 "version": self.get_version(),
+                "fact-delimiter": self.prompt_storage.get_fact_delimiter(),
                 "session": 
                 {
                     "profile": self.get_profile(),
@@ -379,7 +380,7 @@ impl Ai
                 let default_memory = self.app.config
                 [ "application" ][ "ai" ][ "access" ][ "memory" ].get_str( "c" );
                 let default_prompt = self.app.config
-                [ "application" ][ "ai" ][ "access" ][ "prompt" ].get_str( "c" );
+                [ "application" ][ "ai" ][ "access" ][ "prompt" ].get_str( "" );
 
                 self.history_storage.set_access
                 (
@@ -498,24 +499,26 @@ impl Ai
                     }
                 }
 
+                /* Open prompt */
+                let prompt_path = self.get_prompt_origin_file();
+                self.prompt_storage
+                .load( &prompt_path )
+                .get_state()
+                .state_to( &mut self.app.state );     
+                
                 /* Open history */
                 let history_path = self.get_history_file_path();
                 self.history_storage
                 .load( &history_path )
+                .set_fact_delimiter( &self.prompt_storage.get_fact_delimiter())
                 .get_state()
-                .state_to( &mut self.app.state );           
+                .state_to( &mut self.app.state );
 
                 /* Open memory */
                 let memory_path = self.get_memory_file();
-                self.memory_storage.
-                load( &memory_path )
-                .get_state()
-                .state_to( &mut self.app.state );                         
-
-                /* Open prompt */
-                let prompt_path = self.get_prompt_origin_file();
-                self.prompt_storage.
-                load( &prompt_path )
+                self.memory_storage
+                .load( &memory_path )
+                .set_fact_delimiter( &self.prompt_storage.get_fact_delimiter())
                 .get_state()
                 .state_to( &mut self.app.state );                         
 
@@ -635,6 +638,8 @@ impl Ai
                             }
                         }
 
+
+
                         "completion" => 
                         {
                             /* Generate completion mode */
@@ -645,6 +650,8 @@ impl Ai
                             }
                         }
 
+
+
                         "select-history" =>
                         {
                             no_prompt = true;
@@ -653,10 +660,15 @@ impl Ai
                                 println!
                                 (
                                     "{}", 
-                                    self.history_storage.to_string_by_id( &target )
+                                    self.history_storage.to_string_by_id
+                                    (
+                                        &target
+                                    )
                                 );
                             }
                         }
+
+
 
                         "select-memory" =>
                         {
@@ -666,10 +678,14 @@ impl Ai
                                 println!
                                 (
                                     "{}",
-                                    self.memory_storage.to_string_by_id( &target )
+                                    self.memory_storage.to_string_by_id
+                                    (
+                                        &target
+                                    )
                                 );
                             }
                         }
+
 
 
                         "delete-history" => 
@@ -684,6 +700,7 @@ impl Ai
                         }
 
 
+
                         "delete-memory" => 
                         {
                             {
@@ -694,6 +711,7 @@ impl Ai
                                 }
                             }
                         }
+
 
 
                         "insert-history" =>
@@ -711,9 +729,11 @@ impl Ai
                             
                             if !body.is_empty()
                             {
-                                self.history_storage.create( "history", &actor, "read", &body );
+                                self.history_storage.create( "history", "read", &actor, &body );
                             }
                         }
+
+
 
                         "insert-memory" =>
                         {
@@ -730,9 +750,11 @@ impl Ai
                             
                             if !body.is_empty()
                             {
-                                self.memory_storage.create( "memory", &actor, "read", &body );
+                                self.memory_storage.create( "memory", "read", &actor, &body );
                             }
                         }
+
+
 
                         "update-history" =>
                         {
@@ -751,10 +773,12 @@ impl Ai
                                 }                               
                                 if !body.is_empty()
                                 {
-                                    self.history_storage.update( &target, "history", &actor, &action, &body );
+                                    self.history_storage.update( &target, "history", &action, &actor, &body );
                                 }
                             }
                         }
+
+
 
                         "update-memory" =>
                         {
@@ -773,7 +797,7 @@ impl Ai
                                 }
                                 if !body.is_empty()
                                 {
-                                    self.memory_storage.update( &target, "memory", &actor, &action, &body );
+                                    self.memory_storage.update( &target, "memory", &action, &actor, &body );
                                 }
                             }
                         }
@@ -788,7 +812,6 @@ impl Ai
                     let provider_name = self.get_provider();
                     let user_prompt = self.get_user_prompt();
                     let prompt = self.build_prompt( &user_prompt );
-
                     let max_bytes = self.get_max_chat_prompt_size_byte();
                     let size = prompt.len();
                     
@@ -805,10 +828,10 @@ impl Ai
                     else
                     {
                         /* Write user prompt to history */
-                        self.history_storage.create( "history", USER, "read", &user_prompt );
+                        self.history_storage.create( "history", "read", USER, &user_prompt );
 
-                        let mut provider = providers::create_provider(&provider_name, self);
-                        provider.chat(&prompt);
+                        let mut provider = providers::create_provider( &provider_name, self );
+                        provider.chat( &prompt );
                     }
                 }            
             }
@@ -822,8 +845,8 @@ impl Ai
             self.memory_storage.save( &memory_path );
 
             /* Save current state */
-            let prompt_path = self.get_prompt_origin_file();
-            self.prompt_storage.save( &prompt_path );
+//            let prompt_path = self.get_prompt_origin_file();
+//            self.prompt_storage.save( &prompt_path );
 
             self.app.get_log_mut().end( "End of ai" ).eol();
         }
@@ -1071,7 +1094,7 @@ impl Ai
     -> String 
     {
         self.ensure_prompt();
-        let template = self.prompt_storage.to_string();
+        let template = self.prompt_storage.to_request_string();
 
         /* Retrive shell */
         let shell = self.get_config_val
@@ -1080,28 +1103,41 @@ impl Ai
             "/bin/bash".to_string()
         );
 
-        let input = input
-        .replace( BLOCK_DELIMITER, "<block-delimiter>" )
-        .replace( "%block-delimiter%", "<block-delimiter>" );
+
+        let input = input.replace
+        (
+            &self.prompt_storage.get_fact_delimiter(),
+            "`fact-delimiter`"
+        );
 
         let result = template
-        .replace( "%history%", &self.get_history() )
-        .replace( "%memory%", &self.read_memory() )
+        .replace( "%history%", &self.history_storage.to_request_string() )
+        .replace( "%memory%", &self.memory_storage.to_request_string() )
         .replace( "%user-prompt%", &input )
         .replace( "%shell%", &shell )
         .replace( "%chat%", &self.get_chat() )
         .replace( "%user%", USER )
         .replace( "%assistant%", ASSISTANT )
-        .replace( "%system%", SYSTEM )
+        .replace( "%tool%", TOOL )
         .replace( "%provider%", &self.get_provider() )
         .replace( "%model%", &self.get_model() )
+        .replace
+        (
+            "%max_prompt_size_byte%", 
+            &self.get_max_chat_prompt_size_byte().to_string()
+        )       
         .replace
         (
             "%now%", 
             &Moment::create().now().format( "%Y-%m-%d %H:%M:%S" )
         )
-        .replace( "%block-delimiter%", BLOCK_DELIMITER )
         ;
+
+        /* Calc prompt size */
+        let prompt_size = result.len();
+
+        let result = result
+        .replace( "%prompt-size-byte%", &prompt_size.to_string() );
 
         result
     }
@@ -1136,8 +1172,8 @@ impl Ai
                 };
                 
                 let _ = std::fs::write(&prompt_path, &default_prompt);
-                self.prompt_storage.parse(&default_prompt);
-                self.prompt_storage.save(&prompt_path);
+                self.prompt_storage.parse( &default_prompt );
+                self.prompt_storage.save( &prompt_path );
             }
             else
             {
@@ -1174,19 +1210,6 @@ impl Ai
 
 
 
-    fn get_history( &self )
-    -> String 
-    {
-        let history_path = self.get_history_file_path();       
-        match std::fs::read_to_string(&history_path) 
-        {
-            Ok( content ) => content,
-            Err(_) => String::new(),
-        }
-    }
-
-
-
     /*
         Clear history file
     */
@@ -1206,7 +1229,7 @@ impl Ai
     fn show_history( &mut self )
     -> &mut Self 
     {
-        let history = self.get_history();
+        let history = self.history_storage.to_string();
         if history.is_empty() 
         {
             println!( "No history" );
@@ -2068,6 +2091,44 @@ impl Ai
 
 
     /*
+        Format text to maximum line width of N characters (not bytes)
+        Splits at word boundaries when possible
+    */
+    #[allow(dead_code)]
+    fn format_text(&self, text: &str, max_chars: usize) -> String
+    {
+        let mut result = String::new();
+        let mut line = String::new();
+        
+        for word in text.split_whitespace() {
+            // Check length in characters, not bytes
+            let new_len = line.chars().count() + word.chars().count() + 1;
+            
+            if new_len > max_chars {
+                if !line.is_empty() {
+                    result.push_str(&line);
+                    result.push('\n');
+                    line.clear();
+                }
+                line.push_str(word);
+            } else {
+                if !line.is_empty() {
+                    line.push(' ');
+                }
+                line.push_str(word);
+            }
+        }
+        
+        if !line.is_empty() {
+            result.push_str(&line);
+        }
+        
+        result
+    }
+
+
+
+    /*
         Processing chat response
     */
     pub fn handle_chat_response
@@ -2080,45 +2141,37 @@ impl Ai
         let content = &content.replace( "%pool%", &self.get_pool_path() );
         self.app.get_log_mut().dump( "LLM response", content );
 
-        let mut storage = Storage::new( BLOCK_DELIMITER );
-        storage.parse( content );
+        let mut storage = Storage::new();
+        storage.parse_answer( content );
 
         if !storage.blocks.is_empty()
         {
-            for( id, ( typ, actor, action, body )) in storage.blocks.iter()
-            {
-                match( typ.as_str(), action.as_str())
-                {
-                    ( _, "message" ) =>
-                    {
-                        self.history_storage.create
-                        (
-                            "history",
-                            ASSISTANT,
-                            "read",
-                            body
-                        );
-                        self.run_destination( &body, "message", true );
-                    }
+            let mut mnemonics: Vec<String> = Vec::new();
 
-                    ( _, "pool" ) =>
+            for( id, ( origin, action, actor, body )) in storage.blocks.iter()
+            {
+                match( origin.as_str(), action.as_str())
+                {
+                    ( "pool", "add" ) =>
                     {
                         self.run_destination( &body, "pool", true );
+                        mnemonics.push( "p+".to_string() );
                     }
 
-                    ( _, "clipboard" ) =>
+                    ( "clipboard", "add" ) =>
                     {
                         self.run_destination( &body, "clipboard", true );
+                        mnemonics.push( "c-".to_string() );
                     }
 
                     /* Execute command via destination */
-                    ( _, "command" ) =>
+                    ( "shell", "add" ) =>
                     {
                         self.history_storage.create
                         (
                             "history",
-                            ASSISTANT,
                             "read",
+                            ASSISTANT,
                             body
                         );
                         /* Check if command execution is disabled */
@@ -2126,7 +2179,7 @@ impl Ai
                         {
                             self.app.get_log_mut()
                             .info( "Command execution disabled by --no-command" )
-                            .prm( "command", &body );
+                            .prm( "exec", &body );
                         }
                         else
                         {
@@ -2147,6 +2200,15 @@ impl Ai
                             */
                             let clean_command = body.replace( '\n', " " ).replace( '\r', "" );
                             self.run_destination( &clean_command, "command", false );
+
+                            if body.contains('\n') 
+                            {
+                                mnemonics.push( "s*".to_string() );
+                            } 
+                            else
+                            {
+                                mnemonics.push( "s+".to_string() );
+                            };
                         }
                     }
 
@@ -2155,96 +2217,169 @@ impl Ai
                     {
                         self.memory_storage.create
                         (   
-                            &typ, 
-                            &actor, 
+                            "memory", 
                             "read", 
+                            "%assistant%", 
                             &body
                         );
+                        mnemonics.push( "m+".to_string() );
                         self.app.get_log_mut()
                         .info( "Memory entry added" )
                         .prm( "text", &body );
                     }
         
-                    /* Remove entries by ID */
-                    ( "memory", "remove" ) =>
-                    {
-                        self.memory_storage.delete( &id );
-                        self.app.get_log_mut()
-                        .info( "Memory entry removed" )
-                        .prm( "id", &id );
-                    }
-        
-                    /* Change entries by ID */
-                    ( "memory", "change" ) =>
-                    {
-                        self.memory_storage.update
-                        (
-                            &id,
-                            &typ,
-                            &actor,
-                            "read",
-                            &body
-                        );
-                        self.app.get_log_mut()
-                        .info( "Memory entry changed" )
-                        .prm( "id", &id )               
-                        .prm( "actor", &actor )
-                        .prm( "new_body", &body );
-                    }
-
 
                     /* Handle history operations */
                     ( "history", "add" ) =>
                     {
                         self.history_storage.create
                         (   
-                            &typ, 
-                            &actor, 
+                            "history", 
                             "read", 
+                            "%assistant%", 
                             &body
                         );
+                        self.run_destination( &body, "message", true );
+                        mnemonics.push( "h+".to_string() );
                         self.app.get_log_mut()
                         .info( "History entry added" )
                         .prm( "text", &body );
                     }
+
+                    /* Handle prompt operations */
+                    ( "prompt", "add" ) =>
+                    {
+                        self.prompt_storage.create
+                        (   
+                            "prompt", 
+                            "read", 
+                            "%assistant%", 
+                            &body
+                        );
+                        mnemonics.push( "p+".to_string() );
+                        self.app.get_log_mut()
+                        .info( "Prompt entry added" )
+                        .prm( "text", &body );
+                    }
         
                     /* Remove entries by ID */
-                    ( "history", "remove" ) =>
+                    ( _, "remove" ) =>
                     {
-                        self.history_storage.delete( &id );
-                        self.app.get_log_mut()
-                        .info( "History entry removed" )
-                        .prm( "id", &id );
+                        if self.memory_storage.exists( &id) 
+                        {
+                            self.memory_storage.delete( &id );
+                            mnemonics.push( "m-".to_string() );
+                        }
+                        
+                        if self.prompt_storage.exists( &id) 
+                        {
+                            self.prompt_storage.delete( &id );
+                            mnemonics.push( "p-".to_string() );
+                        }
+                        
+                        if self.history_storage.exists( &id) 
+                        {
+                            self.history_storage.delete( &id );
+                            mnemonics.push( "h-".to_string() );
+                        }
                     }
         
                     /* Change entries by ID */
-                    ( "history", "change" ) =>
+                    ( _, "change" ) =>
                     {
-                        self.history_storage.update
-                        (
-                            &id,
-                            &typ,
-                            &actor,
-                            "read",
-                            &body
-                        );
-                        self.app.get_log_mut()
-                        .info( "History entry changed" )
-                        .prm( "id", &id )               
-                        .prm( "actor", &actor )
-                        .prm( "new_body", &body );
+                        if self.memory_storage.exists( &id) 
+                        {
+                            self.memory_storage.update
+                            (
+                                &id,
+                                "memory",
+                                "read",
+                                &actor,
+                                &body
+                            );
+                            mnemonics.push( "m#".to_string() );
+                            self.app.get_log_mut()
+                            .info( "Memory entry changed" )
+                            .prm( "id", &id );
+                        }
+
+                        if self.prompt_storage.exists( &id) 
+                        {
+                            self.prompt_storage.update
+                            (
+                                &id,
+                                "prompt",
+                                "read",
+                                &actor,
+                                &body
+                            );
+                            mnemonics.push( "p#".to_string() );
+                            self.app.get_log_mut()
+                            .info( "Prompt entry changed" )
+                            .prm( "id", &id );
+                        }
+
+                        if self.history_storage.exists( &id) 
+                        {
+                            self.history_storage.update
+                            (
+                                &id,
+                                "history",
+                                "read",
+                                &actor,
+                                &body
+                            );
+                            mnemonics.push( "h#".to_string() );
+                            self.app.get_log_mut()
+                            .info( "History entry changed" )
+                            .prm( "id", &id );
+                        }
                     }
 
+                    /* */
                     _ =>
                     {
                         self.app.get_log_mut()
-                        .warning( "Unknown block" )
-                        .prm( "type", typ )
-                        .prm( "actor", actor )
+                        .warning( "Formt error" )
+                        .prm( "id", id )
+                        .prm( "origin", origin )
                         .prm( "action", action )
+                        .prm( "actor", actor )
                         .prm( "body", &body );
+
+                        mnemonics.push( "?".to_string() );
+
+                        let body = format!
+                        (
+                             "Unrecognized fact:\n{}\n{}\n{}\n{}\n{}\n",
+                             id,
+                             origin,
+                             action,
+                             actor,
+                             body
+                         );
+
+                        self.history_storage.create
+                        (
+                            "history",
+                            "read",
+                            ASSISTANT,
+                            &body
+                        );
+
+                        self.run_destination
+                        (
+                            &body,
+                            "message", 
+                            true
+                        );
                     }
                 }
+            }
+            if self.get_config_val( &[ "show-mnemonic" ], false )
+            {
+                let full_mnemonic = mnemonics.join( "|" );
+                println!("{}", full_mnemonic);
             }
         }
     }
@@ -2362,28 +2497,12 @@ impl Ai
 
 
     /*
-        Read memory for current chat
-    */
-    fn read_memory( &self )
-    -> String
-    {
-        let memory_path = self.get_memory_file();       
-        match std::fs::read_to_string( &memory_path )
-        {
-            Ok( content ) => content,
-            Err(_) => String::new(),
-        }
-    }
-
-
-
-    /*
         Send memory to stdout
     */
     fn show_memory( &mut self )
     -> &mut Self 
     {
-        let memory = self.read_memory();
+        let memory = self.memory_storage.to_request_string();
         if memory.is_empty() 
         {
             println!( "No memory" );
@@ -2415,9 +2534,7 @@ impl Ai
         /* Model identifier (e.g., "gpt-4.1", "deepseek-chat", "claude-3-5-sonnet" ) */
         model: &str,
         /* API endpoint URL for the request */
-        api_url: &str,
-        /* Promt id */
-        prompt_id: &str
+        api_url: &str
     )
     {
         self.app.get_log_mut()
@@ -2425,7 +2542,7 @@ impl Ai
         .prm( "provider", provider )
         .prm( "model", model )
         .prm( "api", api_url )
-        .prm( "prompt-id", prompt_id );
+        ;
     }
 
 
@@ -2570,7 +2687,7 @@ impl Ai
             "_ai() {",
             "    local cur prev words cword",
             "    _init_completion || return",
-            &format!( "    COMPREPLY=($(compgen -W '{}' -- \"$cur\"))", options),
+            &format!( "    COMPREPLY=($(compgen -W '{}' -- \"$cur\"))", options ),
             "}",
             "complete -F _ai ai",
             "complete -F _ai 1\n",
@@ -2586,12 +2703,12 @@ impl Ai
     fn generate_zsh_completion
     (
         &self, 
-        options: &[&str]
+        options: &[ &str ]
     )
     -> String
     {
         let args = options.iter()
-            .map(|o| format!( "  '{}'", o))
+            .map(|o| format!( "  '{}'", o ))
             .collect::<Vec<_>>()
             .join( " \\\n" );
         
@@ -2615,15 +2732,15 @@ impl Ai
     */
     fn generate_fish_completion
     (
-        &self, options: &[&str]
+        &self, options: &[ &str ]
     ) -> String
     {
         let mut fish = String::new();
         for opt in options
         {
-            let opt_clean = opt.trim_end_matches('=');
+            let opt_clean = opt.trim_end_matches( '=' );
             fish.push_str( &format!( "complete -c ai -f -a '{}'\n", opt_clean ));
-            if opt.ends_with('=')
+            if opt.ends_with( '=' )
             {
                 fish.push_str( &format!( "complete -c ai -f -a '{}<'\n", opt_clean ));
             }

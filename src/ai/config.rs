@@ -3,8 +3,7 @@
     SPDX-FileCopyrightText: 2026 Still Swamp
 */
 
-pub const DEFAULT: &str = r#"
-# AI util config file
+pub const DEFAULT: &str = r#"# AI util config file
 application:
   # Log settings
   log:
@@ -15,34 +14,52 @@ application:
     # Shell binary for command execution (default: /bin/bash)
     # Must support '-c' argument (POSIX-compatible).
     shell: /bin/bash
+
     # Providers file
     provider-file: ~/.config/ai/app/cli/%profile%/provider.txt
+
     # Chat file. This chat contains chat id
     chat-file: ~/.local/share/ai/app/cli/%profile%/chat.txt
+
     # History file (placeholders: %profile% %provider% %model% %chat%)
     history: ~/.local/share/ai/app/cli/%profile%/history/%chat%.txt
+
     # Pool path
     pool: ~/.local/share/ai/app/cli/%profile%/pool
+
     # Memory file for long store data
     memory: ~/.local/share/ai/app/cli/%profile%/memory.txt
+
     # File with current id prompt (placeholders: %profile% %provider% %model% %caht%)
     prompt-file-id: ~/.local/share/ai/app/cli/%profile%/prompt.txt
+
     # File with current original prompt (%profile% %provider% %model% %caht%)
     prompt-file: ~/.local/share/ai/app/cli/%profile%/prompts/%prompt-id%.txt
+
+    # Think mode enable for llm deepseek
+    think: false
+
+    # Show mnemonic string after LLM answer when using CLI AI operations
+    show-mnemonic: true
+
     # Token file (placeholder: %profile% %provider%)
     token: ~/.config/ai/app/cli/%profile%/tokens/%provider%.txt
+
     # File with current model
     model: ~/.local/share/ai/app/cli/%profile%/models/%provider%.txt
+
     # Maximum bytes count for chat prompt
-    max-chat-prompt-size-byte: 100000
+    max-chat-prompt-size-byte: 80000
 
     # Socks5 proxy url socks5://host:port (optional)
     # proxy: socks5://127.0.0.1:1080
 
     # Request timeout in milliseconds (total time for the entire request)
     request_timeout_ms: 30000
+
     # Connection timeout in milliseconds (time to establish connection)
     connect_timeout_ms: 10000
+
     # Access control for AI operations
     # Each string consists of letters: c (create), r (read), u (update), d (delete)
     # Modes:
@@ -53,13 +70,15 @@ application:
     access:
       history: "cud"
       memory: "cud"
-      prompt: "cud"
+      prompt: "c"
+
     # Output destinations
     destination:
       command: "sleep 0.3 && xdotool type --clearmodifiers --delay 10 --file -"
       message: "cat && echo"
       pool: "ai --write-pool"
       clipboard: "xclip -selection clipboard"
+
     # AI providers configuration
     providers:
       github:
@@ -108,6 +127,7 @@ application:
           - gpt-4.1
       deepseek:
         api: https://api.deepseek.com/v1/chat/completions
+        think: false
         available-models:
           - deepseek-v4-flash
           - deepseek-v4-pro

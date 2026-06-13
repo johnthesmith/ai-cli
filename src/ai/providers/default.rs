@@ -77,7 +77,7 @@ impl<'a> OpenAICompatibleProvider<'a>
     /*
         Parse openai response from text and return information
     */
-    fn parse_openai_response
+    fn parse_response
     (
         &mut self,
         raw: String
@@ -238,20 +238,29 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         let client = self.create_client();
 
         /* Trigger before request event */
-        self.ai.on_before_request( &prompt, &self.name, &model, &api_url, "chat" );
+        self.ai.on_before_request
+        (
+            &prompt, 
+            &self.name, 
+            &model, 
+            &api_url
+        );
     
         /* Prepare request */
-        let payload = serde_json::json!
+        let mut payload = serde_json::json!
         (
             {
                 "messages": [{ "role": "user", "content": prompt }],
                 "model": model,
-//                "thinking":
-//                {
-//                    "type": "disabled"
-//                }
             }
         );
+
+        let think = self.ai.get_config_val( &[ "think" ], false );
+        if !think && self.ai.get_provider() == "deepseek"
+        {
+            payload[ "thinking" ] = serde_json::json!({ "type": "disabled" });
+        }
+
 
         /*
             Request
@@ -294,7 +303,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     _, //prompt_tokens, 
                     _, //answer_tokens,
                     result
-                ) = self.parse_openai_response( full_answer );
+                ) = self.parse_response( full_answer );
 
                 if result
                 {

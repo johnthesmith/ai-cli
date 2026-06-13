@@ -7,8 +7,6 @@
     Storage interface for CRUD operations on facts
     Each fact = one block in text file
 
-    %block-delimiter%\n<id>\n<type>\n<actor>\n<action>\n<content>\n
-
     Blocks are loaded into memory and saved on demand
 */
 
@@ -29,23 +27,24 @@ pub struct Storage
     allow_update: bool,
     /* Storage state */
     state: State,
-    /* In-memory blocks loaded once  id -> actor,body */
+    /* In-memory blocks loaded once  id -> actor,content */
     pub blocks: BTreeMap
     <
         /* id */
         String, 
         (
-            /* type = history | memory | prompt */
+            /* origin = prompt|memory|history|prompt|clipboard|shell */
             String, 
-            /* actor = system | assistant | user */
+            /* action = read|add|remove|change */
             String,
-            /* action = read | message | command | pool |clipboard | add | remove | delete */
+            /* actor = tool|assistant|user */
             String,
-            /* fact body */
+            /* fact content */
             String
         )
-    >, 
-    delimiter: String
+    >,
+    /* State */
+    pub fact_delimiter: String
 }
 
 
@@ -55,21 +54,17 @@ impl Storage
     /*
         Create new storage
     */
-    pub fn new
-    (
-        /* Block delimiter (e.g., "\n\n") */
-        delimiter: &str
-    )
+    pub fn new()
     -> Self
     {
         Self
         {
-            delimiter: delimiter.to_string(),
             allow_create: true,
             allow_delete: true,
             allow_update: true,
             state: State::ok(),
             blocks: BTreeMap::new(),
+            fact_delimiter: "-=*=-".to_string()
         }
     }
 
@@ -85,29 +80,264 @@ impl Storage
         content: &str
     ) 
     {
-        for block in content.split( &self.delimiter )
+        let lines: Vec<&str> = content.lines().collect();
+        if !lines.is_empty() 
         {
-            let block = block.trim();
-            if !block.is_empty()
+            self.fact_delimiter = lines[0].trim().to_string();
+            if !self.fact_delimiter.is_empty()
             {
-                let lines: Vec<&str> = block.lines().collect();
-                if lines.len() >= 4
-                {
-                    let id = lines[0].trim().to_string();
-                    let typ = lines[1].trim().to_string();
-                    let actor = lines[2].trim().to_string();
-                    let action = lines[3].trim().to_string();
-                    let body = if lines.len() >=5 
-                    {
-                        lines[4..].join("\n").trim().to_string() 
-                    }
-                    else
-                    {
-                        "".to_string()
-                    };
 
-                    let final_id = if id == "-" { self.generate_id() } else { id };
-                    self.blocks.insert( final_id, (typ, actor, action, body));
+                let mut blocks = Vec::new();
+                let mut current_block = Vec::new();
+                let mut i = 1; // skip first line (delimiter)
+                while i < lines.len() 
+                {
+                    let line = lines[i];                 
+                    /* Check if line is exactly the delimiter (no extra chars) */
+                    if line == self.fact_delimiter 
+                    {
+                        /* End of current block */
+                        if !current_block.is_empty() 
+                        {
+                            blocks.push( current_block.join( "\n" ));
+                            current_block.clear();
+                        }
+                    } 
+                    else 
+                    {
+                        current_block.push(line);
+                    }
+                    
+                    i += 1;
+                }
+
+                /* Last block */
+                if !current_block.is_empty() 
+                {
+                    blocks.push(current_block.join( "\n" ));
+                }
+            
+                for block in blocks
+                {
+                    let block = block.trim();
+                    if !block.is_empty()
+                    {
+                        let lines: Vec<&str> = block.lines().collect();
+                        if lines.len() >= 4
+                        {
+                            let id = lines[0].trim().to_string();
+                            let origin = lines[1].trim().to_string();
+                            let action = lines[2].trim().to_string();
+                            let actor = lines[3].trim().to_string();
+                            let content = if lines.len() >=5 
+                            {
+                                lines[ 4.. ].join( "\n" ).trim().to_string() 
+                            }
+                            else
+                            {
+                                "".to_string()
+                            };
+
+                            let final_id = if id == "-" { self.generate_id() } else { id };
+                            self.blocks.insert( final_id, ( origin, action, actor, content ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+    /*
+        Parse blocks from string content
+        Returns number of blocks parsed
+    */
+    pub fn parse_answer
+    (
+        &mut self, 
+        content: &str
+    ) 
+    {
+        let lines: Vec<&str> = content.lines().collect();
+        if !lines.is_empty() 
+        {
+            self.fact_delimiter = lines[0].trim().to_string();
+            if !self.fact_delimiter.is_empty()
+            {
+
+                let mut blocks = Vec::new();
+                let mut current_block = Vec::new();
+                let mut i = 1; // skip first line (delimiter)
+                while i < lines.len() 
+                {
+                    let line = lines[i];                 
+                    /* Check if line is exactly the delimiter (no extra chars) */
+                    if line == self.fact_delimiter 
+                    {
+                        /* End of current block */
+                        if !current_block.is_empty() 
+                        {
+                            blocks.push( current_block.join( "\n" ));
+                            current_block.clear();
+                        }
+                    } 
+                    else 
+                    {
+                        current_block.push(line);
+                    }
+                    
+                    i += 1;
+                }
+
+                /* Last block */
+                if !current_block.is_empty() 
+                {
+                    blocks.push(current_block.join( "\n" ));
+                }
+            
+                for block in blocks
+                {
+                    let block = block.trim();
+                    if !block.is_empty()
+                    {
+                        let lines: Vec<&str> = block.lines().collect();
+                        {
+                            let directive = lines[0].trim().to_string();
+                            let mut content = String::new();
+                            let mut origin = String::new();
+                            let mut action = String::new();
+                            let mut actor = String::new();
+                            let mut id = "-".to_string();
+                            match directive.as_str()
+                            {
+                                "memory" |
+                                "memory-add" |
+                                "memory-insert" =>
+                                {
+                                    if lines.len() > 1
+                                    {
+                                        content = lines[ 1.. ].join( "\n" ).trim().to_string();
+                                        origin = "memory".to_string();
+                                        action = "add".to_string();
+                                        actor = "%assistant%".to_string();
+                                    };
+                                                                      
+                                },
+                                
+                                "prompt" |
+                                "prompt-add" |
+                                "prompt-insert" =>
+                                {
+                                    if lines.len() > 1
+                                    {
+                                        content = lines[ 1.. ].join( "\n" ).trim().to_string();
+                                        origin = "prompt".to_string();
+                                        action = "add".to_string();
+                                        actor = "%assistant%".to_string();
+                                    };                                                                     
+                                },
+                                
+                                "shell" |
+                                "shell-add" |
+                                "shell-insert" =>
+                                {
+                                    if lines.len() > 1
+                                    {
+                                        content = lines[ 1.. ]
+                                        .join( "\n" )
+                                        .trim()
+                                        .to_string();
+                                        origin = "shell".to_string();
+                                        action = "add".to_string();
+                                        actor = "%assistant%".to_string();
+                                    };                                                                     
+                                },
+                                
+                                "pool" |
+                                "pool-add" |
+                                "pool-insert" =>
+                                {
+                                    if lines.len() > 1
+                                    {
+                                        content = lines[ 1.. ]
+                                        .join( "\n" )
+                                        .trim()
+                                        .to_string();
+                                        origin = "pool".to_string();
+                                        action = "add".to_string();
+                                        actor = crate::ai::ASSISTANT.to_string();
+                                    };                                                                     
+                                },
+
+
+                                "change" | "update"  =>
+                                {
+                                    if lines.len() > 3
+                                    {
+                                        action = "change".to_string();
+                                        id = lines[ 1 ].to_string();
+                                        actor = lines[ 2 ].to_string();
+                                        content = lines[ 3.. ]
+                                        .join( "\n" )
+                                        .trim()
+                                        .to_string();
+                                    };                                                                     
+                                },
+
+                                "remove" | "delete" =>
+                                {
+                                    if lines.len() > 1
+                                    {
+                                        action = "remove".to_string();
+                                        id = lines[ 1 ].to_string();
+                                    };                                                                     
+                                },
+
+                                "buffer" |
+                                "clipboard" |
+                                "clipboard-add" =>
+                                {
+                                    if lines.len() >= 1
+                                    {
+                                        content = lines[ 1.. ]
+                                        .join( "\n" )
+                                        .trim()
+                                        .to_string();
+                                        origin = "clipboard".to_string();
+                                        action = "add".to_string();
+                                        actor = "%assistant%".to_string();
+                                    };                                                                     
+                                },
+
+                                "add" |
+                                "insert" |
+                                "history" |
+                                "history-add" |
+                                _ =>
+                                {
+                                    if lines.len() >= 1
+                                    {
+                                        content = lines[ 1.. ]
+                                        .join( "\n" )
+                                        .trim()
+                                        .to_string();
+                                        origin = "history".to_string();
+                                        action = "add".to_string();
+                                        actor = "%assistant%".to_string();
+                                    };
+                                },
+
+                            }
+                            
+                            id = if id == "-" { self.generate_id() } else { id };
+                            self.blocks.insert
+                            (
+                                id, 
+                                ( origin, action, actor, content )
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -120,11 +350,10 @@ impl Storage
         File format:
             delimiter line
             id line
-            typ line
-            actor line
+            origin line
             action line
-            body line(s)
-            delimiter line
+            actor line
+            content line(s)
             ...
     */
     pub fn load
@@ -136,8 +365,8 @@ impl Storage
     {
         let content = match fs::read_to_string(path)
         {
-            Ok(c) => c,
-            Err(e) =>
+            Ok( c ) => c,
+            Err( e ) =>
             {
                 if e.kind() == std::io::ErrorKind::NotFound
                 {
@@ -158,7 +387,7 @@ impl Storage
         };
 
         self.blocks.clear();
-        self.parse(&content);
+        self.parse( &content );
         
         self
     }
@@ -170,12 +399,10 @@ impl Storage
         File format:
             delimiter
             id
+            origin
+            action
             actor
-            body
-            delimiter
-            id
-            actor
-            body
+            content
             ...
     */
     pub fn save
@@ -274,15 +501,16 @@ impl Storage
     pub fn create
     (
         &mut self,
-        /* Type of fact history|memory|prompt*/
-        typ: &str,
-        /* Actor system|assistant|user*/
-        actor: &str,
-        /* Action = read | message | command | pool |clipboard | add | remove | delete */
+        /* Origin of fact */
+        origin: &str,
+        /* Action */
         action: &str,
+        /* Actor */
+        actor: &str,
         /* Content of fact */
         content: &str
-    ) -> &mut Self
+    )
+    -> &mut Self
     {
         if self.allow_create
         {
@@ -291,9 +519,9 @@ impl Storage
             (
                 id.clone(), 
                 (
-                    typ.to_string(),                   
-                    actor.to_string(), 
+                    origin.to_string(),                   
                     action.to_string(), 
+                    actor.to_string(), 
                     content.to_string()                    
                 )
             );
@@ -306,6 +534,8 @@ impl Storage
                 json!
                 (
                     {
+                        "origin": origin,
+                        "action": action,
                         "actor": actor,
                         "content": content
                     }
@@ -326,12 +556,12 @@ impl Storage
         &mut self,
         /* Id */
         id: &str,
-        /* Type of fact history|memory|prompt*/
-        typ: &str,
-        /* Actor system|assistant|user*/
-        actor: &str,
-        /* Action = read | message | command | pool |clipboard | add | remove | delete */
+        /* Origin of fact */
+        origin: &str,
+        /* Action */
         action: &str,
+        /* Actor */
+        actor: &str,
         /* Content of fact */
         content: &str
     )
@@ -343,9 +573,9 @@ impl Storage
             (
                 id.to_string(), 
                 (
-                    typ.to_string(),                   
-                    actor.to_string(), 
+                    origin.to_string(),                   
                     action.to_string(), 
+                    actor.to_string(), 
                     content.to_string()                    
                 )
             );
@@ -359,6 +589,8 @@ impl Storage
                 (
                     {
                         "id": id,
+                        "origin": origin,
+                        "action": action,
                         "actor": actor,
                         "content": content
                     }
@@ -382,7 +614,7 @@ impl Storage
     {
         if self.allow_delete
         {
-            self.blocks.remove(id);
+            self.blocks.remove( id );
         }
         else
         {
@@ -400,7 +632,7 @@ impl Storage
 
     /*
         Select fact by ID
-        Returns (actor, body) or empty string if not found
+        Returns (actor, content) or empty string if not found
     */
     #[allow(dead_code)]
     pub fn select
@@ -411,23 +643,23 @@ impl Storage
     )
     ->
     (
-        /* Type */
-        String,
-        /* Actor (user, agent, etc.) */
+        /* Оrigin */
         String,
         /* Action */
         String,
-        /* Body (fact content) */
+        /* Actor */
+        String,
+        /* Сontent */
         String
     )
     {
-        if let Some(( typ, actor, action, body )) = self.blocks.get( id )
+        if let Some(( origin, action, actor, content )) = self.blocks.get( id )
         {
             ( 
-                typ.clone(),
-                actor.clone(), 
+                origin.clone(),
                 action.clone(),
-                body.clone()
+                actor.clone(), 
+                content.clone()
             )
         }
         else
@@ -453,17 +685,45 @@ impl Storage
     )
     -> String
     {
-        if let Some((typ, actor, action, body)) = self.blocks.get( id )
+        if let Some(( origin, action, actor, content )) = self.blocks.get( id )
         {
             return format!
             (
-                "{}\n{}\n{}\n{}\n{}\n{}\n\n",
-                self.delimiter,
+                "{}\n{}\n{}\n{}\n{}\n\n{}\n\n",
+                self.fact_delimiter,
                 id,
-                typ,
-                actor,
+                origin,
                 action,
-                body
+                actor,
+                content
+            );
+        }
+        
+        String::new()
+    }
+
+
+
+    /*
+        Get fact by ID as string with delimiter
+    */
+    pub fn to_request_string_by_id
+    ( 
+        &self, 
+        id: &str
+    )
+    -> String
+    {
+        if let Some(( origin, _, actor, content )) = self.blocks.get( id )
+        {
+            return format!
+            (
+                "{}\n{}\n{}\n{}\n\n{}\n\n",
+                self.fact_delimiter,
+                origin,
+                actor,
+                id,
+                content
             );
         }
         
@@ -475,14 +735,36 @@ impl Storage
     /*
         Get all facts as single string with delimiter
     */
-    pub fn to_string( &self )
+    pub fn to_string
+    (
+        &self
+    )
     -> String
     {
         let mut content = String::new();
-
         for( id, _ ) in &self.blocks
         {
             content.push_str( &self.to_string_by_id( id ));
+        }
+
+        content
+    }
+
+
+
+    /*
+        Get all facts as single string with delimiter
+    */
+    pub fn to_request_string
+    (
+        &self
+    )
+    -> String
+    {
+        let mut content = String::new();
+        for( id, _ ) in &self.blocks
+        {
+            content.push_str( &self.to_request_string_by_id( id ));
         }
 
         content
@@ -514,5 +796,37 @@ impl Storage
         if self.allow_update { access.push( 'u' ); }
         if self.allow_delete { access.push( 'd' ); }
         access
+    }
+
+
+
+    pub fn get_fact_delimiter( &self )
+    -> String
+    {
+        self.fact_delimiter.clone()
+    }
+
+
+
+    pub fn set_fact_delimiter
+    (
+        &mut self,
+        delimiter: &str    
+    )
+    -> &mut Self
+    {
+        self.fact_delimiter = delimiter.to_string();
+        self
+    }
+
+
+
+    pub fn exists
+    (
+        &mut self,
+        id: &str
+    ) -> bool
+    {
+        self.blocks.contains_key(id)
     }
 }

@@ -201,7 +201,7 @@ impl<'a> Provider for OllamaProvider<'a>
         let client = self.create_client();
 
         /* Trigger before request event */
-        self.ai.on_before_request(&prompt, &name, &model, &api_url, "chat");
+        self.ai.on_before_request(&prompt, &name, &model, &api_url );
     
         /* Prepare request for Ollama API */
         let payload = serde_json::json!
