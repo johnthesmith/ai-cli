@@ -74,16 +74,15 @@ impl Storage
 
     /*
         Parse facts from string content
-        Returns number of facts parsed
 
         Format:
             delimiter
             id
             origin
             actor
-
+            content
     */
-    pub fn parse
+    pub fn parse_file
     (
         &mut self,
         content: &str
@@ -92,10 +91,9 @@ impl Storage
         let lines: Vec<&str> = content.lines().collect();
         if !lines.is_empty()
         {
-            self.fact_delimiter = lines[0].trim().to_string();
+            self.fact_delimiter = lines[ 0 ].trim().to_string();
             if !self.fact_delimiter.is_empty()
             {
-
                 let mut facts = Vec::new();
                 let mut current_fact = Vec::new();
                 let mut i = 1; // skip first line (delimiter)
@@ -126,7 +124,7 @@ impl Storage
                 /* Last fact */
                 if !current_fact.is_empty()
                 {
-                    facts.push(current_fact.join( "\n" ));
+                    facts.push( current_fact.join( "\n" ));
                 }
 
                 for fact in facts
@@ -137,9 +135,9 @@ impl Storage
                         let lines: Vec<&str> = fact.lines().collect();
                         if lines.len() > 3
                         {
-                            let id = lines[0].trim().to_string();
-                            let origin = lines[1].trim().to_string();
-                            let actor = lines[2].trim().to_string();
+                            let id = lines[ 0 ].trim().to_string();
+                            let origin = lines[ 1 ].trim().to_string();
+                            let actor = lines[ 2 ].trim().to_string();
                             let content = lines[ 3.. ]
                             .join( "\n" )
                             .trim()
@@ -176,8 +174,8 @@ impl Storage
 
 
     /*
-        Parse facts from string content
-        Returns number of facts parsed
+        Parse facts from LLM answer with actions string content
+        Format
     */
     pub fn parse_answer
     (
@@ -243,7 +241,9 @@ impl Storage
                                 {
                                     if lines.len() > 1
                                     {
-                                        content = lines[ 1.. ].join( "\n" ).trim().to_string();
+                                        content = lines[ 1.. ]
+                                        .join( "\n" )
+                                        .trim().to_string();
                                         origin = "memory".to_string();
                                         action = "add".to_string();
                                         actor = "%assistant%".to_string();
@@ -257,7 +257,11 @@ impl Storage
                                 {
                                     if lines.len() > 1
                                     {
-                                        content = lines[ 1.. ].join( "\n" ).trim().to_string();
+                                        content = lines[ 1.. ]
+                                        .join( "\n" )
+                                        .trim()
+                                        .to_string();
+
                                         origin = "prompt".to_string();
                                         action = "add".to_string();
                                         actor = "%assistant%".to_string();
@@ -414,7 +418,7 @@ impl Storage
         };
 
         self.facts.clear();
-        self.parse( &content );
+        self.parse_file( &content );
 
         self
     }
@@ -716,7 +720,7 @@ impl Storage
         {
             return format!
             (
-                "{}\n{}\n{}\n{}\n{}\n\n{}\n\n",
+                "{}\n{}\n{}\n{}\n{}\n{}\n\n",
                 self.fact_delimiter,
                 id,
                 origin,
@@ -743,7 +747,7 @@ impl Storage
     {
         if let Some(( origin, _, actor, content )) = self.facts.get( id )
         {
-            return format!
+            format!
             (
                 "{}\n{}\n{}\n{}\n{}\n\n",
                 self.fact_delimiter,
@@ -751,10 +755,12 @@ impl Storage
                 origin,
                 actor,
                 content
-            );
+            )
         }
-
-        String::new()
+        else
+        {
+            String::new()
+        }
     }
 
 

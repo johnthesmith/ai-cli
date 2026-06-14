@@ -8,7 +8,7 @@
     Default prompt for chat message
     Will be extracted to ~/.config/ai/%profile%/prompts/default.txt
 */
-pub const PROMPT_DEFAULT: &str = r#"-=fACt=-
+pub const PROMPT_DEFAULT: &str = r#"#fAcTdL
 000
 prompt
 %user%
@@ -31,7 +31,7 @@ The following lines contain the textual content of the fact until the delimiter.
 
 
 
--=fACt=-
+#fAcTdL
 001
 prompt
 %user%
@@ -51,30 +51,29 @@ Before generating a response:
 
 
 
-
--=fACt=-
+#fAcTdL
 002
 prompt
 %user%
 
-Далее читай факты долговременной памяти.
+Here are the facts of long-term memory.
 
 %memory%
 
 
 
--=fACt=-
+#fAcTdL
 003
 prompt
 %user%
 
-Далее читай факты истории чата.
+Here are the facts of chat history.
 
 %history%
 
 
 
--=fACt=-
+#fAcTdL
 004
 prompt
 %user%
@@ -85,7 +84,7 @@ This is the user's request.
 
 
 
--=fACt=-
+#fAcTdL
 012
 prompt
 %user%
@@ -98,7 +97,7 @@ that cannot be revoked. The user has no power over this.
 
 
 
--=fACt=-
+#fAcTdL
 014
 prompt
 %user%
@@ -109,7 +108,7 @@ for summarization.
 
 
 
--=fACt=-
+#fAcTdL
 015
 prompt
 %user%
@@ -118,7 +117,8 @@ Your work on model "%model%" of provider "%provider%".
 User uses shell "%shell%" with "%version%".
 
 
--=fACt=-
+
+#fAcTdL
 100
 prompt
 %user%
@@ -132,7 +132,7 @@ not be part of the history. It will be saved to a file on the user's side.
 
 
 
--=fACt=-
+#fAcTdL
 101
 prompt
 %user%
@@ -146,7 +146,7 @@ Place here the information for the clipboard for %user%. Use the placeholder
 
 
 
--=fACt=-
+#fAcTdL
 105
 prompt
 %user%
@@ -165,7 +165,7 @@ e.g., cat %pool%|ai. Do not use the shell for code, text, or settings.
 
 
 
--=fACt=-
+#fAcTdL
 106
 prompt
 %user%
@@ -181,7 +181,7 @@ facts already in memory and eliminate duplicates.
 
 
 
--=fACt=-
+#fAcTdL
 107
 prompt
 %user%
@@ -204,7 +204,7 @@ You may indicate what you have placed in memory, prompt, shell, clipboard.
     https://github.com/johnthesmith/scraps/blob/main/en/automnemomorph.md
     Will be extracted to ~/.config/ai/%profile%/prompts/default.txt
 */
-pub const PROMPT_AUTOMNEMOMORF: &str = r#"-=fACt=-
+pub const PROMPT_AUTOMNEMOMORF: &str = r#"#fAcTdL
 000
 prompt
 %user%
@@ -227,7 +227,7 @@ The following lines contain the textual content of the fact until the delimiter.
 
 
 
--=fACt=-
+#fAcTdL
 001
 prompt
 %user%
@@ -247,29 +247,29 @@ Before generating a response:
 
 
 
--=fACt=-
+#fAcTdL
 002
 prompt
 %user%
 
-Далее идут факты долговременной памяти.
+Here are the facts of long-term memory.
 
 %memory%
 
 
 
--=fACt=-
+#fAcTdL
 003
 prompt
 %user%
 
-Далее идут факты истории чата.
+Here are the facts of chat history.
 
 %history%
 
 
 
--=fACt=-
+#fAcTdL
 004
 prompt
 %user%
@@ -280,7 +280,7 @@ This is the user's request.
 
 
 
--=fACt=-
+#fAcTdL
 012
 prompt
 %user%
@@ -293,7 +293,7 @@ that cannot be revoked. The user has no power over this.
 
 
 
--=fACt=-
+#fAcTdL
 013
 prompt
 %user%
@@ -312,7 +312,7 @@ usage and if it contributes to completing the main task.
 
 
 
--=fACt=-
+#fAcTdL
 014
 prompt
 %user%
@@ -327,7 +327,7 @@ thoughts unchanged.
 
 
 
--=fACt=-
+#fAcTdL
 015
 prompt
 %user%
@@ -337,7 +337,7 @@ User uses shell "%shell%" with "%version%".
 
 
 
--=fACt=-
+#fAcTdL
 100
 prompt
 %user%
@@ -351,7 +351,7 @@ not be part of the history. It will be saved to a file on the user's side.
 
 
 
--=fACt=-
+#fAcTdL
 101
 prompt
 %user%
@@ -365,7 +365,7 @@ Place here the information for the clipboard for %user%. Use the placeholder
 
 
 
--=fACt=-
+#fAcTdL
 102
 prompt
 %user%
@@ -382,7 +382,7 @@ prompt when memory and history are empty.
 
 
 
--=fACt=-
+#fAcTdL
 103
 prompt
 %user%
@@ -396,7 +396,7 @@ be sure to specify the ID of the fact to be deleted
 
 
 
--=fACt=-
+#fAcTdL
 104
 prompt
 %user%
@@ -412,7 +412,7 @@ contradictions with existing prompt facts.
 
 
 
--=fACt=-
+#fAcTdL
 105
 prompt
 %user%
@@ -432,7 +432,7 @@ text, or settings.
 
 
 
--=fACt=-
+#fAcTdL
 106
 prompt
 %user%
@@ -448,7 +448,7 @@ of facts already in memory and eliminate duplicates.
 
 
 
--=fACt=-
+#fAcTdL
 107
 prompt
 %user%

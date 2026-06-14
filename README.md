@@ -218,7 +218,7 @@ for the full concept and philosophical background. Unlike a human, who cannot
 **Enable:**
 
 ```
-ai --switch-prompt-id=automnemomorf
+ai --switch-prompt=automnemomorf
 ```
 
 ```yaml
@@ -231,7 +231,7 @@ access:
 **Disable:**
 
 ```
-ai --switch-prompt-id=default
+ai --switch-prompt=default
 ```
 
 ```yaml
@@ -253,36 +253,16 @@ AI communicates using named blocks instead of JSON. Each block represents a
 single fact or operation. Both user requests and AI responses follow the same
 fact block structure. This creates a uniform way to represent all information.
 
+
+
 ## Why not json
 
 JSON requires escaping quotes and newlines inside strings. LLMs often produce
 invalid JSON — missing commas, unescaped quotes, broken multiline strings. Fact
 blocks need no escaping, work naturally with multiline content, and LLMs
-generate them correctly. How It Works
+generate them correctly.
 
-Each fact block starts with a delimiter and contains five fields:
-```
-<delimiter>
-<id>
-<type>
-<actor>
-<action>
-<content>
-```
 
-1. id — unique identifier of the fact (- for new facts)
-2. type — history (chat), memory (long-term), prompt (system)
-3. actor — user, assistant, system, etc
-4. action — operation type
-    1. read - llm must use this fact
-    1. message - Send output to user (STDOUT)
-    2. command - Propose shell command
-    3. pool	Save - large data to pool file
-    4. clipboard - Copy to clipboard
-    5. add - Add new fact
-    6. remove	Delete fact by id
-    7. change	Replace existing fact
-5. content — any text (can be multiline)
 
 ## How LLM Operates
 
@@ -291,6 +271,8 @@ Each fact block starts with a delimiter and contains five fields:
 3. LLM can add, remove, or change any fact
 4. Returns new facts in same format
 5. No special parsing — facts are facts
+
+
 
 ## Benefits
 

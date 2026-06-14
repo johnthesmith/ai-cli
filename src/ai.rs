@@ -1193,7 +1193,7 @@ impl Ai
                 };
 
                 let _ = std::fs::write(&prompt_path, &default_prompt);
-                self.prompt_storage.parse( &default_prompt );
+                self.prompt_storage.parse_file( &default_prompt );
                 self.prompt_storage.save( &prompt_path );
             }
             else

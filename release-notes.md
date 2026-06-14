@@ -1,11 +1,10 @@
 # Release v1.0.14
 
-1. Исправлена ошибка с отсутсвием в промте Actor
-2. Внесены косметические правки в промт
-3. Добавлены сокращенные ключи вроде -ch(--clear-history) и тд
-4. Поправлены минорные ошибки
-5. Добавлена информация в --out-info
-
+1. Fixed the absence of Actor in the prompt.
+2. Cosmetic improvements made to the prompt.
+3. Added shortened keys like -ch (--clear-history), etc.
+4. Minor bugs fixed.
+5. Added information to --out-info.
 
 # Release v1.0.13
 
@@ -13,7 +12,7 @@
 0. Refactored LLM interaction protocol
 0. Added mnemonic mode to reflect LLM memory operations — show-mnemonic
 0. Added configuration mode — think
-0. **Important:** Remove old configs prompts memory and history before 
+0. **Important:** Remove old configs prompts memory and history before
 update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 
 
@@ -23,7 +22,7 @@ update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 1. Added `PROMPT_AUTOMNEMOMORF` — full automnemomorph behavior (AI can modify history/memory/prompt on its own initiative)
 0. Default prompt restrictions: AI cannot modify `prompt` facts, only `memory` and `history` on user request
 0. Fixed prompt loading: default prompts auto-created if missing or empty
-0. **Important:** Remove old configs prompts memory and history before 
+0. **Important:** Remove old configs prompts memory and history before
 update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 
 
@@ -39,7 +38,7 @@ update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 1. Fixed `delete` operation (now properly accumulates multiple IDs)
 0. Added block delimiter isolation for user prompt (prevents accidental injection)
 0. Updated system prompt (block-based format, clarified role attribution)
-0. **Important:** Remove old configs prompts memory and history before 
+0. **Important:** Remove old configs prompts memory and history before
 update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 
 
@@ -54,9 +53,9 @@ update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 # Release v1.0.8
 
 1. Follows [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md).
-0. Access control (`c`/`u`/`d` permissions) and 
+0. Access control (`c`/`u`/`d` permissions) and
 [auto-mnemomorph](./README.md#for-developers) mode (full AI control over history/memory)
-0. Removed `--pack-history` command (history compaction now handled by AI via 
+0. Removed `--pack-history` command (history compaction now handled by AI via
 natural language)
 
 
@@ -104,11 +103,11 @@ natural language)
 1. `max-chat-prompt-size-byte` – prompt size limit (default: 100000 bytes)
 0. `%model%` placeholder in all file paths
 0. Model name sanitization for filesystem safety
-0. **Hierarchical config** – parameters can be set at global, provider, model, 
+0. **Hierarchical config** – parameters can be set at global, provider, model,
 or chat level with inheritance
-0. **Unified config access** – single `get_config_val()` method replaces manual 
+0. **Unified config access** – single `get_config_val()` method replaces manual
 navigation
-0. All paths now support `%profile%`, `%provider%`, `%model%`, `%chat%` 
+0. All paths now support `%profile%`, `%provider%`, `%model%`, `%chat%`
 placeholders
 0. Double mutable borrow error on provider creation
 0. Unsafe unwraps and type mismatches
