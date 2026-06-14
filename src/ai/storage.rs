@@ -5,9 +5,9 @@
 
 /*
     Storage interface for CRUD operations on facts
-    Each fact = one block in text file
+    Each fact = one fact in text file
 
-    Blocks are loaded into memory and saved on demand
+    facts are loaded into memory and saved on demand
 */
 
 use std::fs;
@@ -27,14 +27,14 @@ pub struct Storage
     allow_update: bool,
     /* Storage state */
     state: State,
-    /* In-memory blocks loaded once  id -> actor,content */
-    pub blocks: BTreeMap
+    /* In-memory facts loaded once  id -> actor,content */
+    pub facts: BTreeMap
     <
         /* id */
-        String, 
+        String,
         (
             /* origin = prompt|memory|history|prompt|clipboard|shell */
-            String, 
+            String,
             /* action = read|add|remove|change */
             String,
             /* actor = tool|assistant|user */
@@ -63,83 +63,109 @@ impl Storage
             allow_delete: true,
             allow_update: true,
             state: State::ok(),
-            blocks: BTreeMap::new(),
-            fact_delimiter: "-=*=-".to_string()
+
+            facts: BTreeMap::new(),
+            /* Default fact delimiter will be replaced by first promt line */
+            fact_delimiter: "==fAcTd==".to_string()
         }
     }
 
 
 
     /*
-        Parse blocks from string content
-        Returns number of blocks parsed
+        Parse facts from string content
+        Returns number of facts parsed
+
+        Format:
+            delimiter
+            id
+            origin
+            actor
+
     */
     pub fn parse
     (
-        &mut self, 
+        &mut self,
         content: &str
-    ) 
+    )
     {
         let lines: Vec<&str> = content.lines().collect();
-        if !lines.is_empty() 
+        if !lines.is_empty()
         {
             self.fact_delimiter = lines[0].trim().to_string();
             if !self.fact_delimiter.is_empty()
             {
 
-                let mut blocks = Vec::new();
-                let mut current_block = Vec::new();
+                let mut facts = Vec::new();
+                let mut current_fact = Vec::new();
                 let mut i = 1; // skip first line (delimiter)
-                while i < lines.len() 
+                while i < lines.len()
                 {
-                    let line = lines[i];                 
-                    /* Check if line is exactly the delimiter (no extra chars) */
-                    if line == self.fact_delimiter 
+                    let line = lines[i];
+                    /*
+                        Check if line is exactly the delimiter
+                        (no extra chars)
+                    */
+                    if line == self.fact_delimiter
                     {
-                        /* End of current block */
-                        if !current_block.is_empty() 
+                        /* End of current fact */
+                        if !current_fact.is_empty()
                         {
-                            blocks.push( current_block.join( "\n" ));
-                            current_block.clear();
+                            facts.push( current_fact.join( "\n" ));
+                            current_fact.clear();
                         }
-                    } 
-                    else 
-                    {
-                        current_block.push(line);
                     }
-                    
+                    else
+                    {
+                        current_fact.push(line);
+                    }
+
                     i += 1;
                 }
 
-                /* Last block */
-                if !current_block.is_empty() 
+                /* Last fact */
+                if !current_fact.is_empty()
                 {
-                    blocks.push(current_block.join( "\n" ));
+                    facts.push(current_fact.join( "\n" ));
                 }
-            
-                for block in blocks
+
+                for fact in facts
                 {
-                    let block = block.trim();
-                    if !block.is_empty()
+                    let fact = fact.trim();
+                    if !fact.is_empty()
                     {
-                        let lines: Vec<&str> = block.lines().collect();
-                        if lines.len() >= 4
+                        let lines: Vec<&str> = fact.lines().collect();
+                        if lines.len() > 3
                         {
                             let id = lines[0].trim().to_string();
                             let origin = lines[1].trim().to_string();
-                            let action = lines[2].trim().to_string();
-                            let actor = lines[3].trim().to_string();
-                            let content = if lines.len() >=5 
+                            let actor = lines[2].trim().to_string();
+                            let content = lines[ 3.. ]
+                            .join( "\n" )
+                            .trim()
+                            .to_string();
+
+                            let final_id = if id == "-"
                             {
-                                lines[ 4.. ].join( "\n" ).trim().to_string() 
+                                self.generate_id()
                             }
                             else
                             {
-                                "".to_string()
+                                id
                             };
 
-                            let final_id = if id == "-" { self.generate_id() } else { id };
-                            self.blocks.insert( final_id, ( origin, action, actor, content ));
+                            self.facts.insert
+                            (
+                                final_id,
+                                (
+                                    /* Origin */
+                                    origin,
+                                    /* Empty action */
+                                    "".to_string(),
+                                    actor,
+                                    content
+                                )
+                            );
                         }
                     }
                 }
@@ -150,58 +176,58 @@ impl Storage
 
 
     /*
-        Parse blocks from string content
-        Returns number of blocks parsed
+        Parse facts from string content
+        Returns number of facts parsed
     */
     pub fn parse_answer
     (
-        &mut self, 
+        &mut self,
         content: &str
-    ) 
+    )
     {
         let lines: Vec<&str> = content.lines().collect();
-        if !lines.is_empty() 
+        if !lines.is_empty()
         {
             self.fact_delimiter = lines[0].trim().to_string();
             if !self.fact_delimiter.is_empty()
             {
 
-                let mut blocks = Vec::new();
-                let mut current_block = Vec::new();
+                let mut facts = Vec::new();
+                let mut current_fact = Vec::new();
                 let mut i = 1; // skip first line (delimiter)
-                while i < lines.len() 
+                while i < lines.len()
                 {
-                    let line = lines[i];                 
+                    let line = lines[i];
                     /* Check if line is exactly the delimiter (no extra chars) */
-                    if line == self.fact_delimiter 
+                    if line == self.fact_delimiter
                     {
-                        /* End of current block */
-                        if !current_block.is_empty() 
+                        /* End of current fact */
+                        if !current_fact.is_empty()
                         {
-                            blocks.push( current_block.join( "\n" ));
-                            current_block.clear();
+                            facts.push( current_fact.join( "\n" ));
+                            current_fact.clear();
                         }
-                    } 
-                    else 
-                    {
-                        current_block.push(line);
                     }
-                    
+                    else
+                    {
+                        current_fact.push(line);
+                    }
+
                     i += 1;
                 }
 
-                /* Last block */
-                if !current_block.is_empty() 
+                /* Last fact */
+                if !current_fact.is_empty()
                 {
-                    blocks.push(current_block.join( "\n" ));
+                    facts.push(current_fact.join( "\n" ));
                 }
-            
-                for block in blocks
+
+                for fact in facts
                 {
-                    let block = block.trim();
-                    if !block.is_empty()
+                    let fact = fact.trim();
+                    if !fact.is_empty()
                     {
-                        let lines: Vec<&str> = block.lines().collect();
+                        let lines: Vec<&str> = fact.lines().collect();
                         {
                             let directive = lines[0].trim().to_string();
                             let mut content = String::new();
@@ -222,9 +248,9 @@ impl Storage
                                         action = "add".to_string();
                                         actor = "%assistant%".to_string();
                                     };
-                                                                      
+
                                 },
-                                
+
                                 "prompt" |
                                 "prompt-add" |
                                 "prompt-insert" =>
@@ -235,9 +261,9 @@ impl Storage
                                         origin = "prompt".to_string();
                                         action = "add".to_string();
                                         actor = "%assistant%".to_string();
-                                    };                                                                     
+                                    };
                                 },
-                                
+
                                 "shell" |
                                 "shell-add" |
                                 "shell-insert" =>
@@ -251,9 +277,9 @@ impl Storage
                                         origin = "shell".to_string();
                                         action = "add".to_string();
                                         actor = "%assistant%".to_string();
-                                    };                                                                     
+                                    };
                                 },
-                                
+
                                 "pool" |
                                 "pool-add" |
                                 "pool-insert" =>
@@ -266,8 +292,9 @@ impl Storage
                                         .to_string();
                                         origin = "pool".to_string();
                                         action = "add".to_string();
-                                        actor = crate::ai::ASSISTANT.to_string();
-                                    };                                                                     
+                                        actor = crate::ai::ASSISTANT
+                                        .to_string();
+                                    };
                                 },
 
 
@@ -282,7 +309,7 @@ impl Storage
                                         .join( "\n" )
                                         .trim()
                                         .to_string();
-                                    };                                                                     
+                                    };
                                 },
 
                                 "remove" | "delete" =>
@@ -291,7 +318,7 @@ impl Storage
                                     {
                                         action = "remove".to_string();
                                         id = lines[ 1 ].to_string();
-                                    };                                                                     
+                                    };
                                 },
 
                                 "buffer" |
@@ -307,7 +334,7 @@ impl Storage
                                         origin = "clipboard".to_string();
                                         action = "add".to_string();
                                         actor = "%assistant%".to_string();
-                                    };                                                                     
+                                    };
                                 },
 
                                 "add" |
@@ -329,11 +356,11 @@ impl Storage
                                 },
 
                             }
-                            
+
                             id = if id == "-" { self.generate_id() } else { id };
-                            self.blocks.insert
+                            self.facts.insert
                             (
-                                id, 
+                                id,
                                 ( origin, action, actor, content )
                             );
                         }
@@ -358,7 +385,7 @@ impl Storage
     */
     pub fn load
     (
-        &mut self, 
+        &mut self,
         path: &str
     )
     -> &mut Self
@@ -386,9 +413,9 @@ impl Storage
             }
         };
 
-        self.blocks.clear();
+        self.facts.clear();
         self.parse( &content );
-        
+
         self
     }
 
@@ -429,7 +456,7 @@ impl Storage
             return self;
         }
 
-        let content = self.to_string();
+        let content = self.to_request_string();
 
         if let Err(e) = fs::write( path, &content )
         {
@@ -449,7 +476,7 @@ impl Storage
     }
 
 
-    
+
     /*
         Generate new ID (microseconds timestamp)
     */
@@ -457,16 +484,16 @@ impl Storage
     -> String
     {
         use std::time::{ SystemTime, UNIX_EPOCH };
-        
+
         let since_epoch = SystemTime::now()
         .duration_since( UNIX_EPOCH )
         .unwrap_or_default();
-        
+
         since_epoch.as_micros().to_string()
     }
 
 
-    
+
     /*
         Return state
     */
@@ -479,12 +506,12 @@ impl Storage
 
 
     /*
-        Clear all blocks from storage
+        Clear all facts from storage
     */
     pub fn clear( &mut self )
     -> &mut Self
     {
-        self.blocks.clear();
+        self.facts.clear();
         self
     }
 
@@ -493,7 +520,7 @@ impl Storage
         CRUD
     */
 
-    
+
     /*
         Create new fact
         Returns generated ID
@@ -515,14 +542,14 @@ impl Storage
         if self.allow_create
         {
             let id = self.generate_id();
-            self.blocks.insert
+            self.facts.insert
             (
-                id.clone(), 
+                id.clone(),
                 (
-                    origin.to_string(),                   
-                    action.to_string(), 
-                    actor.to_string(), 
-                    content.to_string()                    
+                    origin.to_string(),
+                    action.to_string(),
+                    actor.to_string(),
+                    content.to_string()
                 )
             );
         }
@@ -569,14 +596,14 @@ impl Storage
     {
         if self.allow_update
         {
-            self.blocks.insert
+            self.facts.insert
             (
-                id.to_string(), 
+                id.to_string(),
                 (
-                    origin.to_string(),                   
-                    action.to_string(), 
-                    actor.to_string(), 
-                    content.to_string()                    
+                    origin.to_string(),
+                    action.to_string(),
+                    actor.to_string(),
+                    content.to_string()
                 )
             );
         }
@@ -598,7 +625,7 @@ impl Storage
             );
         }
         self
-    }    
+    }
 
 
 
@@ -614,7 +641,7 @@ impl Storage
     {
         if self.allow_delete
         {
-            self.blocks.remove( id );
+            self.facts.remove( id );
         }
         else
         {
@@ -653,12 +680,12 @@ impl Storage
         String
     )
     {
-        if let Some(( origin, action, actor, content )) = self.blocks.get( id )
+        if let Some(( origin, action, actor, content )) = self.facts.get( id )
         {
-            ( 
+            (
                 origin.clone(),
                 action.clone(),
-                actor.clone(), 
+                actor.clone(),
                 content.clone()
             )
         }
@@ -679,13 +706,13 @@ impl Storage
         Get fact by ID as string with delimiter
     */
     pub fn to_string_by_id
-    ( 
-        &self, 
+    (
+        &self,
         id: &str
     )
     -> String
     {
-        if let Some(( origin, action, actor, content )) = self.blocks.get( id )
+        if let Some(( origin, action, actor, content )) = self.facts.get( id )
         {
             return format!
             (
@@ -693,12 +720,12 @@ impl Storage
                 self.fact_delimiter,
                 id,
                 origin,
-                action,
                 actor,
+                action,
                 content
             );
         }
-        
+
         String::new()
     }
 
@@ -708,25 +735,25 @@ impl Storage
         Get fact by ID as string with delimiter
     */
     pub fn to_request_string_by_id
-    ( 
-        &self, 
+    (
+        &self,
         id: &str
     )
     -> String
     {
-        if let Some(( origin, _, actor, content )) = self.blocks.get( id )
+        if let Some(( origin, _, actor, content )) = self.facts.get( id )
         {
             return format!
             (
-                "{}\n{}\n{}\n{}\n\n{}\n\n",
+                "{}\n{}\n{}\n{}\n{}\n\n",
                 self.fact_delimiter,
+                id,
                 origin,
                 actor,
-                id,
                 content
             );
         }
-        
+
         String::new()
     }
 
@@ -742,7 +769,7 @@ impl Storage
     -> String
     {
         let mut content = String::new();
-        for( id, _ ) in &self.blocks
+        for( id, _ ) in &self.facts
         {
             content.push_str( &self.to_string_by_id( id ));
         }
@@ -762,7 +789,7 @@ impl Storage
     -> String
     {
         let mut content = String::new();
-        for( id, _ ) in &self.blocks
+        for( id, _ ) in &self.facts
         {
             content.push_str( &self.to_request_string_by_id( id ));
         }
@@ -776,7 +803,7 @@ impl Storage
     */
     pub fn set_access
     (
-        &mut self, 
+        &mut self,
         access: &str
     ) -> &mut Self
     {
@@ -787,7 +814,7 @@ impl Storage
     }
 
 
-    
+
     pub fn get_access( &self )
     -> String
     {
@@ -811,7 +838,7 @@ impl Storage
     pub fn set_fact_delimiter
     (
         &mut self,
-        delimiter: &str    
+        delimiter: &str
     )
     -> &mut Self
     {
@@ -827,6 +854,6 @@ impl Storage
         id: &str
     ) -> bool
     {
-        self.blocks.contains_key(id)
+        self.facts.contains_key(id)
     }
 }

@@ -35,14 +35,14 @@
 5. Press Enter to execute the final command
 
 ```mermaid
-flowchart LR    
+flowchart LR
     keyboard[ keyboard \n input ]
     clipboard{{clipboard}}
     stdout{{stdout}}
     stdin{{stdin}}
-    pool[(pool \n file)] 
+    pool[(pool \n file)]
     memory[(memory)]
-    ai[ai-cli] 
+    ai[ai-cli]
     bash{{run bash \n command}}
     user((users \n 'ENTER'))
 
@@ -68,33 +68,32 @@ echo "hello world" | ai "say it for groq" --provider=openai | ai "grok"
 
 # Why `ai-cli`
 
-1. **No bloat** — No Node.js, no Python, no Docker. Core works with POSIX tools 
+1. **No bloat** — No Node.js, no Python, no Docker. Core works with POSIX tools
 (`cat`, `tee`, `grep`). All extras (`xclip`, `git`, `nano`) are **optional**.
-2. **Minimal dependencies** — Single static binary. No runtime, no package 
+2. **Minimal dependencies** — Single static binary. No runtime, no package
 manager, no interpreter.
-3. **Full user control** — AI **never** executes commands. Command appears on 
-your keyboard → you edit → you press Enter → bash executes. No background agent. 
+3. **Full user control** — AI **never** executes commands. Command appears on
+your keyboard → you edit → you press Enter → bash executes. No background agent.
 No daemon. No permission popups. Just your terminal.
-4. **User defines output destinations** — each can be 
-sent to stdout, pool file, clipboard, TTY, or any custom command. You decide where AI 
-output goes.
-5. **Unix way** — Everything is a file or a pipe. Configuration is plain YAML in 
-`~/.config/ai/`. History is plain text in `~/.local/share/ai/`. pool is plain 
+4. **User defines output destinations** — each can be sent to stdout, pool
+file, clipboard, TTY, or any custom command. You decide where AI output goes.
+5. **Unix way** — Everything is a file or a pipe. Configuration is plain YAML in
+`~/.config/ai/`. History is plain text in `~/.local/share/ai/`. pool is plain
 text. No databases, no registries, no hidden state.
 
 **Compare:**
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — can run shell 
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — can run shell
 commands automatically (with "auto mode")
-- [Codex CLI](https://github.com/openai/openai-codex) — has Auto/Read-only/Full 
+- [Codex CLI](https://github.com/openai/openai-codex) — has Auto/Read-only/Full
 Access modes, can execute without confirmation
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — has "Yolo mode" 
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — has "Yolo mode"
 that bypasses confirmations
-- [Shell-GPT](https://github.com/TheR1D/shell_gpt) — can execute commands with 
+- [Shell-GPT](https://github.com/TheR1D/shell_gpt) — can execute commands with
 `--execute` flag
-- [aichat](https://github.com/sigoden/aichat) — can execute commands with 
+- [aichat](https://github.com/sigoden/aichat) — can execute commands with
 `--execute` flag
-- [Aider](https://github.com/paul-gauthier/aider) — autonomous agent that writes 
+- [Aider](https://github.com/paul-gauthier/aider) — autonomous agent that writes
 and executes code
 
 `ai-cli` — only you press Enter... and that’s all that matters.
@@ -117,17 +116,17 @@ and executes code
 
 # Liability
 
-**The author assumes no responsibility for data loss or system damage.** You are 
+**The author assumes no responsibility for data loss or system damage.** You are
 using this tool at your own risk.
 
 
 
 # Install
 
-1. If you have existing configuration from previous versions, remove it before 
-installation. Otherwise, new configuration files will NOT be created and you may 
+1. If you have existing configuration from previous versions, remove it before
+installation. Otherwise, new configuration files will NOT be created and you may
 experience issues.
-2. Run 
+2. Run
 ```
 curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh | bash
 ```
@@ -158,12 +157,13 @@ source ~/.bashrc
 
 # Configuration
 
-1. On first run, default config will be created at 
-`~/.config/ai/default/config.yaml` from 
+1. On first run, default config will be created at
+`~/.config/ai/default/config.yaml` from
 [config](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/config.rs)
 2. Tokens will be placed in `~/.config/ai/default/tokens/<provider>.txt`
 3. For Git token retrieval see [Git token](./man/git-toke.md).
-4. Following the [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md)
+4. Following the
+[AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md)
 
 
 
@@ -182,9 +182,9 @@ source ~/.bashrc
 - Always review the command printed in your terminal before pressing Enter.
 - The AI may generate dangerous commands (e.g., `rm -rf /*`, `dd`, `sudo`).
 - Never execute commands you don't understand.
-- This utility does NOT automatically execute commands — you must press Enter to 
-confirm.
-- Recursive `ai|ai` pipelines may cause the tool to hang, but **cannot execute 
+- This utility does NOT automatically execute commands — you must press
+Enter to confirm.
+- Recursive `ai|ai` pipelines may cause the tool to hang, but **cannot execute
 commands without your approval** — AI never presses Enter for you.
 
 
@@ -200,16 +200,16 @@ commands without your approval** — AI never presses Enter for you.
 ## For developers
 
 1. Look at [ai.rs](https://github.com/johnthesmith/ai-cli/blob/main/src/ai.rs).
-2. Search for `REMOVE_ENTER` — shows where newlines are stripped from 
+2. Search for `REMOVE_ENTER` — shows where newlines are stripped from
 AI-generated commands (security: prevents auto-execution)
 
 
 
 # Automnemomorph
 
-See 
-[automnemomorph](https://github.com/johnthesmith/scraps/blob/main/en/automnemomorph.md) 
-for the full concept and philosophical background. Unlike a human, who cannot 
+See
+[automnemomorph](https://github.com/johnthesmith/scraps/blob/main/en/automnemomorph.md)
+for the full concept and philosophical background. Unlike a human, who cannot
 "unsee" the past, auto-mnemomorph can:
 - Rewrite history (correct mistakes, remove insignificant details)
 - Forget on its own initiative
@@ -245,19 +245,19 @@ access:
 
 # Fact Protocol
 
-The AI assistant must return strict block structure. The full format description 
-and rules are in the 
+The AI assistant must return strict block structure. The full format
+description and rules are in the
 [prompt file](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/prompts.rs)
 
-AI communicates using named blocks instead of JSON. Each block represents a 
-single fact or operation. Both user requests and AI responses follow the same 
+AI communicates using named blocks instead of JSON. Each block represents a
+single fact or operation. Both user requests and AI responses follow the same
 fact block structure. This creates a uniform way to represent all information.
 
 ## Why not json
 
-JSON requires escaping quotes and newlines inside strings. LLMs often produce 
-invalid JSON — missing commas, unescaped quotes, broken multiline strings. Fact 
-blocks need no escaping, work naturally with multiline content, and LLMs 
+JSON requires escaping quotes and newlines inside strings. LLMs often produce
+invalid JSON — missing commas, unescaped quotes, broken multiline strings. Fact
+blocks need no escaping, work naturally with multiline content, and LLMs
 generate them correctly. How It Works
 
 Each fact block starts with a delimiter and contains five fields:
@@ -315,13 +315,13 @@ flowchart LR
             pool[("pool \n file")]
             log[("Log")]
         end
-        
+
         clipboard["Clipboard"]
         stdin{{"User stdin"}}
         param{{"User CLI param"}}
         command{{"bash"}}
         stdout{{"User stdout"}}
-        
+
         req["Request"]
         resp["Response"]
     end
@@ -331,15 +331,15 @@ flowchart LR
     end
 
     resp --> |all| log
-    
+
     llm --> |HTTP \n responce| resp
     req -->|HTTP \n request| llm
-       
+
     resp -->|data| memory_out
     resp -->|data| history_out
     resp -->|data| stdout
-    resp -->|command| command    
-    resp -->|data| pool     
+    resp -->|command| command
+    resp -->|data| pool
     resp -->|data| clipboard
 
     memory_in --> |txt| req

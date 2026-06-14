@@ -8,8 +8,6 @@
 use regex::Regex;
 use reqwest::blocking::Response;
 
-use core::Color;
-
 use crate::Ai;
 use super::api::{ get_api_url, get_token };
 use super::Provider;
@@ -56,22 +54,23 @@ impl<'a> OpenAICompatibleProvider<'a>
     fn create_client( &self )
     -> reqwest::blocking::Client
     {
-        let mut builder = 
+        let mut builder =
         reqwest::blocking::Client::builder()
         .timeout( std::time::Duration::from_millis( self.ai.get_request_timeout_ms() ))
         .connect_timeout( std::time::Duration::from_millis( self.ai.get_connect_timeout_ms() ));
 
         let proxy_url = self.ai.read_proxy();
-        if !proxy_url.is_empty() 
+        if !proxy_url.is_empty()
         {
-            if let Ok(proxy) = reqwest::Proxy::all(&proxy_url) 
+            if let Ok(proxy) = reqwest::Proxy::all(&proxy_url)
             {
                 builder = builder.proxy(proxy);
             }
         }
-        
+
         builder.build().unwrap()
     }
+
 
 
     /*
@@ -125,7 +124,12 @@ impl<'a> OpenAICompatibleProvider<'a>
                 .prm( "error", &e.to_string() )
                 .prm( "content", &clear );
 
-                error_msg = format!( "Failed to parse response: {}", e.to_string() );
+                error_msg = format!
+                (
+                    "Failed to parse response: {}",
+                     e.to_string()
+                );
+
                 content = clear.to_string();
                 success = false;
             }
@@ -136,7 +140,7 @@ impl<'a> OpenAICompatibleProvider<'a>
                 {
                     error_msg = format!
                     (
-                        "API error {}:", 
+                        "API error {}:",
                         error[ "message" ]
                         .as_str()
                         .unwrap_or( "Unknown API error" )
@@ -145,7 +149,7 @@ impl<'a> OpenAICompatibleProvider<'a>
 
                     content = clear.to_string();
                     success = false;
-                } 
+                }
                 else
                 {
                     content = json[ "choices" ][ 0 ][ "message" ] ["content" ]
@@ -174,13 +178,12 @@ impl<'a> OpenAICompatibleProvider<'a>
                 }
             }
         }
-
-        ( 
-            error_msg, 
-            think, 
-            content, 
-            prompt_tokens, 
-            completion_tokens, 
+        (
+            error_msg,
+            think,
+            content,
+            prompt_tokens,
+            completion_tokens,
             success
         )
     }
@@ -214,7 +217,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
     /*
         Return provider name identifier.
     */
-    fn get_name( &self ) 
+    fn get_name( &self )
     -> &str
     {
         &self.name
@@ -240,12 +243,12 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         /* Trigger before request event */
         self.ai.on_before_request
         (
-            &prompt, 
-            &self.name, 
-            &model, 
+            &prompt,
+            &self.name,
+            &model,
             &api_url
         );
-    
+
         /* Prepare request */
         let mut payload = serde_json::json!
         (
@@ -273,7 +276,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
         /*
             Control result
-        */        
+        */
         match response
         {
             Ok( resp ) =>
@@ -281,16 +284,16 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 /* Dump headers */
                 self.dump_headers( &resp );
 
-                /* Get full answer */             
+                /* Get full answer */
                 let full_answer = resp.text().unwrap_or_default();
 
                 /* Event */
                 self.ai.on_after_response
                 (
-                    &full_answer, 
-                    &self.name, 
-                    &model, 
-                    &api_url, 
+                    &full_answer,
+                    &self.name,
+                    &model,
+                    &api_url,
                     "chat"
                 );
 
@@ -298,9 +301,9 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 let
                 (
                     error,
-                    _, //think, 
-                    content, 
-                    _, //prompt_tokens, 
+                    _, //think,
+                    content,
+                    _, //prompt_tokens,
                     _, //answer_tokens,
                     result
                 ) = self.parse_response( full_answer );
@@ -329,20 +332,17 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 /* event */
                 self.ai.on_after_response
                 (
-                    &e.to_string(), 
-                    &self.name, 
-                    &model, 
-                    &api_url, 
+                    &e.to_string(),
+                    &self.name,
+                    &model,
+                    &api_url,
                     "chat"
                 );
 
                 println!
                 (
-                    "{}{}\n{}{}",
-                    Color::Red.to_str(),
-                    "API error",
-                    &e.to_string(),
-                    Color::Default.to_str()
+                    "API error\n{}",
+                    &e.to_string()
                 );
 
                 let provider_name = self.get_name().to_string();
@@ -355,6 +355,6 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 .prm( "proxy", proxy )
                 ;
             }
-        }      
+        }
     }
 }

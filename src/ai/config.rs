@@ -34,7 +34,7 @@ application:
     prompt-file-id: ~/.local/share/ai/app/cli/%profile%/prompt.txt
 
     # File with current original prompt (%profile% %provider% %model% %caht%)
-    prompt-file: ~/.local/share/ai/app/cli/%profile%/prompts/%prompt-id%.txt
+    prompt-file: ~/.local/share/ai/app/cli/%profile%/prompts/%prompt%.txt
 
     # Think mode enable for llm deepseek
     think: false
