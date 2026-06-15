@@ -19,8 +19,8 @@ use std::collections::BTreeMap;
 
 pub struct Storage
 {
-    /* Allow create operations */
-    allow_create: bool,
+    /* Allow insert operations */
+    allow_insert: bool,
     /* Allow delete operations */
     allow_delete: bool,
     /* Allow update operations */
@@ -59,7 +59,7 @@ impl Storage
     {
         Self
         {
-            allow_create: true,
+            allow_insert: true,
             allow_delete: true,
             allow_update: true,
             state: State::ok(),
@@ -526,10 +526,10 @@ impl Storage
 
 
     /*
-        Create new fact
+        insert new fact
         Returns generated ID
     */
-    pub fn create
+    pub fn insert
     (
         &mut self,
         /* Origin of fact */
@@ -543,7 +543,7 @@ impl Storage
     )
     -> &mut Self
     {
-        if self.allow_create
+        if self.allow_insert
         {
             let id = self.generate_id();
             self.facts.insert
@@ -561,7 +561,7 @@ impl Storage
         {
             self.state.set_state
             (
-                "storage-create-not-allowed",
+                "storage-insert-not-allowed",
                 json!
                 (
                     {
@@ -813,7 +813,7 @@ impl Storage
         access: &str
     ) -> &mut Self
     {
-        self.allow_create = access.contains( 'c' );
+        self.allow_insert = access.contains( 'c' );
         self.allow_update = access.contains( 'u' );
         self.allow_delete = access.contains( 'd' );
         self
@@ -825,7 +825,7 @@ impl Storage
     -> String
     {
         let mut access = String::new();
-        if self.allow_create { access.push( 'c' ); }
+        if self.allow_insert { access.push( 'c' ); }
         if self.allow_update { access.push( 'u' ); }
         if self.allow_delete { access.push( 'd' ); }
         access

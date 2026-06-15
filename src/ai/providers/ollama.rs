@@ -103,9 +103,9 @@ impl<'a> OllamaProvider<'a>
             Err(e) =>
             {
                 self.ai.app.get_log_mut()
-                    .error("Failed to parse Ollama response")
-                    .prm("error", &e.to_string())
-                    .prm("content", &raw);
+                    .error( "Failed to parse Ollama response")
+                    .prm( "error", &e.to_string())
+                    .prm( "content", &raw);
 
                 error_msg = e.to_string();
                 content = raw.to_string();
@@ -116,7 +116,7 @@ impl<'a> OllamaProvider<'a>
             {
                 if let Some(error) = json.get("error") {
                     error_msg = error.as_str()
-                        .unwrap_or("Unknown Ollama error")
+                        .unwrap_or( "Unknown Ollama error" )
                         .to_string();
                     content = error_msg.clone();
                     success = false;

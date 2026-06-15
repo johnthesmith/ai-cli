@@ -6,64 +6,63 @@
 pub const CONTENT: &str = r#"%version%
 
 Usage:
-    ai                          Interactive keyboard input
-    ai <question>               Ask a question
-    echo <text> | ai            Read from stdin
-    ai --help                   Show this help
+    ai                              Interactive keyboard input
+    ai <question>                   Ask a question
+    echo <text> | ai                Read from stdin
+    ai --help                       Show this help
 Pattern:
     ai [hellow] [world] [--<action>=<key>][--<argument>=<value>]
 
 Options:
-    --help|-?|-h                Same as --show=help
-    --info|-h                   Same as --show=info
-    --version|-v                Same as --show=version
-
-    --no-prompt                 Suppress input user prompt
-    --no-command                Suppress command event
+    --help|-?|-h                    Same as --show=help
+    --info|-h                       Same as --show=info
+    --version|-v                    Same as --show=version
+    --no-prompt                     Suppress input user prompt
+    --no-command                    Suppress command event
 
 Session:
-    --profile=<id>              Use profile for current session only
-    --provider|-p=<id>          Use provider for current session only
-    --model|-m=<id>             Use model for current session only
-    --chat|-c=<id>              Use chat for current session only
-    --prompt=<id>               Use prompt for current session only
-    --switch-profile=<id>       Permanently switch profile
-    --switch-provider=<id>      Permanently switch provider
-    --switch-model=<id>         Permanently switch model
-    --switch-chat=<id>          Permanently switch chat
-    --switch-prompt=<id>        Permanently switch prompt:
-                                default|automnemomorf|...
-;
-Access for LLM;
+    --profile=<id>                  Use profile for current session only
+    --provider|-p=<id>              Use provider for current session only
+    --model|-m=<id>                 Use model for current session only
+    --chat|-c=<id>                  Use chat for current session only
+    --prompt=<id>                   Use prompt for current session only
+    --switch-profile=<id>           Permanently switch profile
+    --switch-provider=<id>          Permanently switch provider
+    --switch-model=<id>             Permanently switch model
+    --switch-chat=<id>              Permanently switch chat
+    --switch-prompt=<id>            Permanently switch prompt:
+                                    default|automnemomorf|...
+
+Access for LLM:
     --access-history=<mode>     Set history access rights
-                                    c=create,
+                                    i=insert,
                                     u=update,
                                     d=delete
                                     Example: --access-history=cud
     --access-memory=<mode>      Set memory access rights
-                                    c=create,
+                                    i=insert,
                                     u=update,
                                     d=delete
                                     Example: --access-memory=cud
 
-Storage operations with target history|memory|prompt
-    --out-history|-oh           Out history for chat
-    --out-memory|-om            Out memory
-    --out-prompt|-op            Out prompt
-    --out-prompt-origin|-opo    Out original prompt
-    --clear-history|-ch         Remove history content for current chat
-    --clear-memory|-cm          Remove memory content for current chat
-    --select-histroy=<id>       Show fact by id from history
-    --select-memory=<id>        Show fact by id from memory
-    --delete-history=<id>       Delete fact by id from history
-    --delete-memory=<id>        Delete fact by id from memory
-    --update-history=<id>       Update fact by id in history
-    --update-memory=<id>        Update fact by id in memory
-    --insert-history=<content>  Insert new fact into history
-                                content can put from stdin
-    --insert-memory=<id>        Insert new fact into memory
-    --actor=<actor>             Actor for insert/update (default: assistant)
-    --body=<text>               Body for insert/update (or from stdin)
+Storage operations with target history|memory|prompt:
+    --out-history|-oh               Out history for chat
+    --out-memory|-om                Out memory
+    --out-prompt|-op                Out prompt
+    --out-prompt-origin|-opo        Out original prompt
+    --reset-history|-rh             Reset history content for current chat
+    --reset-memory|-rm              Reset memory content for current chat
+    --select-histroy|-sh=<id>       Show fact by id from history
+    --select-memory|-sm=<id>        Show fact by id from memory
+    --delete-history|-dh=<id>       Delete fact by id from history
+    --delete-memory|-dm=<id>        Delete fact by id from memory
+    --update-history|-uh=<id>       Update fact by id in history
+    --update-memory|-um=<id>        Update fact by id in memory
+    --insert-history|-ih=<content>  Insert new fact into history
+                                    content can put from stdin
+    --insert-memory|-im=<content>   Insert new fact into memory
+    --actor=<actor>                 Actor for insert/update (default: assistant)
+    --body=<text>                   Body for insert/update (or from stdin)
 
 Specific:
     --write-pool                Write stdin to pool file and forward to stdout

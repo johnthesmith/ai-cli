@@ -68,12 +68,16 @@ application:
     # For normal mode, keep only 'c' to prevent accidental deletions
     # For auto-mnemomorph mode, set "cud" to allow full memory/history editing
     access:
-      history: "cud"
-      memory: "cud"
-      prompt: "c"
+      history: "iud"
+      memory: "iud"
+      prompt: "i"
 
     # Output destinations
     destination:
+      # For mac os:     cliclick t:"%data%"
+      # For linux:      xdotool
+      # For linux ssh:  ai --tiocsti
+      #                 Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1`
       command: "sleep 0.3 && xdotool type --clearmodifiers --delay 10 --file -"
       message: "cat && echo"
       pool: "ai --write-pool"

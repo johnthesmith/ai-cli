@@ -6,11 +6,10 @@
 
 
 mod default;
-mod ollama;
 pub mod api;
 
 pub use default::OpenAICompatibleProvider;
-pub use ollama::OllamaProvider;
+
 use crate::Ai;
 
 
@@ -48,22 +47,20 @@ pub fn create_provider<'a>
 (
     /* Provider name: "github", "openai", "deepseek", etc. */
     name: &str,
+    //
     /* AI application instance (shared ownership) */
     ai: &'a mut Ai
 )
 /* Boxed trait object implementing Provider */
 -> Box<dyn Provider +'a>
 {
-    match name
+    /* Type of api */
+    let api_type = "openai";
+    
+    match api_type
     {
         /* OpenAI-compatible providers (same API format) */
-        "github" | "openai" | "deepseek" | "groq" | "together"
-        => Box::new( OpenAICompatibleProvider::new( name, ai )),
-
-        /* Ollama (different API format) */
-        "ollama"
-        => Box::new( OllamaProvider::new( ai )),
-
-        _ => Box::new(OpenAICompatibleProvider::new(name, ai))
+        _
+        => Box::new( OpenAICompatibleProvider::new( name, ai ))
     }
 }

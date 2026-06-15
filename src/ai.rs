@@ -68,7 +68,7 @@ pub struct Ai
 impl Ai
 {
     /*
-        Create and return AI
+        ping and return AI
     */
     pub fn create() -> Self
     {
@@ -553,14 +553,14 @@ impl Ai
 
 
 
-                        "clear-history" | "ch"=>
+                        "reset-history" | "rh"=>
                         {
                             no_prompt = true;
                             self.clear_history();
                         }
 
 
-                        "clear-memory" | "cm"=>
+                        "reset-memory" | "rm"=>
                         {
                             no_prompt = true;
                             self.clear_memory();
@@ -612,7 +612,7 @@ impl Ai
                         }
 
 
-
+                        "sh" |
                         "select-history" =>
                         {
                             no_prompt = true;
@@ -630,7 +630,7 @@ impl Ai
                         }
 
 
-
+                        "sm" |
                         "select-memory" =>
                         {
                             no_prompt = true;
@@ -648,7 +648,7 @@ impl Ai
                         }
 
 
-
+                        "dh" |
                         "delete-history" =>
                         {
                             {
@@ -661,7 +661,7 @@ impl Ai
                         }
 
 
-
+                        "dm" |
                         "delete-memory" =>
                         {
                             {
@@ -674,7 +674,7 @@ impl Ai
                         }
 
 
-
+                        "ih" |
                         "insert-history" =>
                         {
                             no_prompt = true;
@@ -694,7 +694,7 @@ impl Ai
 
                             if !body.is_empty()
                             {
-                                self.history_storage.create
+                                self.history_storage.insert
                                 (
                                     "history",
                                     "read",
@@ -705,7 +705,7 @@ impl Ai
                         }
 
 
-
+                        "im" |
                         "insert-memory" =>
                         {
                             no_prompt = true;
@@ -724,7 +724,7 @@ impl Ai
 
                             if !body.is_empty()
                             {
-                                self.memory_storage.create
+                                self.memory_storage.insert
                                 (
                                     "memory",
                                     "read",
@@ -735,7 +735,7 @@ impl Ai
                         }
 
 
-
+                        "uh" |
                         "update-history" =>
                         {
                             no_prompt = true;
@@ -770,7 +770,7 @@ impl Ai
                         }
 
 
-
+                        "um" |
                         "update-memory" =>
                         {
                             no_prompt = true;
@@ -827,7 +827,7 @@ impl Ai
                             "Prompt size {} bytes exceeds limit {} bytes.\n\
                              Please increase max-chat-prompt-size-byte \
                              in config,\n or run 'ai pack history \
-                             --allow-history=cud' to compress conversation \
+                             --allow-history=iud' to compress conversation \
                              history.",
                             size, max_bytes
                         );
@@ -835,7 +835,7 @@ impl Ai
                     else
                     {
                         /* Write user prompt to history */
-                        self.history_storage.create
+                        self.history_storage.insert
                         (
                             "history",
                             "read",
@@ -2042,14 +2042,18 @@ impl Ai
         /* Retrive shell */
         let shell = self.get_config_val(&[ "shell" ], "/bin/bash".to_string() );
 
+        /* Replace data in command */
+        let data_arg = &data.replace( '"', "\"" );
+        let run_command = &command.replace( "%data%", data_arg );
+
         match std::process::Command::new
         (
             shell
         )
-            .arg( "-c" )
-            .arg( command )
-            .stdin( std::process::Stdio::piped() )
-            .spawn()
+        .arg( "-c" )
+        .arg( run_command )
+        .stdin( std::process::Stdio::piped() )
+        .spawn()
         {
             Ok(mut child) =>
             {
@@ -2081,7 +2085,7 @@ impl Ai
                         {
                             self.app.get_log_mut()
                             .warning( "Failed to wait for command" )
-                            .prm( "command", command)
+                            .prm( "command", run_command)
                             .prm( "error", &e.to_string());
                         }
                     }
@@ -2090,7 +2094,7 @@ impl Ai
                 {
                     self.app.get_log_mut()
                     .info( "Command spawned (no wait)" )
-                    .prm( "command", command)
+                    .prm( "command", run_command)
                     .prm( "data_bytes", data_len);
 
                     std::thread::spawn
@@ -2107,7 +2111,7 @@ impl Ai
                 self
                 .app.get_log_mut()
                 .error( "Failed to execute command" )
-                .prm( "command", command )
+                .prm( "command", run_command )
                 .prm( "data_bytes", data.len() )
                 .prm( "error", &e.to_string() );
                 println!( "{}", data );
@@ -2194,7 +2198,7 @@ impl Ai
                     /* Execute command via destination */
                     ( "shell", "add" ) =>
                     {
-                        self.history_storage.create
+                        self.history_storage.insert
                         (
                             "history",
                             "read",
@@ -2249,7 +2253,7 @@ impl Ai
                     /* Handle memory operations */
                     ( "memory", "add" ) =>
                     {
-                        self.memory_storage.create
+                        self.memory_storage.insert
                         (
                             "memory",
                             "read",
@@ -2266,7 +2270,7 @@ impl Ai
                     /* Handle history operations */
                     ( "history", "add" ) =>
                     {
-                        self.history_storage.create
+                        self.history_storage.insert
                         (
                             "history",
                             "read",
@@ -2283,7 +2287,7 @@ impl Ai
                     /* Handle prompt operations */
                     ( "prompt", "add" ) =>
                     {
-                        self.prompt_storage.create
+                        self.prompt_storage.insert
                         (
                             "prompt",
                             "read",
@@ -2393,7 +2397,7 @@ impl Ai
                              body
                          );
 
-                        self.history_storage.create
+                        self.history_storage.insert
                         (
                             "history",
                             "read",
@@ -2656,7 +2660,7 @@ impl Ai
             "--switch-model=",
             "--switch-chat=",
 
-            // LLM access rights (CUD)
+            // LLM access rights (iud)
             "--access-history=",
             "--access-memory=",
             "--access-prompt=",
