@@ -268,11 +268,21 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         /*
             Request
         */
-        let response = client.post( &api_url )
-        .bearer_auth( &token )
-        .header( "Content-Type", "application/json" )
-        .json( &payload )
-        .send();
+        let response = if token.is_empty()
+        {
+            client.post( &api_url )
+            .header( "Content-Type", "application/json" )
+            .json( &payload )
+            .send()
+        }
+        else
+        {
+            client.post( &api_url )
+            .bearer_auth( &token )
+            .header( "Content-Type", "application/json" )
+            .json( &payload )
+            .send()
+        };
 
         /*
             Control result
