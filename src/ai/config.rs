@@ -30,10 +30,12 @@ application:
     # Memory file for long store data
     memory: ~/.local/share/ai/app/cli/%profile%/memory.txt
 
-    # File with current id prompt (placeholders: %profile% %provider% %model% %caht%)
+    # File with current id prompt
+    # placeholders: %profile% %provider% %model% %caht%
     prompt-file-id: ~/.local/share/ai/app/cli/%profile%/prompt.txt
 
-    # File with current original prompt (%profile% %provider% %model% %caht%)
+    # File with current original prompt
+    # placeholders: %profile% %provider% %model% %caht%
     prompt-file: ~/.local/share/ai/app/cli/%profile%/prompts/%prompt%.txt
 
     # Think mode enable for llm deepseek
@@ -42,7 +44,8 @@ application:
     # Show mnemonic string after LLM answer when using CLI AI operations
     show-mnemonic: true
 
-    # Token file (placeholder: %profile% %provider%)
+    # Token file
+    # placeholders: %profile% %provider%
     token: ~/.config/ai/app/cli/%profile%/tokens/%provider%.txt
 
     # File with current model
@@ -61,12 +64,11 @@ application:
     connect_timeout_ms: 10000
 
     # Access control for AI operations
-    # Each string consists of letters: c (create), r (read), u (update), d (delete)
-    # Modes:
-    #   normal      : "c"   - AI can only add, not modify or delete
-    #   auto-mnemomorph : "cud" - AI can create, update, delete (full control)
-    # For normal mode, keep only 'c' to prevent accidental deletions
-    # For auto-mnemomorph mode, set "cud" to allow full memory/history editing
+    # Each string consists of letters:
+    #   insert, select, update, delete
+    # Modes for promt:
+    #   default: "i" - AI can only add, not modify or delete
+    #   automnemomorph : "iud" - AI can create, update, delete (full control)
     access:
       history: "iud"
       memory: "iud"
@@ -87,6 +89,7 @@ application:
     providers:
       github:
         api: https://models.github.ai/inference/chat/completions
+        api-type: openai
         available-models:
           - openai/gpt-4.1
           - openai/gpt-4.1-mini
@@ -127,16 +130,19 @@ application:
           - microsoft/phi-4-reasoning
       openai:
         api: https://api.openai.com/v1/chat/completions
+        api-type: openai
         available-models:
           - gpt-4.1
       deepseek:
         api: https://api.deepseek.com/v1/chat/completions
+        api-type: openai
         think: false
         available-models:
           - deepseek-v4-flash
           - deepseek-v4-pro
       groq:
         api: https://api.groq.com/openai/v1/chat/completions
+        api-type: openai
         available-models:
           - llama-3.3-70b-versatile
           - llama-4-scout-17b-16e-instruct
@@ -147,6 +153,7 @@ application:
           - meta-llama/Llama-3.3-70B-Instruct-Turbo
       ollama:
         api: http://localhost:11434/api/generate
+        api-type: openai
         available-models:
           - qwen3.5:9b
           - llama3.2

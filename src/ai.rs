@@ -2135,22 +2135,28 @@ impl Ai
             // Check length in characters, not bytes
             let new_len = line.chars().count() + word.chars().count() + 1;
 
-            if new_len > max_chars {
-                if !line.is_empty() {
+            if new_len > max_chars
+            {
+                if !line.is_empty()
+                {
                     result.push_str(&line);
                     result.push('\n');
                     line.clear();
                 }
                 line.push_str(word);
-            } else {
-                if !line.is_empty() {
+            }
+            else
+            {
+                if !line.is_empty()
+                {
                     line.push(' ');
                 }
                 line.push_str(word);
             }
         }
 
-        if !line.is_empty() {
+        if !line.is_empty()
+        {
             result.push_str(&line);
         }
 
@@ -2229,8 +2235,10 @@ impl Ai
                                 other characters (&&, |, ;, $, `, etc.) are
                                 preserved as legitimate command syntax.
                             */
-                            let clean_command = body.replace( '\n', " " )
-                            .replace( '\r', "" );
+                            let clean_command = body
+                            .replace( '\n', " " )
+                            .replace( '\r', "" )
+                            .replace( ' ', "\\ ");
 
                             self.run_destination
                             (
@@ -2417,7 +2425,14 @@ impl Ai
             if self.get_config_val( &[ "show-mnemonic" ], false )
             {
                 let full_mnemonic = mnemonics.join( "|" );
-                println!("{}", full_mnemonic);
+                println!
+                (
+                    "{} |  h:{} / m:{} / p:{}",
+                    full_mnemonic,
+                    self.history_storage.to_string().len(),
+                    self.memory_storage.to_string().len(),
+                    self.prompt_storage.to_string().len()
+                );
             }
         }
     }

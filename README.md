@@ -105,10 +105,10 @@ and executes code
 1. Currently `ai` works with the following providers:
 
 - `github` — implemented (default)
+- `deepseek` — implemented
 - `openai` — testing
-- `deepseek` — testing
 - `groq` — testing
-- `local` — testing (Ollama)
+- `ollama` — testing
 - `anthropic` — coming soon
 - `together` — coming soon
 
@@ -223,9 +223,9 @@ ai --switch-prompt=automnemomorf
 
 ```yaml
 access:
-  history: "cud"
-  memory: "cud"
-  prompt: "cud"
+  history: "iud"
+  memory: "iud"
+  prompt: "iud"
 ```
 
 **Disable:**
@@ -236,8 +236,8 @@ ai --switch-prompt=default
 
 ```yaml
 access:
-  history: "c"
-  memory: "c"
+  history: "i"
+  memory: "i"
   prompt: "r"
 ```
 

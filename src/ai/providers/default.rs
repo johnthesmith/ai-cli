@@ -193,7 +193,11 @@ impl<'a> OpenAICompatibleProvider<'a>
     /*
        Dump response headers.
     */
-    fn dump_headers( &mut self, resp: &Response )
+    fn dump_headers
+    ( 
+        &mut self, 
+        resp: &Response
+    )
     {
         self.ai.app.get_log_mut().begin( "Response headers" );
 
@@ -258,12 +262,21 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
             }
         );
 
-        let think = self.ai.get_config_val( &[ "think" ], false );
-        if !think && self.ai.get_provider() == "deepseek"
+        /* Providers specific */
+        match self.ai.get_provider().as_str()
         {
-            payload[ "thinking" ] = serde_json::json!({ "type": "disabled" });
+            "deepseek" =>
+            {
+                let think = self.ai.get_config_val( &[ "think" ], false );
+                if !think
+                {
+                    payload[ "thinking" ] = serde_json::json!({ "type": "disabled" });
+                }
+            }
+            _ => {}
         }
 
+        self.ai.app.get_log_mut().dump( "Request", &payload.to_string() );
 
         /*
             Request
@@ -283,6 +296,8 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
             .json( &payload )
             .send()
         };
+
+
 
         /*
             Control result
