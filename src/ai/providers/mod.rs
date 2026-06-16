@@ -47,7 +47,7 @@ pub fn create_provider<'a>
 (
     /* Provider name: "github", "openai", "deepseek", etc. */
     name: &str,
-    //
+    /**/
     /* AI application instance (shared ownership) */
     ai: &'a mut Ai
 )

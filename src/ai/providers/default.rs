@@ -265,6 +265,10 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         /* Providers specific */
         match self.ai.get_provider().as_str()
         {
+            "ollama" =>
+            {
+                payload[ "stream" ] = serde_json::Value::Bool( false );
+            },
             "deepseek" =>
             {
                 let think = self.ai.get_config_val( &[ "think" ], false );
