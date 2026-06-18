@@ -113,7 +113,7 @@ for summarization.
 prompt
 %user%
 
-Your work on model "%model%" of provider "%provider%".
+Your work on model "%model-name%" of provider "%provider%".
 User uses shell "%shell%" with "%version%".
 
 
@@ -332,7 +332,7 @@ thoughts unchanged.
 prompt
 %user%
 
-Your work on model "%model%" of provider "%provider%".
+Your work on model "%model-name%" of provider "%provider%".
 User uses shell "%shell%" with "%version%".
 
 

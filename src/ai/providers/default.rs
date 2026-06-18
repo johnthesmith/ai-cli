@@ -56,10 +56,21 @@ impl<'a> OpenAICompatibleProvider<'a>
     {
         let mut builder =
         reqwest::blocking::Client::builder()
-        .timeout( std::time::Duration::from_millis( self.ai.get_request_timeout_ms() ))
-        .connect_timeout( std::time::Duration::from_millis( self.ai.get_connect_timeout_ms() ));
+        .timeout
+        (
+            std::time::Duration::from_millis
+            ( self.ai.get_request_timeout_ms() )
+        )
+        .connect_timeout
+        (
+            std::time::Duration::from_millis
+            (
+                self.ai.get_connect_timeout_ms()
+            )
+        );
 
         let proxy_url = self.ai.read_proxy();
+
         if !proxy_url.is_empty()
         {
             if let Ok(proxy) = reqwest::Proxy::all(&proxy_url)
@@ -194,8 +205,8 @@ impl<'a> OpenAICompatibleProvider<'a>
        Dump response headers.
     */
     fn dump_headers
-    ( 
-        &mut self, 
+    (
+        &mut self,
         resp: &Response
     )
     {
@@ -241,7 +252,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
     {
         let api_url = get_api_url( self.ai, &self.name );
         let token = get_token( self.ai );
-        let model = self.ai.get_model();
+        let model_name = self.ai.get_model_name();
         let client = self.create_client();
 
         /* Trigger before request event */
@@ -249,7 +260,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         (
             &prompt,
             &self.name,
-            &model,
+            &model_name,
             &api_url
         );
 
@@ -258,7 +269,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
         (
             {
                 "messages": [{ "role": "user", "content": prompt }],
-                "model": model,
+                "model": model_name,
             }
         );
 
@@ -274,7 +285,12 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 let think = self.ai.get_config_val( &[ "think" ], false );
                 if !think
                 {
-                    payload[ "thinking" ] = serde_json::json!({ "type": "disabled" });
+                    payload[ "thinking" ] = serde_json::json!
+                    (
+                        {
+                            "type": "disabled"
+                        }
+                    );
                 }
             }
             _ => {}
@@ -321,7 +337,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                 (
                     &full_answer,
                     &self.name,
-                    &model,
+                    &model_name,
                     &api_url,
                     "chat"
                 );
@@ -358,24 +374,33 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
             Err( e ) =>
             {
+                let proxy = self.ai.read_proxy();
+                let provider_name = self.get_name().to_string();
+
                 /* event */
                 self.ai.on_after_response
                 (
                     &e.to_string(),
                     &self.name,
-                    &model,
+                    &model_name,
                     &api_url,
                     "chat"
                 );
 
-                println!
+                self.ai.app.state.set_state
                 (
-                    "API error\n{}",
-                    &e.to_string()
+                    "api-error",
+                    serde_json::json!
+                    (
+                        {
+                            "message": &e.to_string(),
+                            "provider": provider_name,
+                            "api": api_url,
+                            "proxy": proxy
+                        }
+                    )
                 );
 
-                let provider_name = self.get_name().to_string();
-                let proxy = self.ai.read_proxy();
                 self.ai.app.get_log_mut()
                 .error( "API error" )
                 .prm( "error", &e.to_string() )

@@ -196,7 +196,9 @@ impl Storage
                 while i < lines.len()
                 {
                     let line = lines[i];
-                    /* Check if line is exactly the delimiter (no extra chars) */
+                    /*
+                        Check if line is exactly the delimiter (no extra chars)
+                    */
                     if line == self.fact_delimiter
                     {
                         /* End of current fact */
@@ -394,7 +396,7 @@ impl Storage
     )
     -> &mut Self
     {
-        let content = match fs::read_to_string(path)
+        let content = match fs::read_to_string( path )
         {
             Ok( c ) => c,
             Err( e ) =>
@@ -445,7 +447,7 @@ impl Storage
     -> &mut Self
     {
         /* Ensure directory exists */
-        if let Err(e) = core::ensure_directory(path)
+        if let Err( e ) = core::ensure_directory( path )
         {
             self.state.set_state
             (
@@ -520,145 +522,10 @@ impl Storage
     }
 
 
+
     /**************************************************************************
-        CRUD
+        SIUD
     */
-
-
-    /*
-        insert new fact
-        Returns generated ID
-    */
-    pub fn insert
-    (
-        &mut self,
-        /* Origin of fact */
-        origin: &str,
-        /* Action */
-        action: &str,
-        /* Actor */
-        actor: &str,
-        /* Content of fact */
-        content: &str
-    )
-    -> &mut Self
-    {
-        if self.allow_insert
-        {
-            let id = self.generate_id();
-            self.facts.insert
-            (
-                id.clone(),
-                (
-                    origin.to_string(),
-                    action.to_string(),
-                    actor.to_string(),
-                    content.to_string()
-                )
-            );
-        }
-        else
-        {
-            self.state.set_state
-            (
-                "storage-insert-not-allowed",
-                json!
-                (
-                    {
-                        "origin": origin,
-                        "action": action,
-                        "actor": actor,
-                        "content": content
-                    }
-                )
-            );
-        }
-
-        self
-    }
-
-
-
-    /*
-        Update existing fact
-    */
-    pub fn update
-    (
-        &mut self,
-        /* Id */
-        id: &str,
-        /* Origin of fact */
-        origin: &str,
-        /* Action */
-        action: &str,
-        /* Actor */
-        actor: &str,
-        /* Content of fact */
-        content: &str
-    )
-    -> &mut Self
-    {
-        if self.allow_update
-        {
-            self.facts.insert
-            (
-                id.to_string(),
-                (
-                    origin.to_string(),
-                    action.to_string(),
-                    actor.to_string(),
-                    content.to_string()
-                )
-            );
-        }
-        else
-        {
-            self.state.set_state
-            (
-                "storage-update-not-allowed",
-                json!
-                (
-                    {
-                        "id": id,
-                        "origin": origin,
-                        "action": action,
-                        "actor": actor,
-                        "content": content
-                    }
-                )
-            );
-        }
-        self
-    }
-
-
-
-    /*
-        Delete fact by ID
-    */
-    pub fn delete
-    (
-        &mut self,
-        id: &str
-    )
-    -> &mut Self
-    {
-        if self.allow_delete
-        {
-            self.facts.remove( id );
-        }
-        else
-        {
-            self.state.set_state
-            (
-                "storage-delete-not-allowed",
-                json!({ "id": id })
-            );
-        }
-
-        self
-    }
-
 
 
     /*
@@ -705,6 +572,150 @@ impl Storage
     }
 
 
+
+    /*
+        insert new fact
+        Returns generated ID
+    */
+    pub fn insert
+    (
+        &mut self,
+        /* Origin of fact */
+        origin: &str,
+        /* Action */
+        action: &str,
+        /* Actor */
+        actor: &str,
+        /* Content of fact */
+        content: &str,
+        /* True for disable check rights */
+        no_right: bool
+    )
+    -> &mut Self
+    {
+        if self.allow_insert || no_right
+        {
+            let id = self.generate_id();
+            self.facts.insert
+            (
+                id.clone(),
+                (
+                    origin.to_string(),
+                    action.to_string(),
+                    actor.to_string(),
+                    content.to_string()
+                )
+            );
+        }
+        else
+        {
+            self.state.set_state
+            (
+                "storage-insert-not-allowed",
+                json!
+                (
+                    {
+                        "origin": origin,
+                        "action": action,
+                        "actor": actor,
+                        "content": content
+                    }
+                )
+            );
+        }
+        self
+    }
+
+
+
+    /*
+        Update existing fact
+    */
+    pub fn update
+    (
+        &mut self,
+        /* Id */
+        id: &str,
+        /* Origin of fact */
+        origin: &str,
+        /* Action */
+        action: &str,
+        /* Actor */
+        actor: &str,
+        /* Content of fact */
+        content: &str,
+        /* True for disable check rights */
+        no_right: bool
+    )
+    -> &mut Self
+    {
+        if self.allow_update || no_right
+        {
+            self.facts.insert
+            (
+                id.to_string(),
+                (
+                    origin.to_string(),
+                    action.to_string(),
+                    actor.to_string(),
+                    content.to_string()
+                )
+            );
+        }
+        else
+        {
+            self.state.set_state
+            (
+                "storage-update-not-allowed",
+                json!
+                (
+                    {
+                        "id": id,
+                        "origin": origin,
+                        "action": action,
+                        "actor": actor,
+                        "content": content
+                    }
+                )
+            );
+        }
+        self
+    }
+
+
+
+    /*
+        Delete fact by ID
+    */
+    pub fn delete
+    (
+        &mut self,
+        id: &str,
+        /* True for disable check rights */
+        no_right: bool
+    )
+    -> &mut Self
+    {
+        if self.allow_delete || no_right
+        {
+            self.facts.remove( id );
+        }
+        else
+        {
+            self.state.set_state
+            (
+                "storage-delete-not-allowed",
+                json!({ "id": id })
+            );
+        }
+
+        self
+    }
+
+
+    /**************************************************************************
+
+    */
 
     /*
         Get fact by ID as string with delimiter
@@ -813,7 +824,7 @@ impl Storage
         access: &str
     ) -> &mut Self
     {
-        self.allow_insert = access.contains( 'c' );
+        self.allow_insert = access.contains( 'i' );
         self.allow_update = access.contains( 'u' );
         self.allow_delete = access.contains( 'd' );
         self
@@ -825,7 +836,7 @@ impl Storage
     -> String
     {
         let mut access = String::new();
-        if self.allow_insert { access.push( 'c' ); }
+        if self.allow_insert { access.push( 'i' ); }
         if self.allow_update { access.push( 'u' ); }
         if self.allow_delete { access.push( 'd' ); }
         access

@@ -221,11 +221,15 @@ for the full concept and philosophical background. Unlike a human, who cannot
 ai --switch-prompt=automnemomorf
 ```
 
+config:
+
 ```yaml
-access:
-  history: "iud"
-  memory: "iud"
-  prompt: "iud"
+application:
+  ai:
+    access:
+      history: "siud"
+      memory: "siud"
+      prompt: "s"
 ```
 
 **Disable:**
@@ -234,11 +238,15 @@ access:
 ai --switch-prompt=default
 ```
 
+config:
+
 ```yaml
-access:
-  history: "i"
-  memory: "i"
-  prompt: "r"
+application:
+  ai:
+    access:
+      history: "si"
+      memory: "si"
+      prompt: "s"
 ```
 
 

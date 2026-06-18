@@ -76,10 +76,12 @@ impl Ai
         {
             app: App::create(),
             profile: "default".to_string(),
+
             provider: String::new(),
             model: String::new(),
             chat: String::new(),
-            prompt: "default".to_string(),
+            prompt: String::new(),
+
             history_storage: Storage::new(),
             memory_storage: Storage::new(),
             prompt_storage: Storage::new()
@@ -136,7 +138,7 @@ impl Ai
         (
             {
                 "version": self.get_version(),
-                "config":
+                "net":
                 {
                     "proxy":  self.read_proxy()
                 },
@@ -147,6 +149,7 @@ impl Ai
                     "provider": self.get_provider(),
                     "chat": self.get_chat(),
                     "model": self.get_model(),
+                    "model-name": self.get_model_name(),
                     "prompt": self.get_prompt()
                 },
                 "access":
@@ -160,6 +163,7 @@ impl Ai
                     "log": self.get_app().get_log().get_file_path(),
                     "config": self.get_config_file(),
                     "profile": self.get_profile_file_path(),
+                    "provider": self.get_provider_file(),
                     "prompt": self.get_prompt_origin_file(),
                     "model": self.get_model_file_path(),
                     "memory": self.get_memory_file(),
@@ -205,25 +209,27 @@ impl Ai
         .config[ "no-prompt" ]
         .get_bool( false );
 
-
-
         /* Set profile */
         let profile = self.app.config[ "switch-profile" ].get_str( "" );
         if !profile.is_empty()
         {
-            self.switch_profile( &profile );
-            no_prompt = true;
-        }
-
-        /* Set profile for current session */
-        let profile = self.app.config[ "profile" ].get_str( "" );
-        if !profile.is_empty()
-        {
+            self.write_profile( &profile );
             self.set_profile( &profile );
+            no_prompt = true;
         }
         else
         {
-            self.read_profile();
+            let profile = self.app.config[ "profile" ].get_str( "" );
+            if !profile.is_empty()
+            {
+                /* Set profile for current session only */
+                self.set_profile( &profile );
+            }
+            else
+            {
+                /* Read profile */
+                self.read_profile();
+            }
         }
 
 
@@ -234,6 +240,7 @@ impl Ai
 
         /* Get default config path */
         let path = self.get_config_file();
+
         /* Read config */
         self.app.read_config( &path ).read_cli();
 
@@ -292,564 +299,564 @@ impl Ai
                 );
                 self.app.get_log_mut().set_file_path( &file );
             }
+        }
 
 
-            /* First log message */
-            self.app.get_log_mut().begin
-            (
-                "=== Ai started ==============================================="
-            );
+        /* First log message */
+        self.app.get_log_mut().begin
+        (
+            "=== Ai started ==============================================="
+        );
+
+
+        /*
+            Main section
+        */
+        let mut actions = Vec::new();
+
+        /* Check config */
+        if self.app.state.is_ok()
+        {
+            /* Dump configuration */
             self.app.dump_config();
 
-            /*
-                Main section
-            */
-
-            /* Check config */
-            if self.app.state.is_ok()
+            /* Collect actions from config into a map (copy values) */
+            if let Some( mapping ) = self.app.config.as_mapping()
             {
-                /* Read current values */
-                self.set_provider( &self.read_provider() );
-                self.set_model( &self.read_model() );
-                self.set_chat( &self.read_chat() );
-                self.set_prompt( &self.read_prompt() );
-
-                /* Set access rights */
-                let cli_history = self.app.config[ "access-history" ]
-                .get_str( "" );
-                let cli_memory = self.app.config[ "access-memory" ]
-                .get_str( "" );
-                let cli_prompt = self.app.config[ "access-prompt" ]
-                .get_str( "" );
-
-                let default_history = self.app.config
-                [ "application" ][ "ai" ][ "access" ][ "history" ]
-                .get_str( "c" );
-                let default_memory = self.app.config
-                [ "application" ][ "ai" ][ "access" ][ "memory" ]
-                .get_str( "c" );
-                let default_prompt = self.app.config
-                [ "application" ][ "ai" ][ "access" ][ "prompt" ]
-                .get_str( "" );
-
-                self.history_storage.set_access
-                (
-                    if !cli_history.is_empty()
-                    {
-                        &cli_history
-                    }
-                    else
-                    {
-                        &default_history
-                    }
-                );
-
-                self.memory_storage.set_access
-                (
-                    if !cli_memory.is_empty()
-                    {
-                        &cli_memory
-                    }
-                    else
-                    {
-                        &default_memory
-                    }
-                );
-
-                self.prompt_storage.set_access
-                (
-                    if !cli_prompt.is_empty()
-                    {
-                        &cli_prompt
-                    }
-                    else
-                    {
-                        &default_prompt
-                    }
-                );
-
-
-
-                /* Collect actions from config into a map (copy values) */
-                let mut actions = Vec::new();
-
-                if let Some(mapping) = self.app.config.as_mapping()
+                for( key, value ) in mapping
                 {
-                    for (key, value) in mapping
-                    {
-                        let action = key.get_str( "" ).to_string();
-                        let target = value.get_str( "" ).to_string();
-                        actions.push((action, target));
-                    }
+                    let action = key.get_str( "" ).to_string();
+                    let target = value.get_str( "" ).to_string();
+                    actions.push(( action, target ));
                 }
+            }
 
-                /* Execute actions from collected map */
-                for( action, target ) in &actions
+            /* Read current values */
+            self.set_chat( &self.read_chat() );
+            self.set_provider( &self.read_provider() );
+            self.set_model( &self.read_model() );
+            self.set_prompt( &self.read_prompt() );
+
+            let mut chat = String::new();
+            let mut provider = String::new();
+            let mut model = String::new();
+            let mut prompt = String::new();
+
+            /* Execute actions from collected map */
+            for( action, target ) in &actions
+            {
+                match action.as_str()
                 {
-                    match action.as_str()
+                    "p" | "provider" =>
                     {
-                        "m" | "model" =>
-                        {
-                            self.set_model( &target );
-                        }
-
-
-                        "p" | "provider" =>
-                        {
-                            self.set_provider( &target );
-                        }
-
-
-                        "c" | "chat" =>
-                        {
-                            self.set_chat( &target );
-                        }
-
-                        "prompt" =>
-                        {
-                            self.set_prompt( &target );
-                        }
-
-
-                        "switch-model" =>
-                        {
-                            no_prompt = true;
-                            self
-                            .switch_model( &target )
-                            .set_model( &target );
-                        }
-
-
-                        "switch-provider" =>
-                        {
-                            no_prompt = true;
-                            self
-                            .switch_provider( &target )
-                            .set_provider( &target );
-                        }
-
-
-                        "switch-chat" =>
-                        {
-                            no_prompt = true;
-                            self
-                            .switch_chat( &target )
-                            .set_chat( &target );
-                        }
-
-                        "switch-prompt" =>
-                        {
-                            no_prompt = true;
-                            self
-                            .write_prompt( &target )
-                            .set_prompt( &target );
-                        }
-
-                        _ => {}
+                        provider = target.clone();
                     }
-                }
 
-                /* Open prompt */
-                self.ensure_prompt();
-                let prompt_path = self.get_prompt_origin_file();
-                self.prompt_storage
-                .load( &prompt_path )
-                .get_state()
-                .state_to( &mut self.app.state );
-
-                /* Open history */
-                let history_path = self.get_history_file_path();
-                self.history_storage
-                .load( &history_path )
-                .set_fact_delimiter( &self.prompt_storage.get_fact_delimiter())
-                .get_state()
-                .state_to( &mut self.app.state );
-
-                /* Open memory */
-                let memory_path = self.get_memory_file();
-                self.memory_storage
-                .load( &memory_path )
-                .set_fact_delimiter( &self.prompt_storage.get_fact_delimiter())
-                .get_state()
-                .state_to( &mut self.app.state );
-
-                /* Execute actions from collected map */
-                for( action, target ) in &actions
-                {
-                    match action.as_str()
+                    "m" | "model" =>
                     {
-                        "v" | "version" =>
+                        model = target.clone();
+                    }
+
+                    "c" | "chat" =>
+                    {
+                        chat = target.clone();
+                    }
+
+                    "prompt" =>
+                    {
+                        prompt = target.clone();
+                    }
+
+                    "switch-chat" =>
+                    {
+                        no_prompt = true;
+                        self.switch_chat( &target );
+                        chat = target.clone();
+                    }
+
+                    "switch-provider" =>
+                    {
+                        no_prompt = true;
+                        self.switch_provider( &target );
+                        provider = target.clone();
+                    }
+
+                    "switch-prompt" =>
+                    {
+                        no_prompt = true;
+                        self.write_prompt( &target );
+                        prompt = target.clone();
+                    }
+
+                    "switch-model" =>
+                    {
+                        no_prompt = true;
+                        self.switch_model( &target );
+                        model = target.clone();
+                    }
+
+                    _ => {}
+                }
+            }
+
+            /* Read current values */
+            if chat.is_empty()
+            {
+                chat = self.read_chat();
+            }
+            self.set_chat( &chat );
+
+            if provider.is_empty()
+            {
+                provider = self.read_provider();
+            }
+            self.set_provider( &provider );
+
+            if model.is_empty()
+            {
+                model = self.read_model();
+            }
+            self.set_model( &model );
+
+            if prompt.is_empty()
+            {
+                prompt = self.read_prompt();
+            }
+            self.set_prompt( &prompt );
+
+            /* Validate provider */
+            if !self.provider_exists( &provider )
+            {
+                self.app.state.set_state
+                (
+                    "unknown-provider",
+                    json!
+                    (
                         {
-                            no_prompt = true;
-                            println!( "{}", self.get_version() );
+                            "requested-provider": &provider
                         }
+                    )
+                );
+            }
+        }
 
 
-                        "?" | "h" | "help" =>
+
+        if self.app.state.is_ok()
+        {
+            /* Open prompt */
+            self.ensure_prompt();
+
+            let prompt_path = self.get_prompt_origin_file();
+            self.prompt_storage
+            .load( &prompt_path )
+            .get_state()
+            .state_to( &mut self.app.state );
+
+            /* Open history */
+            let history_path = self.get_history_file_path();
+            self.history_storage
+            .load( &history_path )
+            .set_fact_delimiter( &self.prompt_storage.get_fact_delimiter() )
+            .get_state()
+            .state_to( &mut self.app.state );
+
+            /* Open memory */
+            let memory_path = self.get_memory_file();
+            self.memory_storage
+            .load( &memory_path )
+            .set_fact_delimiter( &self.prompt_storage.get_fact_delimiter())
+            .get_state()
+            .state_to( &mut self.app.state );
+
+            /* Execute actions from collected map */
+            for( action, target ) in &actions
+            {
+                match action.as_str()
+                {
+                    "v" | "version" =>
+                    {
+                        no_prompt = true;
+                        println!( "{}", self.get_version() );
+                    }
+
+
+                    "?" | "h" | "help" =>
+                    {
+                        no_prompt = true;
+                        self.help();
+                    }
+
+
+                    "i" | "info" =>
+                    {
+                        no_prompt = true;
+                        self.out_info();
+                    }
+
+
+                    "history" | "out-history" | "oh" =>
+                    {
+                        no_prompt = true;
+                        self.out_history();
+                    }
+
+
+                    "memory" |  "out-memory" | "om" =>
+                    {
+                        no_prompt = true;
+                        self.out_memory();
+                    }
+
+
+                    "prompt" | "out-prompt" | "op" =>
+                    {
+                        no_prompt = true;
+                        let user_prompt = self.get_user_prompt();
+                        println!
+                        (
+                            "{}",
+                            self.build_prompt( &user_prompt )
+                        );
+                    }
+
+
+                    "prompt-origin" | "out-prompt-origin" | "opo" =>
+                    {
+                        no_prompt = true;
+                        println!
+                        (
+                            "{}",
+                            self.prompt_storage.to_string()
+                        );
+                    }
+
+
+                    "write-pool" =>
+                    {
+                        no_prompt = true;
+
+                        let mut input = String::new();
+                        if let Ok( _ )
+                        = std::io::stdin().read_to_string( &mut input )
                         {
-                            no_prompt = true;
-                            self.help();
+                            self.write_pool( &input );
                         }
+                    }
 
 
+                    "reset-history" | "rh"=>
+                    {
+                        no_prompt = true;
+                        self.clear_history();
+                    }
 
-                        "i" | "info" =>
+
+                    "reset-memory" | "rm"=>
+                    {
+                        no_prompt = true;
+                        self.clear_memory();
+                    }
+
+
+                    "tiocsti" =>
+                    {
+                        no_prompt = true;
+                        /* Read from stdin */
+                        let mut input = String::new();
+                        match std::io::stdin().read_to_string( &mut input )
                         {
-                            no_prompt = true;
-                            self.out_info();
+                            Ok( 0 ) =>
+                            {
+                                self
+                                .app
+                                .get_log_mut()
+                                .warning( "tiocsti: stdin is empty" );
+                            }
+                            Ok( _ ) =>
+                            {
+                                self.input_tiocsti( &input );
+                            }
+                            Err( e ) =>
+                            {
+                                self.app.get_log_mut()
+                                .error( "tiocsti: failed to read stdin" )
+                                .prm( "error", &e.to_string() );
+                            }
                         }
+                    }
 
 
-
-                        "history" | "out-history" | "oh" =>
+                    "completion" =>
+                    {
+                        /* Generate completion mode */
+                        if !target.is_empty()
                         {
                             no_prompt = true;
-                            self.out_history();
+                            print!
+                            (
+                                "{}",
+                                self.generate_completion( target )
+                            );
                         }
+                    }
 
 
-                        "memory" |  "out-memory" | "om" =>
+                    "sh" |
+                    "select-history" =>
+                    {
+                        no_prompt = true;
+                        if !target.is_empty()
                         {
-                            no_prompt = true;
-                            self.out_memory();
-                        }
-
-
-                        "prompt" | "out-prompt" | "op" =>
-                        {
-                            no_prompt = true;
-                            let user_prompt = self.get_user_prompt();
                             println!
                             (
                                 "{}",
-                                self.build_prompt( &user_prompt )
+                                self.history_storage.to_string_by_id
+                                (
+                                    &target
+                                )
                             );
                         }
+                    }
 
 
-                        "prompt-origin" | "out-prompt-origin" | "opo" =>
+                    "sm" |
+                    "select-memory" =>
+                    {
+                        no_prompt = true;
+                        if !target.is_empty()
                         {
-                            no_prompt = true;
                             println!
                             (
                                 "{}",
-                                self.prompt_storage.to_string()
+                                self.memory_storage.to_string_by_id
+                                (
+                                    &target
+                                )
                             );
                         }
+                    }
 
 
-
-                        "write-pool" =>
+                    "dh" |
+                    "delete-history" =>
+                    {
                         {
                             no_prompt = true;
+                            if !target.is_empty()
+                            {
+                                self.history_storage.delete( &target, true );
+                            }
+                        }
+                    }
 
+
+                    "dm" |
+                    "delete-memory" =>
+                    {
+                        {
+                            no_prompt = true;
+                            if !target.is_empty()
+                            {
+                                self.memory_storage.delete( &target, true );
+                            }
+                        }
+                    }
+
+
+                    "ih" |
+                    "insert-history" =>
+                    {
+                        no_prompt = true;
+                        let actor = self.app.config[ "actor" ]
+                        .get_str( USER );
+
+                        let body = if target.is_empty()
+                        {
                             let mut input = String::new();
-                            if let Ok( _ )
-                            = std::io::stdin().read_to_string( &mut input )
-                            {
-                                self.write_pool( &input );
-                            }
+                            std::io::stdin().read_to_string(&mut input).ok();
+                            input.trim().to_string()
                         }
-
-
-
-                        "reset-history" | "rh"=>
+                        else
                         {
-                            no_prompt = true;
-                            self.clear_history();
+                            target.clone()
+                        };
+
+                        if !body.is_empty()
+                        {
+                            self.history_storage.insert
+                            (
+                                "history",
+                                "read",
+                                &actor,
+                                &body,
+                                true
+                            );
                         }
+                    }
 
 
-                        "reset-memory" | "rm"=>
+                    "im" |
+                    "insert-memory" =>
+                    {
+                        no_prompt = true;
+                        let actor = self.app.config[ "actor" ]
+                        .get_str( USER );
+
+                        let mut body = self.app.config[ "body" ]
+                        .get_str( "" );
+
+                        if body.is_empty()
                         {
-                            no_prompt = true;
-                            self.clear_memory();
-                        }
-
-
-
-                        "tiocsti" =>
-                        {
-                            no_prompt = true;
-                            /* Read from stdin */
                             let mut input = String::new();
-                            match std::io::stdin().read_to_string( &mut input )
-                            {
-                                Ok( 0 ) =>
-                                {
-                                    self
-                                    .app
-                                    .get_log_mut()
-                                    .warning( "tiocsti: stdin is empty" );
-                                }
-                                Ok( _ ) =>
-                                {
-                                    self.input_tiocsti( &input );
-                                }
-                                Err( e ) =>
-                                {
-                                    self.app.get_log_mut()
-                                    .error( "tiocsti: failed to read stdin" )
-                                    .prm( "error", &e.to_string() );
-                                }
-                            }
+                            std::io::stdin().read_to_string(&mut input).ok();
+                            body = input.trim().to_string();
                         }
 
-
-
-                        "completion" =>
+                        if !body.is_empty()
                         {
-                            /* Generate completion mode */
-                            if !target.is_empty()
-                            {
-                                no_prompt = true;
-                                print!
-                                (
-                                    "{}",
-                                    self.generate_completion( target )
-                                );
-                            }
+                            self.memory_storage.insert
+                            (
+                                "memory",
+                                "read",
+                                &actor,
+                                &body,
+                                true
+                            );
                         }
+                    }
 
 
-                        "sh" |
-                        "select-history" =>
+                    "uh" |
+                    "update-history" =>
+                    {
+                        no_prompt = true;
+                        let actor = self.app.config[ "actor" ]
+                        .get_str( USER );
+                        let action = self.app.config[ "action" ]
+                        .get_str( "read" );
+                        let mut body = self.app.config[ "body" ]
+                        .get_str( "" );
+
+                        if !target.is_empty()
                         {
-                            no_prompt = true;
-                            if !target.is_empty()
-                            {
-                                println!
-                                (
-                                    "{}",
-                                    self.history_storage.to_string_by_id
-                                    (
-                                        &target
-                                    )
-                                );
-                            }
-                        }
-
-
-                        "sm" |
-                        "select-memory" =>
-                        {
-                            no_prompt = true;
-                            if !target.is_empty()
-                            {
-                                println!
-                                (
-                                    "{}",
-                                    self.memory_storage.to_string_by_id
-                                    (
-                                        &target
-                                    )
-                                );
-                            }
-                        }
-
-
-                        "dh" |
-                        "delete-history" =>
-                        {
-                            {
-                                no_prompt = true;
-                                if !target.is_empty()
-                                {
-                                    self.history_storage.delete( &target );
-                                }
-                            }
-                        }
-
-
-                        "dm" |
-                        "delete-memory" =>
-                        {
-                            {
-                                no_prompt = true;
-                                if !target.is_empty()
-                                {
-                                    self.memory_storage.delete( &target );
-                                }
-                            }
-                        }
-
-
-                        "ih" |
-                        "insert-history" =>
-                        {
-                            no_prompt = true;
-                            let actor = self.app.config[ "actor" ]
-                            .get_str( USER );
-
-                            let body = if target.is_empty()
-                            {
-                                let mut input = String::new();
-                                std::io::stdin().read_to_string(&mut input).ok();
-                                input.trim().to_string()
-                            }
-                            else
-                            {
-                                target.clone()
-                            };
-
-                            if !body.is_empty()
-                            {
-                                self.history_storage.insert
-                                (
-                                    "history",
-                                    "read",
-                                    &actor,
-                                    &body
-                                );
-                            }
-                        }
-
-
-                        "im" |
-                        "insert-memory" =>
-                        {
-                            no_prompt = true;
-                            let actor = self.app.config[ "actor" ]
-                            .get_str( USER );
-
-                            let mut body = self.app.config[ "body" ]
-                            .get_str( "" );
-
                             if body.is_empty()
                             {
                                 let mut input = String::new();
-                                std::io::stdin().read_to_string(&mut input).ok();
+                                std::io::stdin().read_to_string(&mut input)
+                                .ok();
                                 body = input.trim().to_string();
                             }
-
                             if !body.is_empty()
                             {
-                                self.memory_storage.insert
+                                self.history_storage.update
                                 (
-                                    "memory",
-                                    "read",
+                                    &target,
+                                    "history",
+                                    &action,
                                     &actor,
-                                    &body
+                                    &body,
+                                    true
                                 );
                             }
                         }
-
-
-                        "uh" |
-                        "update-history" =>
-                        {
-                            no_prompt = true;
-                            let actor = self.app.config[ "actor" ]
-                            .get_str( USER );
-                            let action = self.app.config[ "action" ]
-                            .get_str( "read" );
-                            let mut body = self.app.config[ "body" ]
-                            .get_str( "" );
-
-                            if !target.is_empty()
-                            {
-                                if body.is_empty()
-                                {
-                                    let mut input = String::new();
-                                    std::io::stdin().read_to_string(&mut input)
-                                    .ok();
-                                    body = input.trim().to_string();
-                                }
-                                if !body.is_empty()
-                                {
-                                    self.history_storage.update
-                                    (
-                                        &target,
-                                        "history",
-                                        &action,
-                                        &actor,
-                                        &body
-                                    );
-                                }
-                            }
-                        }
-
-
-                        "um" |
-                        "update-memory" =>
-                        {
-                            no_prompt = true;
-                            let actor = self.app.config[ "actor" ]
-                            .get_str( USER );
-
-                            let action = self.app.config[ "action" ]
-                            .get_str( "read" );
-
-                            let mut body = self.app.config[ "body" ]
-                            .get_str( "" );
-
-                            if !target.is_empty()
-                            {
-                                if body.is_empty()
-                                {
-                                    let mut input = String::new();
-                                    std::io::stdin()
-                                    .read_to_string( &mut input )
-                                    .ok();
-                                    body = input.trim().to_string();
-                                }
-                                if !body.is_empty()
-                                {
-                                    self.memory_storage.update
-                                    (
-                                        &target,
-                                        "memory",
-                                        &action,
-                                        &actor,
-                                        &body
-                                    );
-                                }
-                            }
-                        }
-                        _ => {}
                     }
+
+
+                    "um" |
+                    "update-memory" =>
+                    {
+                        no_prompt = true;
+                        let actor = self.app.config[ "actor" ]
+                        .get_str( USER );
+
+                        let action = self.app.config[ "action" ]
+                        .get_str( "read" );
+
+                        let mut body = self.app.config[ "body" ]
+                        .get_str( "" );
+
+                        if !target.is_empty()
+                        {
+                            if body.is_empty()
+                            {
+                                let mut input = String::new();
+                                std::io::stdin()
+                                .read_to_string( &mut input )
+                                .ok();
+                                body = input.trim().to_string();
+                            }
+                            if !body.is_empty()
+                            {
+                                self.memory_storage.update
+                                (
+                                    &target,
+                                    "memory",
+                                    &action,
+                                    &actor,
+                                    &body,
+                                    true
+                                );
+                            }
+                        }
+                    }
+                    _ => {}
                 }
+            }
 
+            /* Set access rights */
+            let access = self.get_config_val( &[ "access" ], json!( {} ));
+            self.history_storage.set_access
+            (
+                &access[ "history" ].get_str( "c" )
+            );
+            self.memory_storage.set_access
+            (
+                &access[ "memory" ].get_str( "c" )
+            );
+            self.memory_storage.set_access
+            (
+                &access[ "prompt" ].get_str( "" )
+            );
 
+            if !no_prompt
+            {
+                let provider_name = self.get_provider();
+                let user_prompt = self.get_user_prompt();
+                let prompt = self.build_prompt( &user_prompt );
+                let max_bytes = self.get_max_chat_prompt_size_byte();
+                let size = prompt.len();
 
-                if !no_prompt
+                if size > max_bytes
                 {
-                    let provider_name = self.get_provider();
-                    let user_prompt = self.get_user_prompt();
-                    let prompt = self.build_prompt( &user_prompt );
-                    let max_bytes = self.get_max_chat_prompt_size_byte();
-                    let size = prompt.len();
+                    println!
+                    (
+                        "Prompt size {} bytes exceeds limit {} bytes.\n\
+                         Please increase max-chat-prompt-size-byte \
+                         in config,\n or run 'ai pack history \
+                         --allow-history=iud' to compress conversation \
+                         history.",
+                        size, max_bytes
+                    );
+                }
+                else
+                {
+                    /* Write user prompt to history */
+                    self.history_storage.insert
+                    (
+                        "history",
+                        "read",
+                        USER,
+                        &user_prompt,
+                        true
+                    );
 
-                    if size > max_bytes
-                    {
-                        println!
-                        (
-                            "Prompt size {} bytes exceeds limit {} bytes.\n\
-                             Please increase max-chat-prompt-size-byte \
-                             in config,\n or run 'ai pack history \
-                             --allow-history=iud' to compress conversation \
-                             history.",
-                            size, max_bytes
-                        );
-                    }
-                    else
-                    {
-                        /* Write user prompt to history */
-                        self.history_storage.insert
-                        (
-                            "history",
-                            "read",
-                            USER,
-                            &user_prompt
-                        );
-
-                        let mut provider = providers::create_provider
-                        (
-                             &provider_name,
-                             self
-                        );
-                        provider.chat( &prompt );
-                    }
+                    let mut provider = providers::create_provider
+                    (
+                         &provider_name,
+                         self
+                    );
+                    provider.chat( &prompt );
                 }
             }
 
@@ -864,9 +871,16 @@ impl Ai
             /* Save current state */
 //            let prompt_path = self.get_prompt_origin_file();
 //            self.prompt_storage.save( &prompt_path );
-
-            self.app.get_log_mut().end( "End of ai" ).eol();
         }
+
+        /* Dump final state if its not ok*/
+        if !self.app.state.is_ok()
+        {
+            self.app.state.dump();
+        }
+
+        /* Last log out */
+        self.app.get_log_mut().end( "End of ai" ).eol();
 
         self
     }
@@ -892,9 +906,9 @@ impl Ai
                 .to_string()
             )
             .replace( "%profile%", &self.get_profile() )
-            .replace( "%model%", &self.get_model_safe() )
-            .replace( "%provider%", &self.get_provider() )
             .replace( "%chat%", &self.get_chat() )
+            .replace( "%provider%", &self.get_provider() )
+            .replace( "%model%", &self.get_model_safe() )
         )
     }
 
@@ -1009,7 +1023,7 @@ impl Ai
             )
             .replace( "%profile%", &self.get_profile() )
             .replace( "%provider%", &self.get_provider() )
-            .replace( "%model%", &self.get_model_safe() )
+            .replace( "%model-name%", &self.get_model_name() )
             .replace( "%chat%", &self.get_chat() )
             .replace( "%prompt%", &self.get_prompt() )
         )
@@ -1507,9 +1521,9 @@ impl Ai
         (
             &path
             .replace( "%profile%", &self.get_profile())
+            .replace( "%chat%", &self.get_chat())
             .replace( "%provider%", &self.get_provider())
             .replace( "%model%", &self.get_model_safe())
-            .replace( "%chat%", &self.get_chat())
         )
     }
 
@@ -1526,10 +1540,11 @@ impl Ai
     fn get_model_file_path( &self )
     -> String
     {
-        let default = "~/.local/share/ai/app/cli/%profile%/models/%provider%.txt"
+        let default
+        = "~/.local/share/ai/app/cli/%profile%/models/%provider%.txt"
         .to_string();
 
-        let path = self.get_config_val( &[ "model" ], default );
+        let path = self.get_config_val( &[ "model-file" ], default );
 
         core::expand_path
         (
@@ -1542,7 +1557,7 @@ impl Ai
 
 
 
-    pub fn read_model(&self) -> String
+    pub fn read_model( &self ) -> String
     {
         let path = self.get_model_file_path();
 
@@ -1554,15 +1569,9 @@ impl Ai
                 return model;
             }
         }
-
-        let available: Vec<String> = self.get_config_val
-        (
-            &["available-models"],
-            vec![]
-        );
-
-        available.first().cloned().unwrap_or_else(|| "gpt-4.1".to_string())
+        "default".to_string()
     }
+
 
 
     /*
@@ -1645,6 +1654,22 @@ impl Ai
 
 
 
+    /*
+        Return return model name by current model alias
+    */
+    fn get_model_name( &self )
+    -> String
+    {
+        self.app.config
+        [ "application" ]
+        [ "ai" ]
+        [ "providers" ]
+        [ self.get_provider() ]
+        [ "models" ]
+        [ self.get_model() ].get_str( "unknown" )
+    }
+
+
 
     /*************************************************************************
         Provider
@@ -1664,7 +1689,12 @@ impl Ai
     /*
         Set provider for current session
     */
-    fn set_provider(&mut self, name: &str) -> &mut Self
+    fn set_provider
+    (
+        &mut self,
+        name: &str
+    )
+    -> &mut Self
     {
         self.provider = name.to_string();
         self
@@ -1675,16 +1705,35 @@ impl Ai
     /*
         Return provider file path
     */
-    fn get_provider_file_path(&self) -> String
+    fn get_provider_file( &self ) -> String
     {
         let path = self.get_config_val
         (
             &[ "provider-file" ],
-            "~/.config/ai/app/cli/%profile%/provider.txt".to_string()
+            "~/.local/share/ai/app/cli/%profile%/provider.txt".to_string()
         );
 
         core::expand_path( &path.replace( "%profile%", &self.get_profile() ))
     }
+
+
+
+    /*
+        Check provider exists at config file
+    */
+    fn provider_exists
+    (
+        &self,
+        /* Provider id */
+        id: &str
+    )
+    -> bool
+    {
+        let config = &self.app.config;
+        let provider = &config[ "application" ][ "ai" ][ "providers" ][ id ];
+        !provider.is_null()
+    }
+
 
 
     /*
@@ -1693,7 +1742,7 @@ impl Ai
     fn read_provider( &self )
     -> String
     {
-        let path = self.get_provider_file_path();
+        let path = self.get_provider_file();
 
         if let Ok(content) = std::fs::read_to_string(&path)
         {
@@ -1717,7 +1766,7 @@ impl Ai
         new_provider: &str
     ) -> &mut Self
     {
-        let file_path = self.get_provider_file_path();
+        let file_path = self.get_provider_file();
 
         if let Err( e ) = core::ensure_directory( &file_path )
         {
@@ -1802,7 +1851,7 @@ impl Ai
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "default".to_string());
 
-        self.set_profile(&profile);
+        self.set_profile( &profile );
         self
     }
 
@@ -1851,24 +1900,6 @@ impl Ai
 
 
 
-    /*
-        Switch profile
-    */
-    fn switch_profile
-    (
-        &mut self,
-        /* Profile name */
-        name: &str
-    )
-    -> &mut Self
-    {
-        self.write_profile( name );
-        self.profile = name.to_string();
-        self
-    }
-
-
-
     /*******************************************************************8******
         Chat
     */
@@ -1889,8 +1920,6 @@ impl Ai
         (
             &path
             .replace( "%profile%", &self.get_profile() )
-            .replace( "%model%", &self.get_model_safe() )
-            .replace( "%provider%", &self.get_provider() )
         )
     }
 
@@ -1912,7 +1941,7 @@ impl Ai
     {
         let path = self.get_chat_file_path();
 
-        if let Ok(content) = std::fs::read_to_string( &path )
+        if let Ok( content ) = std::fs::read_to_string( &path )
         {
             let id = content.trim().to_string();
             if !id.is_empty()
@@ -2209,13 +2238,14 @@ impl Ai
                             "history",
                             "read",
                             ASSISTANT,
-                            body
+                            body,
+                            false
                         );
                         /* Check if command execution is disabled */
-                        if self.app.config[ "no-command" ].get_bool( false )
+                        if self.app.config[ "no-shell" ].get_bool( false )
                         {
                             self.app.get_log_mut()
-                            .info( "Command execution disabled by --no-command" )
+                            .info( "Command execution disabled by --no-shell" )
                             .prm( "exec", &body );
                         }
                         else
@@ -2238,7 +2268,8 @@ impl Ai
                             let clean_command = body
                             .replace( '\n', " " )
                             .replace( '\r', "" )
-                            .replace( ' ', "\\ ");
+//                            .replace( ' ', "\\ ")
+                            ;
 
                             self.run_destination
                             (
@@ -2247,9 +2278,9 @@ impl Ai
                                 false
                             );
 
-                            if body.contains('\n')
+                            if body.contains( '\n' )
                             {
-                                mnemonics.push( "s*".to_string() );
+                                mnemonics.push( "s!".to_string() );
                             }
                             else
                             {
@@ -2266,7 +2297,8 @@ impl Ai
                             "memory",
                             "read",
                             "%assistant%",
-                            &body
+                            &body,
+                            false
                         );
                         mnemonics.push( "m+".to_string() );
                         self.app.get_log_mut()
@@ -2283,10 +2315,12 @@ impl Ai
                             "history",
                             "read",
                             "%assistant%",
-                            &body
+                            &body,
+                            false
                         );
                         self.run_destination( &body, "message", true );
                         mnemonics.push( "h+".to_string() );
+
                         self.app.get_log_mut()
                         .info( "History entry added" )
                         .prm( "text", &body );
@@ -2300,7 +2334,8 @@ impl Ai
                             "prompt",
                             "read",
                             "%assistant%",
-                            &body
+                            &body,
+                            false
                         );
                         mnemonics.push( "p+".to_string() );
                         self.app.get_log_mut()
@@ -2313,19 +2348,19 @@ impl Ai
                     {
                         if self.memory_storage.exists( &id)
                         {
-                            self.memory_storage.delete( &id );
-                            mnemonics.push( "m-".to_string() );
+                            self.memory_storage.delete( &id, false );
+                            mnemonics.push( "m-".to_string());
                         }
 
                         if self.prompt_storage.exists( &id)
                         {
-                            self.prompt_storage.delete( &id );
-                            mnemonics.push( "p-".to_string() );
+                            self.prompt_storage.delete( &id, false);
+                            mnemonics.push( "p-".to_string());
                         }
 
                         if self.history_storage.exists( &id)
                         {
-                            self.history_storage.delete( &id );
+                            self.history_storage.delete( &id, false );
                             mnemonics.push( "h-".to_string() );
                         }
                     }
@@ -2341,7 +2376,8 @@ impl Ai
                                 "memory",
                                 "read",
                                 &actor,
-                                &body
+                                &body,
+                                false
                             );
                             mnemonics.push( "m#".to_string() );
                             self.app.get_log_mut()
@@ -2357,7 +2393,8 @@ impl Ai
                                 "prompt",
                                 "read",
                                 &actor,
-                                &body
+                                &body,
+                                false
                             );
                             mnemonics.push( "p#".to_string() );
                             self.app.get_log_mut()
@@ -2373,7 +2410,8 @@ impl Ai
                                 "history",
                                 "read",
                                 &actor,
-                                &body
+                                &body,
+                                false
                             );
                             mnemonics.push( "h#".to_string() );
                             self.app.get_log_mut()
@@ -2410,7 +2448,8 @@ impl Ai
                             "history",
                             "read",
                             ASSISTANT,
-                            &body
+                            &body,
+                            false
                         );
 
                         self.run_destination

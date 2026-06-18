@@ -1,3 +1,15 @@
+# Release v1.0.15
+
+1. Fixed bugs.
+0. Added provider exists control.
+0. Added LLM aliases for config.
+0. Changed info format.
+0. Removed `--access-history` & `--access-memory`, only config.
+0. **Important:** Remove old configs prompts memory and history before
+update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
+
+
+
 # Release v1.0.14
 
 1. Fixed the absence of Actor in the prompt.
@@ -5,6 +17,8 @@
 3. Added shortened keys like -ch (--clear-history), etc.
 4. Minor bugs fixed.
 5. Added information to --out-info.
+
+
 
 # Release v1.0.13
 
