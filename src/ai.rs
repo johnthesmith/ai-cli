@@ -1023,7 +1023,7 @@ impl Ai
             )
             .replace( "%profile%", &self.get_profile() )
             .replace( "%provider%", &self.get_provider() )
-            .replace( "%model-name%", &self.get_model_name() )
+            .replace( "%model%", &self.get_model() )
             .replace( "%chat%", &self.get_chat() )
             .replace( "%prompt%", &self.get_prompt() )
         )
@@ -1154,7 +1154,7 @@ impl Ai
         .replace( "%assistant%", ASSISTANT )
         .replace( "%tool%", TOOL )
         .replace( "%provider%", &self.get_provider() )
-        .replace( "%model%", &self.get_model() )
+        .replace( "%model-name%", &self.get_model_name() )
         .replace( "%version%", &self.get_model() )
         .replace
         (
