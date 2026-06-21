@@ -1,3 +1,12 @@
+# Release v1.0.16
+
+1. Management keys have been changed.
+0. Added configuration of request-response formats for LLM.
+0. **Important:** Remove old configs prompts memory and history before
+update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
+
+
+
 # Release v1.0.15
 
 1. Fixed bugs.
@@ -33,8 +42,10 @@ update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 
 # Release v1.0.12
 
-1. Added `PROMPT_AUTOMNEMOMORF` — full automnemomorph behavior (AI can modify history/memory/prompt on its own initiative)
-0. Default prompt restrictions: AI cannot modify `prompt` facts, only `memory` and `history` on user request
+1. Added `PROMPT_AUTOMNEMOMORF` — full automnemomorph behavior (AI can modify
+   history/memory/prompt on its own initiative)
+0. Default prompt restrictions: AI cannot modify `prompt` facts, only `memory`
+   and `history` on user request
 0. Fixed prompt loading: default prompts auto-created if missing or empty
 0. **Important:** Remove old configs prompts memory and history before
 update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
@@ -50,7 +61,8 @@ update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 # Release v1.0.10
 
 1. Fixed `delete` operation (now properly accumulates multiple IDs)
-0. Added block delimiter isolation for user prompt (prevents accidental injection)
+0. Added block delimiter isolation for user prompt (prevents accidental
+   injection)
 0. Updated system prompt (block-based format, clarified role attribution)
 0. **Important:** Remove old configs prompts memory and history before
 update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
@@ -59,8 +71,10 @@ update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 
 # Release v1.0.9
 
-1. Added CLI commands for storage operations (`--select`, `--delete`, `--update`, `--insert`)
-0. Replaced JSON with block-based format for LLM communication (more reliable, no escaping issues)
+1. Added CLI commands for storage operations (`--select`, `--delete`,
+   `--update`, `--insert`)
+0. Replaced JSON with block-based format for LLM communication (more reliable,
+   no escaping issues)
 
 
 
@@ -68,7 +82,8 @@ update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
 
 1. Follows [AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md).
 0. Access control (`c`/`u`/`d` permissions) and
-[auto-mnemomorph](./README.md#for-developers) mode (full AI control over history/memory)
+   [auto-mnemomorph](./README.md#for-developers) mode (full AI control over
+   history/memory)
 0. Removed `--pack-history` command (history compaction now handled by AI via
 natural language)
 
@@ -83,7 +98,8 @@ natural language)
 # Release v1.0.4
 
 1. Automatic configuration file creation on first run
-0. Automatic prompt files creation (`chat.txt`, `summary.txt`) from embedded defaults
+0. Automatic prompt files creation (`chat.txt`, `summary.txt`) from embedded
+   defaults
 0. Automatic token file creation (empty) when missing
 0. Configurable `request_timeout_ms` and `connect_timeout_ms`
 

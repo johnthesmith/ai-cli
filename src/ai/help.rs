@@ -27,11 +27,11 @@ Session:
     --model=<id>            -m      Use model by alias for current session only
     --chat|=<id>            -c      Use chat for current session only
     --prompt=<id>                   Use prompt for current session only
-    --switch-profile=<id>           Permanently switch profile
-    --switch-provider=<id>          Permanently switch provider
-    --switch-model=<id>             Permanently switch model by alias
-    --switch-chat=<id>              Permanently switch chat
-    --switch-prompt=<id>            Permanently switch prompt:
+    --bind-profile=<id>             Permanently switch profile
+    --bind-provider=<id>    -bp     Permanently switch provider
+    --bind-model=<id>       -bm     Permanently switch model by alias
+    --bind-chat=<id>        -bc     Permanently switch chat
+    --bind-prompt=<id>      -bpt    Permanently switch prompt:
                                     default|automnemomorf|...
 
 Storage operations:

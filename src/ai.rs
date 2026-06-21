@@ -16,7 +16,7 @@ mod prompts;
 mod storage;
 
 use serde_json::json;
-use serde_yaml::Value;
+
 use std::io::{ Read, Write, IsTerminal };
 use core::{ App, SerdeExt, State, Moment };
 use storage::Storage;
@@ -210,7 +210,7 @@ impl Ai
         .get_bool( false );
 
         /* Set profile */
-        let profile = self.app.config[ "switch-profile" ].get_str( "" );
+        let profile = self.app.config[ "bind-profile" ].get_str( "" );
         if !profile.is_empty()
         {
             self.write_profile( &profile );
@@ -321,12 +321,12 @@ impl Ai
             self.app.dump_config();
 
             /* Collect actions from config into a map (copy values) */
-            if let Some( mapping ) = self.app.config.as_mapping()
+            if let Some( mapping ) = self.app.config.as_object()
             {
                 for( key, value ) in mapping
                 {
-                    let action = key.get_str( "" ).to_string();
-                    let target = value.get_str( "" ).to_string();
+                    let action = key.to_string();
+                    let target = value.get_str( "" );
                     actions.push(( action, target ));
                 }
             }
@@ -347,51 +347,52 @@ impl Ai
             {
                 match action.as_str()
                 {
-                    "p" | "provider" =>
+                    "provider" | "p" =>
                     {
                         provider = target.clone();
                     }
 
-                    "m" | "model" =>
+                    "model" | "m" =>
                     {
                         model = target.clone();
                     }
 
-                    "c" | "chat" =>
+                    "chat" | "c"  =>
                     {
                         chat = target.clone();
                     }
 
-                    "prompt" =>
+                    "prompt" | "pt" =>
                     {
                         prompt = target.clone();
                     }
 
-                    "switch-chat" =>
+
+                    "bind-chat" | "bc" =>
                     {
                         no_prompt = true;
-                        self.switch_chat( &target );
+                        self.bind_chat( &target );
                         chat = target.clone();
                     }
 
-                    "switch-provider" =>
+                    "bind-provider" | "bp" =>
                     {
                         no_prompt = true;
-                        self.switch_provider( &target );
+                        self.bind_provider( &target );
                         provider = target.clone();
                     }
 
-                    "switch-prompt" =>
+                    "bind-prompt" | "bpt" =>
                     {
                         no_prompt = true;
                         self.write_prompt( &target );
                         prompt = target.clone();
                     }
 
-                    "switch-model" =>
+                    "bind-model" | "bm" =>
                     {
                         no_prompt = true;
-                        self.switch_model( &target );
+                        self.bind_model( &target );
                         model = target.clone();
                     }
 
@@ -1442,7 +1443,7 @@ impl Ai
         let model = self.get_model();
         let chat = self.get_chat();
 
-        let get_nested = |root: &Value| -> Option<Value>
+        let get_nested = |root: &serde_json::Value| -> Option<serde_json::Value>
         {
             let mut current = root;
             for &k in keys
@@ -1464,7 +1465,7 @@ impl Ai
             [ &chat ]
         )
         {
-            if let Ok( v ) = serde_yaml::from_value( val )
+            if let Ok( v ) = serde_json::from_value::<T>( val )
             {
                 return v;
             }
@@ -1476,7 +1477,7 @@ impl Ai
             &ai_cfg["providers"][&provider]["models"][&model]
         )
         {
-            if let Ok( v ) = serde_yaml::from_value( val )
+            if let Ok( v ) = serde_json::from_value::<T>( val )
             {
                 return v;
             }
@@ -1485,7 +1486,7 @@ impl Ai
         /* 3. provider.key */
         if let Some(val) = get_nested(&ai_cfg["providers"][&provider])
         {
-            if let Ok( v ) = serde_yaml::from_value( val )
+            if let Ok( v ) = serde_json::from_value::<T>( val )
             {
                 return v;
             }
@@ -1494,7 +1495,7 @@ impl Ai
         /* 4. global key */
         if let Some( val ) = get_nested( ai_cfg )
         {
-            if let Ok(v) = serde_yaml::from_value( val )
+            if let Ok(v) = serde_json::from_value::<T>( val )
             {
                 return v;
             }
@@ -1505,8 +1506,7 @@ impl Ai
 
 
 
-
-    /*******************************************************************8******
+    /**************************************************************************
         Token
     */
 
@@ -1515,7 +1515,10 @@ impl Ai
     */
     fn get_token_path( &self ) -> String
     {
-        let default = "~/.config/ai/app/cli/%profile%/tokens/%provider%.txt".to_string();
+        let default
+        = "~/.config/ai/app/cli/%profile%/tokens/%provider%.txt"
+        .to_string();
+
         let path = self.get_config_val( &[ "token" ], default );
         core::expand_path
         (
@@ -1577,7 +1580,7 @@ impl Ai
     /*
         Change current model
     */
-    fn switch_model
+    fn bind_model
     (
         &mut self,
         id: &str
@@ -1597,14 +1600,14 @@ impl Ai
         if let Err(e) = std::fs::write( &file_path, id )
         {
             self.app.get_log_mut()
-            .error( "Failed to switch model" )
+            .error( "Failed to bind model" )
             .prm( "path", &file_path )
             .prm( "error", &e.to_string() );
         }
         else
         {
             self.app.get_log_mut()
-            .trace( "Model switched" )
+            .trace( "Model binded" )
             .prm( "id", id);
         }
 
@@ -1760,7 +1763,7 @@ impl Ai
     /*
         Change current provider
     */
-    fn switch_provider
+    fn bind_provider
     (
         &mut self,
         new_provider: &str
@@ -1779,14 +1782,14 @@ impl Ai
         if let Err( e ) = std::fs::write( &file_path, new_provider )
         {
             self.app.get_log_mut()
-            .error( "Failed to switch provider" )
+            .error( "Failed to bind provider" )
             .prm( "path", &file_path )
             .prm( "error", &e.to_string() );
         }
         else
         {
             self.app.get_log_mut()
-            .trace( "Provider switched" )
+            .trace( "Provider binded" )
             .prm( "provider", new_provider );
         }
 
@@ -1957,7 +1960,7 @@ impl Ai
     /*
         Change current chat id
     */
-    fn switch_chat
+    fn bind_chat
     (
         &mut self,
         new_id: &str
@@ -1977,14 +1980,14 @@ impl Ai
         if let Err(e) = std::fs::write(&file_path, new_id)
         {
             self.app.get_log_mut()
-            .error( "Failed to switch chat" )
+            .error( "Failed to bind chat" )
             .prm( "path", &file_path)
             .prm( "error", &e.to_string());
         }
         else
         {
             self.app.get_log_mut()
-            .trace( "Chat switched" )
+            .trace( "Chat binded" )
             .prm( "id", new_id);
         }
 
@@ -2708,11 +2711,11 @@ impl Ai
             "--model=",
             "--chat=",
 
-            // Permanent switch
-            "--switch-profile=",
-            "--switch-provider=",
-            "--switch-model=",
-            "--switch-chat=",
+            // Permanent bind
+            "--bind-profile=",
+            "--bind-provider=",
+            "--bind-model=",
+            "--bind-chat=",
 
             // LLM access rights (iud)
             "--access-history=",
@@ -2888,3 +2891,4 @@ impl Ai
         self.get_config_val( &[ "connect_timeout_ms" ], 10000 )
     }
 }
+

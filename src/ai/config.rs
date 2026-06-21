@@ -143,7 +143,6 @@ application:
       deepseek:
         api: https://api.deepseek.com/v1/chat/completions
         api-type: openai
-        think: false
         models:
           default: deepseek-v4-flash
           pro: deepseek-v4-pro
@@ -163,14 +162,59 @@ application:
 
       ollama:
         api: http://localhost:11434/api/generate
-        api-type: openai
         models:
           default: qwen3.5:9b
           llama: llama3.2
 
-
       anthropic:
         api: https://api.anthropic.com/v1/messages
+        api-type: openai
         models:
           default: claude-3-5-sonnet-20241022
+
+    # Specific request contract
+
+    api-format:
+    -
+      # Deepseek rules
+      provider: "deepseek"
+      model: "*"
+
+      request:
+        model: "%model-name%"
+        messages:
+        -
+          content: "%prompt%"
+          role: user
+        thinking:
+          type: disabled
+      answer: [ choices, 0, message, content ]
+
+    -
+      # ollama rules
+      provider: ollama
+      model: "*"
+
+      request:
+        model: "%model-name%"
+        messages:
+        -
+          content: "%prompt%"
+          role: user
+        stream: false
+      answer: [ message, content ]
+
+    -
+      # Default rules
+      provider: "*"
+      model: "*"
+
+      request:
+        model: "%model-name%"
+        messages:
+        -
+          content: "%prompt%"
+          role: user
+      answer: [ choices, 0, message, content ]
+
 "#;
