@@ -1059,7 +1059,9 @@ impl Ai
             {
                 Ok( 0 ) =>
                 {
-                    /* Pipe exists but empty - do nothing, prompt stays empty */
+                    /* 
+                        Pipe exists but empty - do nothing, prompt stays empty 
+                    */
                 }
                 Ok( _ ) =>
                 {
@@ -1443,7 +1445,8 @@ impl Ai
         let model = self.get_model();
         let chat = self.get_chat();
 
-        let get_nested = |root: &serde_json::Value| -> Option<serde_json::Value>
+        let get_nested = |root: &serde_json::Value|
+        -> Option<serde_json::Value>
         {
             let mut current = root;
             for &k in keys
@@ -2484,8 +2487,8 @@ impl Ai
     /*
         Inject command directly into TTY input pool using TIOCSTI ioctl.
 
-        This makes the command appear in the user's terminal prompt as if typed.
-        Does NOT press Enter - user can edit before executing.
+        This makes the command appear in the user's terminal prompt as if 
+        typed. Does NOT press Enter - user can edit before executing.
 
         # Security Warning
         Requires `sudo sysctl -w dev.tty.legacy_tiocsti=1` on modern kernels.

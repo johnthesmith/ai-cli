@@ -338,3 +338,9 @@ flowchart LR
     param --> req
     history_in --> |txt| req
 ```
+
+
+# Authors
+
+1. still@catlair.net collab with igorptx@gmail.com
+
