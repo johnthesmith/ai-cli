@@ -1,3 +1,10 @@
+# Release v1.0.17
+
+1. Fixed bugs.
+0. **Important:** Remove old configs prompts memory and history before
+update (`rm -rf ~/.config/ai/app/cli ~/.local/share/ai/app/cli`).
+
+
 # Release v1.0.16
 
 1. Management keys have been changed.

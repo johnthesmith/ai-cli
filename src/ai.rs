@@ -15,10 +15,12 @@ mod help;
 mod prompts;
 mod storage;
 
+
+
 use serde_json::json;
 
 use std::io::{ Read, Write, IsTerminal };
-use core::{ App, SerdeExt, State, Moment };
+use core::{ App, SerdeExt, State, Moment, Color };
 use storage::Storage;
 
 pub const USER: &str = "user";
@@ -72,9 +74,11 @@ impl Ai
     */
     pub fn create() -> Self
     {
+        let app = App::create();
+        let log_rc = app.get_log_rc();
         Self
         {
-            app: App::create(),
+            app,
             profile: "default".to_string(),
 
             provider: String::new(),
@@ -82,9 +86,9 @@ impl Ai
             chat: String::new(),
             prompt: String::new(),
 
-            history_storage: Storage::new(),
-            memory_storage: Storage::new(),
-            prompt_storage: Storage::new()
+            history_storage: Storage::new( log_rc.clone() ),
+            memory_storage: Storage::new( log_rc.clone() ),
+            prompt_storage: Storage::new( log_rc.clone() )
         }
     }
 
@@ -470,6 +474,23 @@ impl Ai
             .get_state()
             .state_to( &mut self.app.state );
 
+
+            /* Set access rights */
+            let access = self.get_config_val( &[ "access" ], json!( {} ));
+
+            self.history_storage.set_access
+            (
+                &access[ "history" ].get_str( "i" )
+            );
+            self.memory_storage.set_access
+            (
+                &access[ "memory" ].get_str( "i" )
+            );
+            self.prompt_storage.set_access
+            (
+                &access[ "prompt" ].get_str( "" )
+            );
+
             /* Execute actions from collected map */
             for( action, target ) in &actions
             {
@@ -732,8 +753,6 @@ impl Ai
                     "update-history" =>
                     {
                         no_prompt = true;
-                        let actor = self.app.config[ "actor" ]
-                        .get_str( USER );
                         let action = self.app.config[ "action" ]
                         .get_str( "read" );
                         let mut body = self.app.config[ "body" ]
@@ -753,9 +772,7 @@ impl Ai
                                 self.history_storage.update
                                 (
                                     &target,
-                                    "history",
                                     &action,
-                                    &actor,
                                     &body,
                                     true
                                 );
@@ -768,8 +785,6 @@ impl Ai
                     "update-memory" =>
                     {
                         no_prompt = true;
-                        let actor = self.app.config[ "actor" ]
-                        .get_str( USER );
 
                         let action = self.app.config[ "action" ]
                         .get_str( "read" );
@@ -792,9 +807,7 @@ impl Ai
                                 self.memory_storage.update
                                 (
                                     &target,
-                                    "memory",
                                     &action,
-                                    &actor,
                                     &body,
                                     true
                                 );
@@ -804,21 +817,6 @@ impl Ai
                     _ => {}
                 }
             }
-
-            /* Set access rights */
-            let access = self.get_config_val( &[ "access" ], json!( {} ));
-            self.history_storage.set_access
-            (
-                &access[ "history" ].get_str( "c" )
-            );
-            self.memory_storage.set_access
-            (
-                &access[ "memory" ].get_str( "c" )
-            );
-            self.memory_storage.set_access
-            (
-                &access[ "prompt" ].get_str( "" )
-            );
 
             if !no_prompt
             {
@@ -835,7 +833,7 @@ impl Ai
                         "Prompt size {} bytes exceeds limit {} bytes.\n\
                          Please increase max-chat-prompt-size-byte \
                          in config,\n or run 'ai pack history \
-                         --allow-history=iud' to compress conversation \
+                         allow-history=iud' to compress conversation \
                          history.",
                         size, max_bytes
                     );
@@ -870,8 +868,8 @@ impl Ai
             self.memory_storage.save( &memory_path );
 
             /* Save current state */
-//            let prompt_path = self.get_prompt_origin_file();
-//            self.prompt_storage.save( &prompt_path );
+            let prompt_path = self.get_prompt_origin_file();
+            self.prompt_storage.save( &prompt_path );
         }
 
         /* Dump final state if its not ok*/
@@ -1059,8 +1057,8 @@ impl Ai
             {
                 Ok( 0 ) =>
                 {
-                    /* 
-                        Pipe exists but empty - do nothing, prompt stays empty 
+                    /*
+                        Pipe exists but empty - do nothing, prompt stays empty
                     */
                 }
                 Ok( _ ) =>
@@ -2166,7 +2164,8 @@ impl Ai
         let mut result = String::new();
         let mut line = String::new();
 
-        for word in text.split_whitespace() {
+        for word in text.split_whitespace()
+        {
             // Check length in characters, not bytes
             let new_len = line.chars().count() + word.chars().count() + 1;
 
@@ -2213,7 +2212,7 @@ impl Ai
         let content = &content.replace( "%pool%", &self.get_pool_path() );
         self.app.get_log_mut().dump( "LLM response", content );
 
-        let mut storage = Storage::new();
+        let mut storage = Storage::new( self.app.get_log_rc() );
         storage.parse_answer( content );
 
         if !storage.facts.is_empty()
@@ -2227,13 +2226,13 @@ impl Ai
                     ( "pool", "add" ) =>
                     {
                         self.run_destination( &body, "pool", true );
-                        mnemonics.push( "p+".to_string() );
+                        mnemonics.push( "+p".to_string() );
                     }
 
                     ( "clipboard", "add" ) =>
                     {
                         self.run_destination( &body, "clipboard", true );
-                        mnemonics.push( "c-".to_string() );
+                        mnemonics.push( "+c".to_string() );
                     }
 
                     /* Execute command via destination */
@@ -2286,11 +2285,11 @@ impl Ai
 
                             if body.contains( '\n' )
                             {
-                                mnemonics.push( "s!".to_string() );
+                                mnemonics.push( "+!s".to_string() );
                             }
                             else
                             {
-                                mnemonics.push( "s+".to_string() );
+                                mnemonics.push( "+s".to_string() );
                             };
                         }
                     }
@@ -2306,12 +2305,24 @@ impl Ai
                             &body,
                             false
                         );
-                        mnemonics.push( "m+".to_string() );
-                        self.app.get_log_mut()
-                        .info( "Memory entry added" )
-                        .prm( "text", &body );
-                    }
 
+                        if self.memory_storage.get_state().is_ok()
+                        {
+                            mnemonics.push( "+m".to_string() );
+                            self.app.get_log_mut()
+                            .info( "Memory fact added" )
+                            .prm( "text", &body );
+                        }
+                        else
+                        {
+                            mnemonics.push( "+!m".to_string() );
+                            self.app.get_log_mut()
+                            .info( "Memory fact wasn't added" )
+                            .prm( "text", &body )
+                            .dump_state( self.prompt_storage.get_state() )
+                            ;
+                        }
+                    }
 
                     /* Handle history operations */
                     ( "history", "add" ) =>
@@ -2324,12 +2335,31 @@ impl Ai
                             &body,
                             false
                         );
-                        self.run_destination( &body, "message", true );
-                        mnemonics.push( "h+".to_string() );
 
-                        self.app.get_log_mut()
-                        .info( "History entry added" )
-                        .prm( "text", &body );
+                        if self.history_storage.get_state().is_ok()
+                        {
+                            let f = format!
+                            (
+                                "{}{}{}",
+                                Color::Magenta.to_str(),
+                                &body,
+                                Color::Default.to_str()
+                            );
+                            self.run_destination( &f, "message", true );
+                            mnemonics.push( "+h".to_string() );
+                            self.app.get_log_mut()
+                            .info( "History fact added" )
+                            .prm( "text", &body );
+                        }
+                        else
+                        {
+                            mnemonics.push( "+!h".to_string() );
+                            self.app.get_log_mut()
+                            .info( "History fact wasn't added" )
+                            .prm( "text", &body )
+                            .dump_state( self.prompt_storage.get_state() )
+                            ;
+                        }
                     }
 
                     /* Handle prompt operations */
@@ -2343,88 +2373,197 @@ impl Ai
                             &body,
                             false
                         );
-                        mnemonics.push( "p+".to_string() );
-                        self.app.get_log_mut()
-                        .info( "Prompt entry added" )
-                        .prm( "text", &body );
+                        if self.prompt_storage.get_state().is_ok()
+                        {
+                            mnemonics.push( "+p".to_string() );
+                            self.app.get_log_mut()
+                            .info( "Prompt fact added" )
+                            .prm( "text", &body );
+                        }
+                        else
+                        {
+                            mnemonics.push( "+!p".to_string() );
+                            self.app.get_log_mut()
+                            .info( "Prompt fact wasn't added" )
+                            .prm( "text", &body )
+                            .dump_state( self.prompt_storage.get_state() )
+                            ;
+                        }
                     }
 
                     /* Remove entries by ID */
                     ( _, "remove" ) =>
                     {
-                        if self.memory_storage.exists( &id)
+
+                        /* Memory fact removing */
+                        if self.memory_storage.exists( &id )
                         {
                             self.memory_storage.delete( &id, false );
-                            mnemonics.push( "m-".to_string());
+                            if self.memory_storage.get_state().is_ok()
+                            {
+                                mnemonics.push( "-m".to_string());
+                                self.app.get_log_mut()
+                                .info( "The memory fact has been removed" )
+                                .prm( "id", id );
+                            }
+                            else
+                            {
+                                mnemonics.push( "-!m".to_string());
+                                self.app.get_log_mut()
+                                .warning( "Memory fact wasn't removed" )
+                                .prm( "id", id )
+                                .dump_state( self.memory_storage.get_state() )
+                                ;
+                                self.memory_storage.get_state_mut().set_ok();
+                            }
                         }
 
-                        if self.prompt_storage.exists( &id)
+                        /* Prompt fact removing */
+                        if self.prompt_storage.exists( &id )
                         {
-                            self.prompt_storage.delete( &id, false);
-                            mnemonics.push( "p-".to_string());
+                            self.prompt_storage.delete( &id, false );
+                            if self.prompt_storage.get_state().is_ok()
+                            {
+                                mnemonics.push( "-p".to_string());
+                                self.app.get_log_mut()
+                                .info( "The prompt fact has been removed" )
+                                .prm( "id", id );
+                            }
+                            else
+                            {
+                                mnemonics.push( "-!p".to_string());
+
+                                self.app.get_log_mut()
+                                .warning( "Prompt fact wasn't removed" )
+                                .prm( "id", id )
+                                .dump_state( self.prompt_storage.get_state() )
+                                ;
+
+                                self.prompt_storage.get_state_mut().set_ok();
+                            }
                         }
 
-                        if self.history_storage.exists( &id)
+                        /* History fact removing */
+                        if self.history_storage.exists( &id )
                         {
                             self.history_storage.delete( &id, false );
-                            mnemonics.push( "h-".to_string() );
+                            if self.history_storage.get_state().is_ok()
+                            {
+                                mnemonics.push( "-h".to_string());
+                                self.app.get_log_mut()
+                                .info( "The history fact has been removed" )
+                                .prm( "id", id );
+                            }
+                            else
+                            {
+                                mnemonics.push( "-!h".to_string());
+                                self.app.get_log_mut()
+                                .warning( "History fact wasn't removed" )
+                                .prm( "id", id )
+                                .dump_state( self.history_storage.get_state() )
+                                ;
+                                self.history_storage.get_state_mut().set_ok();
+                            }
                         }
                     }
+
+
 
                     /* Change entries by ID */
                     ( _, "change" ) =>
                     {
-                        if self.memory_storage.exists( &id)
+                        if
+                            self.memory_storage.get_state().is_ok() &&
+                            self.memory_storage.exists( &id )
                         {
                             self.memory_storage.update
                             (
                                 &id,
-                                "memory",
                                 "read",
-                                &actor,
                                 &body,
                                 false
                             );
-                            mnemonics.push( "m#".to_string() );
-                            self.app.get_log_mut()
-                            .info( "Memory entry changed" )
-                            .prm( "id", &id );
+                            if self.memory_storage.get_state().is_ok()
+                            {
+                                mnemonics.push( "^m".to_string() );
+                                self.app.get_log_mut()
+                                .info( "Memory updated" )
+                                .prm( "id", &id );
+                            }
+                            else
+                            {
+                                mnemonics.push( "^!h".to_string());
+                                self.app.get_log_mut()
+                                .warning( "Memory fact wasn't updated" )
+                                .prm( "id", id )
+                                .dump_state( self.memory_storage.get_state() )
+                                ;
+                                self.memory_storage.get_state_mut().set_ok();
+                            }
                         }
 
-                        if self.prompt_storage.exists( &id)
+                        if
+                            self.prompt_storage.get_state().is_ok() &&
+                            self.prompt_storage.exists( &id)
                         {
                             self.prompt_storage.update
                             (
                                 &id,
-                                "prompt",
                                 "read",
-                                &actor,
                                 &body,
                                 false
                             );
-                            mnemonics.push( "p#".to_string() );
-                            self.app.get_log_mut()
-                            .info( "Prompt entry changed" )
-                            .prm( "id", &id );
+                            if self.prompt_storage.get_state().is_ok()
+                            {
+                                mnemonics.push( "^p".to_string() );
+                                self.app.get_log_mut()
+                                .info( "Prompt updated" )
+                                .prm( "id", &id );
+                            }
+                            else
+                            {
+                                mnemonics.push( "^!p".to_string());
+                                self.app.get_log_mut()
+                                .warning( "Prompt fact wasn't updated" )
+                                .prm( "id", id )
+                                .dump_state( self.prompt_storage.get_state() )
+                                ;
+                                self.prompt_storage.get_state_mut().set_ok();
+                            }
                         }
 
-                        if self.history_storage.exists( &id)
+                        if
+                            self.history_storage.get_state().is_ok() &&
+                            self.history_storage.exists( &id)
                         {
                             self.history_storage.update
                             (
                                 &id,
-                                "history",
                                 "read",
-                                &actor,
                                 &body,
                                 false
                             );
-                            mnemonics.push( "h#".to_string() );
-                            self.app.get_log_mut()
-                            .info( "History entry changed" )
-                            .prm( "id", &id );
+                            if self.history_storage.get_state().is_ok()
+                            {
+                                mnemonics.push( "^h".to_string() );
+                                self.app.get_log_mut()
+                                .info( "History updated" )
+                                .prm( "id", &id );
+                            }
+                            else
+                            {
+                                mnemonics.push( "^!h".to_string());
+                                self.app.get_log_mut()
+                                .warning( "History fact wasn't updated" )
+                                .prm( "id", id )
+                                .dump_state( self.prompt_storage.get_state() )
+                                ;
+                                self.history_storage.get_state_mut().set_ok();
+                            }
                         }
                     }
+
+
 
                     /* */
                     _ =>
@@ -2437,7 +2576,7 @@ impl Ai
                         .prm( "actor", actor )
                         .prm( "body", &body );
 
-                        mnemonics.push( "?".to_string() );
+                        mnemonics.push( "##".to_string() );
 
                         let body = format!
                         (
@@ -2467,6 +2606,7 @@ impl Ai
                     }
                 }
             }
+
             if self.get_config_val( &[ "show-mnemonic" ], false )
             {
                 let full_mnemonic = mnemonics.join( "|" );
@@ -2479,6 +2619,7 @@ impl Ai
                     self.prompt_storage.to_string().len()
                 );
             }
+
         }
     }
 
@@ -2487,7 +2628,7 @@ impl Ai
     /*
         Inject command directly into TTY input pool using TIOCSTI ioctl.
 
-        This makes the command appear in the user's terminal prompt as if 
+        This makes the command appear in the user's terminal prompt as if
         typed. Does NOT press Enter - user can edit before executing.
 
         # Security Warning
@@ -2881,7 +3022,7 @@ impl Ai
     */
     fn get_request_timeout_ms( &self ) -> u64
     {
-        self.get_config_val( &[ "request_timeout_ms" ], 30000 )
+        self . get_config_val( &[ "request_timeout_ms" ], 30000 )
     }
 
 
@@ -2894,4 +3035,3 @@ impl Ai
         self.get_config_val( &[ "connect_timeout_ms" ], 10000 )
     }
 }
-

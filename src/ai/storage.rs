@@ -12,13 +12,19 @@
 
 use std::fs;
 use serde_json::json;
-use core::State;
 use std::collections::BTreeMap;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::cell::Ref;
+use std::cell::RefMut;
 
-
+use core::Log;
+use core::State;
 
 pub struct Storage
 {
+    /* Log element */
+    pub log: Rc<RefCell<Log>>,
     /* Allow insert operations */
     allow_insert: bool,
     /* Allow delete operations */
@@ -54,11 +60,16 @@ impl Storage
     /*
         Create new storage
     */
-    pub fn new()
+    pub fn new
+    (
+        /* Log structure */
+        log: Rc<RefCell<Log>>
+    )
     -> Self
     {
         Self
         {
+            log: log,
             allow_insert: true,
             allow_delete: true,
             allow_update: true,
@@ -91,12 +102,20 @@ impl Storage
         let lines: Vec<&str> = content.lines().collect();
         if !lines.is_empty()
         {
-            self.fact_delimiter = lines[ 0 ].trim().to_string();
+            let delimiter = lines[ 0 ].trim().to_string();
+            self.fact_delimiter = delimiter.clone();
+
             if !self.fact_delimiter.is_empty()
             {
+                self
+                .get_log_mut()
+                .trace( "Delimiter founded" )
+                .prm( "value", delimiter );
+
                 let mut facts = Vec::new();
                 let mut current_fact = Vec::new();
                 let mut i = 1; // skip first line (delimiter)
+
                 while i < lines.len()
                 {
                     let line = lines[i];
@@ -168,6 +187,12 @@ impl Storage
                     }
                 }
             }
+            else
+            {
+                self
+                .get_log_mut()
+                .warning( "Delimiter wasn't founded" );
+            }
         }
     }
 
@@ -186,9 +211,14 @@ impl Storage
         let lines: Vec<&str> = content.lines().collect();
         if !lines.is_empty()
         {
-            self.fact_delimiter = lines[0].trim().to_string();
+            let delimiter = lines[ 0 ].trim().to_string();
+            self.fact_delimiter = delimiter.clone();
             if !self.fact_delimiter.is_empty()
             {
+                self
+                .get_log_mut()
+                .trace( "Delimiter founded" )
+                .prm( "value", delimiter );
 
                 let mut facts = Vec::new();
                 let mut current_fact = Vec::new();
@@ -306,12 +336,11 @@ impl Storage
 
                                 "change" | "update"  =>
                                 {
-                                    if lines.len() > 3
+                                    if lines.len() > 2
                                     {
                                         action = "change".to_string();
                                         id = lines[ 1 ].to_string();
-                                        actor = lines[ 2 ].to_string();
-                                        content = lines[ 3.. ]
+                                        content = lines[ 2.. ]
                                         .join( "\n" )
                                         .trim()
                                         .to_string();
@@ -372,6 +401,12 @@ impl Storage
                         }
                     }
                 }
+            }
+            else
+            {
+                self
+                .get_log_mut()
+                .warning( "Delimiter wasn't founded" );
             }
         }
     }
@@ -512,6 +547,17 @@ impl Storage
 
 
     /*
+        Return state mute
+    */
+    pub fn get_state_mut( &mut self )
+    -> &mut State
+    {
+        &mut self.state
+    }
+
+
+
+    /*
         Clear all facts from storage
     */
     pub fn clear( &mut self )
@@ -593,35 +639,38 @@ impl Storage
     )
     -> &mut Self
     {
-        if self.allow_insert || no_right
+        if self.get_state().is_ok()
         {
-            let id = self.generate_id();
-            self.facts.insert
-            (
-                id.clone(),
+            if self.allow_insert || no_right
+            {
+                let id = self.generate_id();
+                self.facts.insert
                 (
-                    origin.to_string(),
-                    action.to_string(),
-                    actor.to_string(),
-                    content.to_string()
-                )
-            );
-        }
-        else
-        {
-            self.state.set_state
-            (
-                "storage-insert-not-allowed",
-                json!
+                    id.clone(),
+                    (
+                        origin.to_string(),
+                        action.to_string(),
+                        actor.to_string(),
+                        content.to_string()
+                    )
+                );
+            }
+            else
+            {
+                self.state.set_state
                 (
-                    {
-                        "origin": origin,
-                        "action": action,
-                        "actor": actor,
-                        "content": content
-                    }
-                )
-            );
+                    "storage-insert-not-allowed",
+                    json!
+                    (
+                        {
+                            "origin": origin,
+                            "action": action,
+                            "actor": actor,
+                            "content": content
+                        }
+                    )
+                );
+            }
         }
         self
     }
@@ -636,12 +685,8 @@ impl Storage
         &mut self,
         /* Id */
         id: &str,
-        /* Origin of fact */
-        origin: &str,
         /* Action */
         action: &str,
-        /* Actor */
-        actor: &str,
         /* Content of fact */
         content: &str,
         /* True for disable check rights */
@@ -649,35 +694,46 @@ impl Storage
     )
     -> &mut Self
     {
-        if self.allow_update || no_right
+        if self.get_state().is_ok()
         {
-            self.facts.insert
-            (
-                id.to_string(),
+            if self.allow_update || no_right
+            {
+                if let Some(( origin, _, actor, _ )) = self.facts.get( id )
+                {
+                    self.facts.insert
+                    (
+                        id.to_string(),
+                        (
+                            origin.to_string(),
+                            action.to_string(),
+                            actor.to_string(),
+                            content.to_string()
+                        )
+                    );
+                }
+                else
+                {
+                    self.state.set_state
+                    (
+                        "fact-not-found-for-update",
+                        json!({ "id": id })
+                    );
+                }
+            }
+            else
+            {
+                self.state.set_state
                 (
-                    origin.to_string(),
-                    action.to_string(),
-                    actor.to_string(),
-                    content.to_string()
-                )
-            );
-        }
-        else
-        {
-            self.state.set_state
-            (
-                "storage-update-not-allowed",
-                json!
-                (
-                    {
-                        "id": id,
-                        "origin": origin,
-                        "action": action,
-                        "actor": actor,
-                        "content": content
-                    }
-                )
-            );
+                    "storage-update-not-allowed",
+                    json!
+                    (
+                        {
+                            "id": id,
+                            "content": content
+                        }
+                    )
+                );
+            }
         }
         self
     }
@@ -696,19 +752,21 @@ impl Storage
     )
     -> &mut Self
     {
-        if self.allow_delete || no_right
+        if self.get_state().is_ok()
         {
-            self.facts.remove( id );
+            if self.allow_delete || no_right
+            {
+                self.facts.remove( id );
+            }
+            else
+            {
+                self.state.set_state
+                (
+                    "storage-delete-not-allowed",
+                    json!({ "id": id })
+                );
+            }
         }
-        else
-        {
-            self.state.set_state
-            (
-                "storage-delete-not-allowed",
-                json!({ "id": id })
-            );
-        }
-
         self
     }
 
@@ -872,5 +930,38 @@ impl Storage
     ) -> bool
     {
         self.facts.contains_key(id)
+    }
+
+
+
+    /*
+        Return shared reference to log
+    */
+    #[allow(dead_code)]
+    pub fn get_log(&self)
+    -> Ref<'_, Log>
+    {
+        self.log.borrow()
+    }
+
+
+
+    /*
+        Return mutable reference to log (via RefCell)
+    */
+    #[allow(dead_code)]
+    pub fn get_log_mut( &mut self )
+    -> RefMut<'_, Log>
+    {
+        self.log.borrow_mut()
+    }
+
+
+
+    #[allow(dead_code)]
+    pub fn get_log_rc(&self)
+    -> Rc<RefCell<Log>>
+    {
+        self.log.clone()
     }
 }
