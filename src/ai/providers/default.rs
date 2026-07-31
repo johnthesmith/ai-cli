@@ -63,50 +63,6 @@ fn replace_placeholders
 
 
 
-fn select_rule
-(
-    api_formats: &serde_json::Value,
-    provider_name: &str,
-    model: &str
-) -> serde_json::Value
-{
-    if api_formats.is_null()
-    {
-        return serde_json::Value::Null;
-    }
-
-    if let Some(formats) = api_formats.as_array()
-    {
-        for rule in formats
-        {
-            let rule_provider = rule["provider"]
-                .as_str()
-                .unwrap_or("*");
-            let rule_model = rule["model"]
-                .as_str()
-                .unwrap_or("*");
-
-            if
-            (
-                rule_provider == "*" ||
-                rule_provider == provider_name
-            )
-            &&
-            (
-                rule_model == "*" ||
-                rule_model == model
-            )
-            {
-                return rule.clone();
-            }
-        }
-    }
-
-    serde_json::Value::Null
-}
-
-
-
 impl<'a> OpenAICompatibleProvider<'a>
 {
     /*
@@ -183,9 +139,13 @@ impl<'a> OpenAICompatibleProvider<'a>
         String,
         /* Content text */
         String,
-        /* Prompt tokens count */
+        /* Input tokens count */
         u64,
-        /* Answer tokens count */
+        /* Output tokens count */
+        u64,
+        /* Billed tokens count */
+        u64,
+        /* Cached tokens count */
         u64,
         /* Sucess true or false */
         bool
@@ -194,8 +154,10 @@ impl<'a> OpenAICompatibleProvider<'a>
         /* Result variables */
         let mut error_msg = String::new();
         let mut content = String::new();
-        let mut prompt_tokens = 0;
-        let mut completion_tokens = 0;
+        let mut tokens_in = 0;
+        let mut tokens_out = 0;
+        let mut tokens_billed = 0;
+        let mut tokens_cached = 0;
         let mut success = false;
 
         let raw = raw.trim();
@@ -247,44 +209,7 @@ impl<'a> OpenAICompatibleProvider<'a>
                 else
                 {
                     let answer = &rule[ "answer" ];
-                    let mut source = "";
-
-                    if let Some( arr ) = answer.as_array()
-                    {
-                        let mut current = &json;
-                        for key in arr
-                        {
-                            if let Some(idx) = key.as_u64()
-                            {
-                                if let Some(next) =
-                                current
-                                .as_array()
-                                .and_then(|a| a.get(idx as usize))
-                                {
-                                    current = next;
-                                }
-                                else
-                                {
-                                    break;
-                                }
-                            }
-                            else if let Some(key_str) = key.as_str()
-                            {
-                                if let Some(next)
-                                = current
-                                .as_object()
-                                .and_then(|o| o.get(key_str))
-                                {
-                                    current = next;
-                                }
-                                else
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                        source = current.as_str().unwrap_or("");
-                    }
+                    let source = json.get_by_path_string( answer, "" );
 
                     if !source.is_empty()
                     {
@@ -296,17 +221,29 @@ impl<'a> OpenAICompatibleProvider<'a>
                         .trim()
                         .to_string();
 
-                        prompt_tokens = json
-                        [ "usage" ]
-                        [ "prompt_tokens" ]
-                        .as_u64()
-                        .unwrap_or(0);
+                        tokens_in = json.get_by_path_int
+                        (
+                            &rule[ "tokens_in" ],
+                            0
+                        );
 
-                        completion_tokens = json
-                        [ "usage" ]
-                        [ "completion_tokens" ]
-                        .as_u64()
-                        .unwrap_or(0);
+                        tokens_out = json.get_by_path_int
+                        (
+                            &rule[ "tokens_out" ],
+                            0
+                        );
+
+                        tokens_billed = json.get_by_path_int
+                        (
+                            &rule[ "tokens_billed" ],
+                            0
+                        );
+
+                        tokens_cached = json.get_by_path_int
+                        (
+                            &rule[ "tokens_cached" ],
+                            0
+                        );
 
                         success = true;
                     }
@@ -354,11 +291,14 @@ impl<'a> OpenAICompatibleProvider<'a>
             error_msg,
             think,
             content,
-            prompt_tokens,
-            completion_tokens,
+            tokens_in,
+            tokens_out,
+            tokens_billed,
+            tokens_cached,
             success
         )
     }
+
 
 
     /*
@@ -427,12 +367,7 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
             &api_url
         );
 
-        let api_formats = &self.ai.app.config
-        [ "application" ]
-        [ "ai" ]
-        [ "api-format" ];
-
-        let selected_rule = select_rule(api_formats, &provider_name, &model);
+        let selected_rule = self.ai.select_rule( &provider_name, &model);
         if selected_rule.is_null()
         {
             self.ai.app.state.set_state
@@ -511,14 +446,16 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                         "chat"
                     );
 
-                    /* Get openai fields*/
+                    /* Get fields*/
                     let
                     (
                         error,
                         _, //think,
                         content,
-                        _, //prompt_tokens,
-                        _, //answer_tokens,
+                        tokens_in,
+                        tokens_out,
+                        tokens_billed,
+                        tokens_cached,
                         result
                     ) = self.parse_response
                     (
@@ -528,7 +465,14 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
 
                     if result
                     {
-                        self.ai.handle_chat_response( &content )
+                        self.ai.handle_chat_response
+                        (
+                            &content,
+                            tokens_in,
+                            tokens_out,
+                            tokens_billed,
+                            tokens_cached,
+                        )
                     }
                     else
                     {

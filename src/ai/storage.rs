@@ -13,6 +13,7 @@
 use std::fs;
 use serde_json::json;
 use std::collections::BTreeMap;
+use indexmap::IndexMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::cell::Ref;
@@ -25,30 +26,35 @@ pub struct Storage
 {
     /* Log element */
     pub log: Rc<RefCell<Log>>,
-    /* Allow insert operations */
-    allow_insert: bool,
-    /* Allow delete operations */
-    allow_delete: bool,
-    /* Allow update operations */
-    allow_update: bool,
+
+    last_generated_id: u128,
+
     /* Storage state */
     state: State,
+
     /* In-memory facts loaded once  id -> actor,content */
-    pub facts: BTreeMap
+    pub facts: IndexMap
     <
         /* id */
         String,
         (
-            /* origin = prompt|memory|history|prompt|clipboard|shell */
+            /* domain = prompt|memory|history|pool|clipboard|shell */
             String,
-            /* action = read|add|remove|change */
-            String,
-            /* actor = tool|assistant|user */
+            /* actor = assistant|user */
             String,
             /* fact content */
             String
         )
     >,
+
+    pub access: BTreeMap
+    <
+        /* domain */
+        String,
+        /* SIUD */
+        String
+    >,
+
     /* State */
     pub fact_delimiter: String
 }
@@ -70,346 +76,142 @@ impl Storage
         Self
         {
             log: log,
-            allow_insert: true,
-            allow_delete: true,
-            allow_update: true,
+
+            last_generated_id: 0,
+
             state: State::ok(),
 
-            facts: BTreeMap::new(),
+            facts: IndexMap::new(),
+            access: BTreeMap::new(),
+
             /* Default fact delimiter will be replaced by first promt line */
-            fact_delimiter: "==fAcTd==".to_string()
+            fact_delimiter: "#FACT".to_string()
         }
     }
 
 
 
-    /*
-        Parse facts from string content
-
-        Format:
-            delimiter
-            id
-            origin
-            actor
-            content
-    */
-    pub fn parse_file
+    pub fn parse
     (
         &mut self,
         content: &str
     )
+    -> &mut Self
     {
         let lines: Vec<&str> = content.lines().collect();
-        if !lines.is_empty()
+        let mut i = 0;
+        let mut current_content = Vec::new();
+        let mut current_header: Option<(String, String, String)> = None;
+
+        while i < lines.len()
         {
-            let delimiter = lines[ 0 ].trim().to_string();
-            self.fact_delimiter = delimiter.clone();
+            let line = lines[ i ];
 
-            if !self.fact_delimiter.is_empty()
+            if let Some(( domain, actor, id, _ )) = self.parse_header( line )
             {
-                self
-                .get_log_mut()
-                .trace( "Delimiter founded" )
-                .prm( "value", delimiter );
-
-                let mut facts = Vec::new();
-                let mut current_fact = Vec::new();
-                let mut i = 1; // skip first line (delimiter)
-
-                while i < lines.len()
+                if let Some(( domain, actor, id)) = current_header.take()
                 {
-                    let line = lines[i];
-                    /*
-                        Check if line is exactly the delimiter
-                        (no extra chars)
-                    */
-                    if line == self.fact_delimiter
+                    let content = current_content
+                    .join( "\n" )
+                    .trim()
+                    .to_string();
+
+                    let final_id = if id == "-" || id == "NEW" || id == "new"
                     {
-                        /* End of current fact */
-                        if !current_fact.is_empty()
-                        {
-                            facts.push( current_fact.join( "\n" ));
-                            current_fact.clear();
-                        }
+                        self.generate_id()
                     }
                     else
                     {
-                        current_fact.push(line);
-                    }
-
-                    i += 1;
+                        id
+                    };
+                    self.facts.insert( final_id, (domain, actor, content ));
+                    current_content.clear();
                 }
-
-                /* Last fact */
-                if !current_fact.is_empty()
-                {
-                    facts.push( current_fact.join( "\n" ));
-                }
-
-                for fact in facts
-                {
-                    let fact = fact.trim();
-                    if !fact.is_empty()
-                    {
-                        let lines: Vec<&str> = fact.lines().collect();
-                        if lines.len() > 3
-                        {
-                            let id = lines[ 0 ].trim().to_string();
-                            let origin = lines[ 1 ].trim().to_string();
-                            let actor = lines[ 2 ].trim().to_string();
-                            let content = lines[ 3.. ]
-                            .join( "\n" )
-                            .trim()
-                            .to_string();
-
-                            let final_id = if id == "-"
-                            {
-                                self.generate_id()
-                            }
-                            else
-                            {
-                                id
-                            };
-
-                            self.facts.insert
-                            (
-                                final_id,
-                                (
-                                    /* Origin */
-                                    origin,
-                                    /* Empty action */
-                                    "".to_string(),
-                                    actor,
-                                    content
-                                )
-                            );
-                        }
-                    }
-                }
+                current_header = Some((domain, actor, id));
             }
             else
             {
-                self
-                .get_log_mut()
-                .warning( "Delimiter wasn't founded" );
+                if current_header.is_some()
+                {
+                    current_content.push(line);
+                }
             }
+            i += 1;
         }
+
+        if let Some((domain, actor, id)) = current_header.take()
+        {
+            let content = current_content
+            .join( "\n" )
+            .trim()
+            .to_string();
+
+            let final_id = if id == "-" || id == "NEW" || id == "new"
+            {
+                self.generate_id()
+            }
+            else
+            {
+                id
+            };
+            self.facts.insert( final_id, ( domain, actor, content ));
+        }
+        self
     }
 
 
 
-    /*
-        Parse facts from LLM answer with actions string content
-        Format
-    */
-    pub fn parse_answer
+    fn parse_header
     (
-        &mut self,
-        content: &str
+        &self, line: &str
     )
+    -> Option
+    <(
+        /* domain */
+        String,
+        /* actor */
+        String,
+        /* id */
+        String,
+        /* content */
+        String
+    )>
     {
-        let lines: Vec<&str> = content.lines().collect();
-        if !lines.is_empty()
+        let parts: Vec<&str> = line.split( '|' ).collect();
+
+        if parts.len() >= 2 && parts[0] == "#FACT"
         {
-            let delimiter = lines[ 0 ].trim().to_string();
-            self.fact_delimiter = delimiter.clone();
-            if !self.fact_delimiter.is_empty()
-            {
-                self
-                .get_log_mut()
-                .trace( "Delimiter founded" )
-                .prm( "value", delimiter );
+            let domain = parts[ 1 ].to_string();
 
-                let mut facts = Vec::new();
-                let mut current_fact = Vec::new();
-                let mut i = 1; // skip first line (delimiter)
-                while i < lines.len()
-                {
-                    let line = lines[i];
-                    /*
-                        Check if line is exactly the delimiter (no extra chars)
-                    */
-                    if line == self.fact_delimiter
-                    {
-                        /* End of current fact */
-                        if !current_fact.is_empty()
-                        {
-                            facts.push( current_fact.join( "\n" ));
-                            current_fact.clear();
-                        }
-                    }
-                    else
-                    {
-                        current_fact.push(line);
-                    }
+            let actor = if parts.len() >=3
+            { parts[ 2 ].to_string() } else { String::new() };
 
-                    i += 1;
-                }
+            let id = if parts.len() >= 4
+            { parts[ 3 ].to_string() } else { String::new() };
 
-                /* Last fact */
-                if !current_fact.is_empty()
-                {
-                    facts.push(current_fact.join( "\n" ));
-                }
+            let content = if parts.len() >= 5
+            { parts[ 4.. ].join("|") } else { String::new() };
 
-                for fact in facts
-                {
-                    let fact = fact.trim();
-                    if !fact.is_empty()
-                    {
-                        let lines: Vec<&str> = fact.lines().collect();
-                        {
-                            let directive = lines[0].trim().to_string();
-                            let mut content = String::new();
-                            let mut origin = String::new();
-                            let mut action = String::new();
-                            let mut actor = String::new();
-                            let mut id = "-".to_string();
-                            match directive.as_str()
-                            {
-                                "memory" |
-                                "memory-add" |
-                                "memory-insert" =>
-                                {
-                                    if lines.len() > 1
-                                    {
-                                        content = lines[ 1.. ]
-                                        .join( "\n" )
-                                        .trim().to_string();
-                                        origin = "memory".to_string();
-                                        action = "add".to_string();
-                                        actor = "%assistant%".to_string();
-                                    };
-
-                                },
-
-                                "prompt" |
-                                "prompt-add" |
-                                "prompt-insert" =>
-                                {
-                                    if lines.len() > 1
-                                    {
-                                        content = lines[ 1.. ]
-                                        .join( "\n" )
-                                        .trim()
-                                        .to_string();
-
-                                        origin = "prompt".to_string();
-                                        action = "add".to_string();
-                                        actor = "%assistant%".to_string();
-                                    };
-                                },
-
-                                "shell" |
-                                "shell-add" |
-                                "shell-insert" =>
-                                {
-                                    if lines.len() > 1
-                                    {
-                                        content = lines[ 1.. ]
-                                        .join( "\n" )
-                                        .trim()
-                                        .to_string();
-                                        origin = "shell".to_string();
-                                        action = "add".to_string();
-                                        actor = "%assistant%".to_string();
-                                    };
-                                },
-
-                                "pool" |
-                                "pool-add" |
-                                "pool-insert" =>
-                                {
-                                    if lines.len() > 1
-                                    {
-                                        content = lines[ 1.. ]
-                                        .join( "\n" )
-                                        .trim()
-                                        .to_string();
-                                        origin = "pool".to_string();
-                                        action = "add".to_string();
-                                        actor = crate::ai::ASSISTANT
-                                        .to_string();
-                                    };
-                                },
-
-
-                                "change" | "update"  =>
-                                {
-                                    if lines.len() > 2
-                                    {
-                                        action = "change".to_string();
-                                        id = lines[ 1 ].to_string();
-                                        content = lines[ 2.. ]
-                                        .join( "\n" )
-                                        .trim()
-                                        .to_string();
-                                    };
-                                },
-
-                                "remove" | "delete" =>
-                                {
-                                    if lines.len() > 1
-                                    {
-                                        action = "remove".to_string();
-                                        id = lines[ 1 ].to_string();
-                                    };
-                                },
-
-                                "buffer" |
-                                "clipboard" |
-                                "clipboard-add" =>
-                                {
-                                    if lines.len() >= 1
-                                    {
-                                        content = lines[ 1.. ]
-                                        .join( "\n" )
-                                        .trim()
-                                        .to_string();
-                                        origin = "clipboard".to_string();
-                                        action = "add".to_string();
-                                        actor = "%assistant%".to_string();
-                                    };
-                                },
-
-                                "add" |
-                                "insert" |
-                                "history" |
-                                "history-add" |
-                                _ =>
-                                {
-                                    if lines.len() >= 1
-                                    {
-                                        content = lines[ 1.. ]
-                                        .join( "\n" )
-                                        .trim()
-                                        .to_string();
-                                        origin = "history".to_string();
-                                        action = "add".to_string();
-                                        actor = "%assistant%".to_string();
-                                    };
-                                },
-
-                            }
-
-                            id = if id == "-" { self.generate_id() } else { id };
-                            self.facts.insert
-                            (
-                                id,
-                                ( origin, action, actor, content )
-                            );
-                        }
-                    }
-                }
-            }
-            else
-            {
-                self
-                .get_log_mut()
-                .warning( "Delimiter wasn't founded" );
-            }
+            return Some(( domain, actor, id, content ));
         }
+        None
     }
+
+
+    #[allow(dead_code)]
+    pub fn clear_empty_content
+    (
+        &mut self
+    )
+    -> &mut Self
+    {
+        self.facts.retain
+        (
+            |_, (_, _, content)| !content.trim().is_empty()
+        );
+        self
+    }
+
 
 
 
@@ -424,6 +226,7 @@ impl Storage
             content line(s)
             ...
     */
+    #[allow(dead_code)]
     pub fn load
     (
         &mut self,
@@ -455,7 +258,7 @@ impl Storage
         };
 
         self.facts.clear();
-        self.parse_file( &content );
+        self.parse( &content );
 
         self
     }
@@ -497,7 +300,7 @@ impl Storage
             return self;
         }
 
-        let content = self.to_request_string();
+        let content = self.to_string();
 
         if let Err(e) = fs::write( path, &content )
         {
@@ -519,20 +322,63 @@ impl Storage
 
 
     /*
-        Generate new ID (microseconds timestamp)
+        Create new storage containing only selected domains
     */
-    fn generate_id( &self )
+    pub fn split
+    (
+        &self,
+        /* Domains to include */
+        domains: &[ &str ]
+    )
+    -> Self
+    {
+        let mut storage = Storage::new( self.log.clone() );
+        for ( id, (domain, actor, content) ) in &self.facts
+        {
+            if domains.contains( &domain.as_str() )
+            {
+                storage.facts.insert
+                (
+                    id.clone(),
+                    (
+                        domain.clone(),
+                        actor.clone(),
+                        content.clone()
+                    )
+                );
+            }
+        }
+        storage
+    }
+
+
+
+    /*
+        Generate new unique ID (microseconds timestamp)
+    */
+    pub fn generate_id( &mut self )
     -> String
     {
         use std::time::{ SystemTime, UNIX_EPOCH };
 
-        let since_epoch = SystemTime::now()
+        let now = SystemTime::now()
         .duration_since( UNIX_EPOCH )
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .as_micros();
 
-        since_epoch.as_micros().to_string()
+        let id = if now <= self.last_generated_id
+        {
+            self.last_generated_id + 1
+        }
+        else
+        {
+            now
+        };
+
+        self.last_generated_id = id;
+
+        id.to_string()
     }
-
 
 
     /*
@@ -547,7 +393,7 @@ impl Storage
 
 
     /*
-        Return state mute
+        Return state
     */
     pub fn get_state_mut( &mut self )
     -> &mut State
@@ -560,6 +406,7 @@ impl Storage
     /*
         Clear all facts from storage
     */
+    #[allow(dead_code)]
     pub fn clear( &mut self )
     -> &mut Self
     {
@@ -587,9 +434,7 @@ impl Storage
     )
     ->
     (
-        /* Оrigin */
-        String,
-        /* Action */
+        /* Domain */
         String,
         /* Actor */
         String,
@@ -597,11 +442,10 @@ impl Storage
         String
     )
     {
-        if let Some(( origin, action, actor, content )) = self.facts.get( id )
+        if let Some(( domain, actor, content )) = self.facts.get( id )
         {
             (
-                origin.clone(),
-                action.clone(),
+                domain.clone(),
                 actor.clone(),
                 content.clone()
             )
@@ -613,23 +457,23 @@ impl Storage
                 "storage-select-not-found",
                 json!({ "id": id })
             );
-            ( String::new(), String::new(), String::new(), String::new() )
+            ( String::new(), String::new(), String::new() )
         }
     }
 
 
 
     /*
-        insert new fact
+        Insert new fact
         Returns generated ID
     */
     pub fn insert
     (
         &mut self,
-        /* Origin of fact */
-        origin: &str,
-        /* Action */
-        action: &str,
+        /* Id */
+        id: &str,
+        /* Domainn */
+        domain: &str,
         /* Actor */
         actor: &str,
         /* Content of fact */
@@ -641,15 +485,21 @@ impl Storage
     {
         if self.get_state().is_ok()
         {
-            if self.allow_insert || no_right
+            if self.check_access( domain, 'i' ) || no_right
             {
-                let id = self.generate_id();
+                let id = if id == ""
+                {
+                    self.generate_id()
+                }
+                else
+                {
+                    id.to_string()
+                };
                 self.facts.insert
                 (
-                    id.clone(),
+                    id,
                     (
-                        origin.to_string(),
-                        action.to_string(),
+                        domain.to_string(),
                         actor.to_string(),
                         content.to_string()
                     )
@@ -663,8 +513,7 @@ impl Storage
                     json!
                     (
                         {
-                            "origin": origin,
-                            "action": action,
+                            "domain": domain,
                             "actor": actor,
                             "content": content
                         }
@@ -685,27 +534,40 @@ impl Storage
         &mut self,
         /* Id */
         id: &str,
-        /* Action */
-        action: &str,
+        /* Domain */
+        domain: &str,
+        /* Actor */
+        actor: &str,
         /* Content of fact */
         content: &str,
         /* True for disable check rights */
-        no_right: bool
+        ignore_access: bool
     )
     -> &mut Self
     {
         if self.get_state().is_ok()
         {
-            if self.allow_update || no_right
+            if let Some(( old_domain, _, _ )) = self.get_by_id( id )
             {
-                if let Some(( origin, _, actor, _ )) = self.facts.get( id )
+                if
+                    ignore_access
+                    ||
+                    (
+                        domain == old_domain &&
+                        self.check_access( domain, 'u' )
+                    )
+                    ||
+                    (
+                        domain != old_domain &&
+                        self.check_access( domain, 'i' ) &&
+                        self.check_access( &old_domain, 'd' )
+                    )
                 {
                     self.facts.insert
                     (
                         id.to_string(),
                         (
-                            origin.to_string(),
-                            action.to_string(),
+                            domain.to_string(),
                             actor.to_string(),
                             content.to_string()
                         )
@@ -715,8 +577,14 @@ impl Storage
                 {
                     self.state.set_state
                     (
-                        "fact-not-found-for-update",
-                        json!({ "id": id })
+                        "storage-update-not-allowed",
+                        json!
+                        (
+                            {
+                                "id": id,
+                                "content": content
+                            }
+                        )
                     );
                 }
             }
@@ -724,14 +592,8 @@ impl Storage
             {
                 self.state.set_state
                 (
-                    "storage-update-not-allowed",
-                    json!
-                    (
-                        {
-                            "id": id,
-                            "content": content
-                        }
-                    )
+                    "fact-not-found-for-update",
+                    json!({ "id": id })
                 );
             }
         }
@@ -754,21 +616,33 @@ impl Storage
     {
         if self.get_state().is_ok()
         {
-            if self.allow_delete || no_right
+            if let Some(( old_domain, _, _ )) = self.get_by_id( id )
             {
-                self.facts.remove( id );
+                if no_right || self.check_access( &old_domain, 'd' )
+                {
+                    self.facts.shift_remove( id );
+                }
+                else
+                {
+                    self.state.set_state
+                    (
+                        "storage-delete-not-allowed",
+                        json!({ "id": id })
+                    );
+                }
             }
             else
             {
                 self.state.set_state
                 (
-                    "storage-delete-not-allowed",
+                    "fact-not-found-for-delete",
                     json!({ "id": id })
                 );
             }
         }
         self
     }
+
 
 
     /**************************************************************************
@@ -785,51 +659,19 @@ impl Storage
     )
     -> String
     {
-        if let Some(( origin, action, actor, content )) = self.facts.get( id )
+        if let Some(( domain, actor, content )) = self.facts.get( id )
         {
             return format!
             (
-                "{}\n{}\n{}\n{}\n{}\n{}\n\n",
+                "{}|{}|{}|{}\n\n{}\n\n",
                 self.fact_delimiter,
-                id,
-                origin,
+                domain,
                 actor,
-                action,
+                id,
                 content
             );
         }
-
         String::new()
-    }
-
-
-
-    /*
-        Get fact by ID as string with delimiter
-    */
-    pub fn to_request_string_by_id
-    (
-        &self,
-        id: &str
-    )
-    -> String
-    {
-        if let Some(( origin, _, actor, content )) = self.facts.get( id )
-        {
-            format!
-            (
-                "{}\n{}\n{}\n{}\n{}\n\n",
-                self.fact_delimiter,
-                id,
-                origin,
-                actor,
-                content
-            )
-        }
-        else
-        {
-            String::new()
-        }
     }
 
 
@@ -853,55 +695,7 @@ impl Storage
     }
 
 
-
-    /*
-        Get all facts as single string with delimiter
-    */
-    pub fn to_request_string
-    (
-        &self
-    )
-    -> String
-    {
-        let mut content = String::new();
-        for( id, _ ) in &self.facts
-        {
-            content.push_str( &self.to_request_string_by_id( id ));
-        }
-
-        content
-    }
-
-
-
-    /*
-    */
-    pub fn set_access
-    (
-        &mut self,
-        access: &str
-    ) -> &mut Self
-    {
-        self.allow_insert = access.contains( 'i' );
-        self.allow_update = access.contains( 'u' );
-        self.allow_delete = access.contains( 'd' );
-        self
-    }
-
-
-
-    pub fn get_access( &self )
-    -> String
-    {
-        let mut access = String::new();
-        if self.allow_insert { access.push( 'i' ); }
-        if self.allow_update { access.push( 'u' ); }
-        if self.allow_delete { access.push( 'd' ); }
-        access
-    }
-
-
-
+    #[allow(dead_code)]
     pub fn get_fact_delimiter( &self )
     -> String
     {
@@ -927,7 +721,8 @@ impl Storage
     (
         &mut self,
         id: &str
-    ) -> bool
+    )
+    -> bool
     {
         self.facts.contains_key(id)
     }
@@ -964,4 +759,76 @@ impl Storage
     {
         self.log.clone()
     }
+
+
+
+    pub fn set_access
+    (
+        &mut self,
+        domain: &str,
+        rights: &str
+    )
+    -> &mut Self
+    {
+        self.access.insert
+        (
+            domain.to_string(),
+            rights.to_string()
+        );
+        self
+    }
+
+
+    #[allow(dead_code)]
+    pub fn get_access
+    (
+        &self,
+        domain: &str
+    )
+    -> String
+    {
+        self.access
+        .get( domain )
+        .cloned()
+        .unwrap_or_else( || "".to_string() )
+    }
+
+
+
+    pub fn check_access
+    (
+        &self,
+        domain: &str,
+        right: char
+    )
+    -> bool
+    {
+        self.access
+        .get( domain )
+        .map(|rights| rights.contains(right))
+        .unwrap_or(false)
+    }
+
+
+
+    /*
+        Get fact by ID
+        Returns Option with (domain, actor, content)
+    */
+    pub fn get_by_id
+    (
+        &self,
+        id: &str
+    )
+    -> Option
+    <&
+    (
+        /*domain actor content */
+        String, String, String
+    )
+    >
+    {
+        self.facts.get(id)
+    }
 }
+
