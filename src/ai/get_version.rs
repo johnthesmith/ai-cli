@@ -13,5 +13,4 @@ impl Ai
     {
         format!( "AI CLI Utility v{}", env!( "CARGO_PKG_VERSION" ))
     }
-
 }
