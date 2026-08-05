@@ -3,20 +3,25 @@
 Facts are the foundation of the ai-cli and prompts operation. A fact is a
 record in a text file.
 
-Each fact begins with a single-line header: `#FACT|<domain>|<actor>|<id>`.
-The first field is the delimiter #FACT.
-The second field is the fact domain:
-    prompt      – directives for LLM
-    history     – temporary chat history
-    memory      – long-term information
-    shell       – shell commands or pipelines
-    clipboard   – clipboard information
-    read        – input file data
-    write       – write file data
-The third field is the fact owner:
-    assistant
-    user
-The fourth field is the unique fact id or NEW for new facts.
+Each fact begins with a single-line header:
+```text
+#FACT|<domain>|<actor>|<id>
+```
+
+1. The first field is the delimiter #FACT.
+2. The second field is the fact domain:
+    * prompt      – directives for LLM
+    * history     – temporary chat history
+    * memory      – long-term information
+    * shell       – shell commands or pipelines
+    * clipboard   – clipboard information
+    * read        – input file data
+    * write       – write file data
+3. The third field is the fact owner:
+    * assistant
+    * user
+4. The fourth field is the unique fact id or NEW for new facts.
+
 Content is included until the next fact header.
 Facts represent the current state of dialog shared between user and assistant.
 
