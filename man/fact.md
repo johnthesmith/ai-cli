@@ -28,7 +28,11 @@ Facts represent the current state of dialog shared between user and assistant.
 Facts are used to build [prompts](prompts.md), [history](history.md),
 [memory](memory.md).
 
-You can view any used fact with the command `--select-fact=<fact-id>`.
+You can view any used fact with the command
+```
+--select-fact=<fact-id>
+```
+
 For example:
 ```bash
 ai --select-fact=protocol
