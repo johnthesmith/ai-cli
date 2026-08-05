@@ -10,5 +10,5 @@ By default, chats are stored in the folder:
 ./.ai-cli/profiles/<profile/>/chats/<chat>
 ```
 
-After creating a chat, you may need to switch [provider](providers.md),
-[model](model.md), [prompt](prompt.md).
+After creating a chat, you may need to switch [provider](provider.md),
+[model](models.md), [prompt](prompts.md).
