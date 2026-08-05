@@ -21,7 +21,8 @@ Connecting memory to a chat is done with the command
 If the memory file does not exist at connection time, it will be created.
 For a one-time memory switch in the current request, use the command
 ```
---memory=<memory-id>```
+--memory=<memory-id>
+```
 
 or
 
@@ -48,7 +49,8 @@ Note that memory is cleared immediately for all chats where it is connected.
 
 You can view the current memory with the commands
 ```
---out-memory```
+--out-memory
+```
 
 or
 
