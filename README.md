@@ -1,10 +1,11 @@
 # AI CLI Assistant
 
-1. CLI utility designed for embedding AI into bash pipelines
+1. ai-cli utility designed for embedding LLM into bash pipelines.
 0. Usage:
-    1. `echo "hello world" | 1` - pipeline;
-    0. `1 create hello-world folder` - direct query to AI;
-    0. `1` - interactive query input;
+    1. `echo "who are you?" | ai` - pipeline;
+    0. `ai create hello-world folder` - direct query to AI;
+    0. `ai` - interactive query input;
+0. See other [examples and cases](./man/cases.md).
 
 ---
 
@@ -22,17 +23,19 @@
 * [Fact Protocol](#fact-protocol)
 * [Architecture](#architecture)
 
+
+
 # Philosophy
 
-**LLM decides. Human acts.**
+Cooperation over replacement. LLMs assist. Humans decide.
+
+
 
 # How it works
 
-1. User provides input via arguments or pipeline
-2. AI generates a response
-3. The utility **types the response into your terminal** (X11 keyboard emulation)
-4. You can **edit the command** freely using standard line editing keys
-5. Press Enter to execute the final command
+1. You provide input: text, files, or commands
+2. AI advises: responds, suggests, or transforms
+3. You decide: type, copy, write to file, or execute
 
 ```mermaid
 flowchart LR
@@ -40,48 +43,55 @@ flowchart LR
     clipboard{{clipboard}}
     stdout{{stdout}}
     stdin{{stdin}}
-    pool[(pool \n file)]
+    files[(files)]
     memory[(memory)]
     ai[ai-cli]
     bash{{run bash \n command}}
     user((users \n 'ENTER'))
 
     keyboard --> user --> bash
-    stdin --> ai --> keyboard &  memory & pool & clipboard & stdout
+    stdin --> ai --> keyboard & memory & files & clipboard & stdout
 ```
 
 ```
-user@comp:~$ 1 hello
+user@comp:~$ ai hello
 Hello! How can I assist you today?
-user@comp:~$ 1 show me files in current directory
+user@comp:~$ ai show me files in current directory
 Here are the files and directories in the current directory:
 user@comp:~$ ls -la
 ```
 
-Would you press Enter, or try something else?
+Would you press Enter?
 
 ```
-echo "hello world" | ai "say it for groq" --provider=openai | ai "grok"
+echo who are you | ai --provider=deepseek it was deepseek
 ```
+
+It is pipeline.
+
 
 
 
 # Why `ai-cli`
 
+We needed the simple tool for each day working on "smart-iron".
+
 1. **No bloat** — No Node.js, no Python, no Docker. Core works with POSIX tools
 (`cat`, `tee`, `grep`). All extras (`xclip`, `git`, `nano`) are **optional**.
 2. **Minimal dependencies** — Single static binary. No runtime, no package
 manager, no interpreter.
-3. **Full user control** — AI **never** executes commands. Command appears on
+3. **Full control** — AI **never** executes commands. Command appears on
 your keyboard → you edit → you press Enter → bash executes. No background agent.
-No daemon. No permission popups. Just your terminal.
-4. **User defines output destinations** — each can be sent to stdout, pool
-file, clipboard, TTY, or any custom command. You decide where AI output goes.
-5. **Unix way** — Everything is a file or a pipe. Configuration is plain YAML in
-`~/.config/ai/`. History is plain text in `~/.local/share/ai/`. pool is plain
-text. No databases, no registries, no hidden state.
+No daemon. No permission popups. Just your and terminal.
+4. **User defines output destinations** — each can be sent to stdout, files,
+clipboard, TTY, or any custom command. You decide where AI output goes.
+5. **Unix way** — Everything is a file or a pipe. Configuration is plain YAML.
+[History](./man/history.md) [memory](./man/memory.md) and
+[prompt](./man/prompts.md) is plain text. No databases, no registries, no
+hidden state.
 
-**Compare:**
+
+## Compare
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — can run shell
 commands automatically (with "auto mode")
@@ -96,7 +106,6 @@ that bypasses confirmations
 - [Aider](https://github.com/paul-gauthier/aider) — autonomous agent that writes
 and executes code
 
-`ai-cli` — only you press Enter... and that’s all that matters.
 
 
 
@@ -134,50 +143,43 @@ curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh
 
 
 
-# Build
-
-1. This is an alternative to [Install](#install).
-2. Requirements for building:
-    1. `linux` - (Ubuntu 20.04+, Debian 11+, or newer)
-    0. `git`
-    0. `curl`
-    0. `build-essential`
-3. Download and run instalation script:
-
-```
-sudo apt install git curl build-essential
-curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/build.sh > build.sh
-less build.sh
-chmod +x build.sh
-./build.sh
-source ~/.bashrc
-```
-
-
 
 # Configuration
 
-1. On first run, default config will be created at
-`~/.config/ai/default/config.yaml` from
-[config](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/config.rs)
-2. Tokens will be placed in `~/.config/ai/default/tokens/<provider>.txt`
-3. For Git token retrieval see [Git token](./man/git-toke.md).
-4. Following the
-[AI Config Standard Proposal](https://github.com/johnthesmith/scraps/blob/main/en/proposal_ai_config_standard.md)
+1. ai-cli works like git and places files in the `./.ai-cli` folder.
+2. [Tokens](./man/token.md) will be placed in
+`~/.config/ai/app/cli/<profile>/<provider>.txt` where default values for:
+    1. `<profile>` default
+    2. `<provider>` github
+3. For Git token retrieval see [Git token](./man/token.md#github).
+4. For more information look [configuration](./man/config.md).
 
 
 
-# Run
+# Init and run
 
 ```bash
-1 --help
-1 hello
+ai --init
 ```
+After init, all files and config will be created in `./.ai-cli/`.
+
+```bash
+ai who are you?
+```
+
+You are able to switch fluently between chats, memory, prompts for each session
+or pipeline.
+
+Get help:
+```
+ai --help
+```
+
 
 
 # Security
 
-⚠️  **IMPORTANT**: This utility does NOT execute commands automatically.
+**IMPORTANT**: This utility does NOT execute commands automatically.
 
 - Always review the command printed in your terminal before pressing Enter.
 - The AI may generate dangerous commands (e.g., `rm -rf /*`, `dd`, `sudo`).
@@ -186,6 +188,19 @@ source ~/.bashrc
 Enter to confirm.
 - Recursive `ai|ai` pipelines may cause the tool to hang, but **cannot execute
 commands without your approval** — AI never presses Enter for you.
+
+
+
+## Files
+
+1. Utility can read your files with arguments `--read=<file>` and write with
+`--write=<file>`.
+2. For example you could use:
+```
+ai --read=./README.md --write=./README.ch.md translate readme to chinese
+```
+3. File operations can be actively used for analyzing and developing code
+without agent functions on your device.
 
 
 
@@ -207,85 +222,33 @@ AI-generated commands (security: prevents auto-execution)
 
 # Automnemomorph
 
-See
-[automnemomorph](https://github.com/johnthesmith/scraps/blob/main/en/automnemomorph.md)
-for the full concept and philosophical background. Unlike a human, who cannot
-"unsee" the past, auto-mnemomorph can:
-- Rewrite history (correct mistakes, remove insignificant details)
-- Forget on its own initiative
-- Add facts
-
-**Enable:**
-
-```
-ai --switch-prompt=automnemomorf
-```
-
-config:
-
-```yaml
-application:
-  ai:
-    access:
-      history: "siud"
-      memory: "siud"
-      prompt: "s"
-```
-
-**Disable:**
-
-```
-ai --switch-prompt=default
-```
-
-config:
-
-```yaml
-application:
-  ai:
-    access:
-      history: "si"
-      memory: "si"
-      prompt: "s"
-```
-
-
+ai-cli works as [automnemomorph](./man/automnemomorph.md) by default. See for
+the full concept and philosophical background.
 
 # Fact Protocol
 
-The AI assistant must return strict block structure. The full format
-description and rules are in the
-[prompt file](https://github.com/johnthesmith/ai-cli/blob/main/src/ai/prompts.rs)
+The AI assistant must exchange strict [fact](./man/fact.md) structure. The full
+format description and rules are in the
+`./.ai-cli/chats/<current-chat>/prompts/<current-prompt>.txt`
 
-AI communicates using named blocks instead of JSON. Each block represents a
-single fact or operation. Both user requests and AI responses follow the same
-fact block structure. This creates a uniform way to represent all information.
-
-
-
-## Why not json
-
-JSON requires escaping quotes and newlines inside strings. LLMs often produce
-invalid JSON — missing commas, unescaped quotes, broken multiline strings. Fact
-blocks need no escaping, work naturally with multiline content, and LLMs
-generate them correctly.
-
+Both user requests and AI responses follow the same fact block structure. This
+creates a uniform way to represent all information. You can absolutely free to
+change all facts in the text file.
 
 
 ## How LLM Operates
 
-1. Receives history as list of facts
-2. Each fact has id, type, actor, action, content
+1. Receives facts from [prompt](./man/prompts.md), [history](./man/history.md)
+and [memory](./man/memory.md).
 3. LLM can add, remove, or change any fact
-4. Returns new facts in same format
-5. No special parsing — facts are facts
+4. Returns facts in same format
+5. ai-cli tool process the facts and stores it.
 
 
 
 ## Benefits
 
 1. User and AI speak same language over cli
-2. History, memory, prompt is just list of facts
 3. LLM naturally manipulates facts
 4. Full automnemomorph behavior
 
@@ -302,7 +265,7 @@ flowchart LR
             history_out[("Chat \n history")]
             history_in[("Chat \n history")]
             prompt[("User \n prompt")]
-            pool[("pool \n file")]
+            files[("files")]
             log[("Log")]
         end
 
@@ -328,8 +291,8 @@ flowchart LR
     resp -->|data| memory_out
     resp -->|data| history_out
     resp -->|data| stdout
+    resp -->|data| file
     resp -->|command| command
-    resp -->|data| pool
     resp -->|data| clipboard
 
     memory_in --> |txt| req
@@ -343,4 +306,3 @@ flowchart LR
 # Authors
 
 1. still@catlair.net collab with igorptx@gmail.com
-

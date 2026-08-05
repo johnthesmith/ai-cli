@@ -828,7 +828,28 @@ impl Storage
     )
     >
     {
-        self.facts.get(id)
+        self.facts.get( id )
+    }
+
+
+
+    /*
+        Return list of fact IDs from storage
+    */
+    pub fn get_id_list
+    (
+        &self
+    )
+    -> Vec<String>
+    {
+        let mut result = Vec::new();
+
+        for (id, (_, _, _)) in self.facts.iter()
+        {
+            result.push(id.clone());
+        }
+
+        result
     }
 }
 

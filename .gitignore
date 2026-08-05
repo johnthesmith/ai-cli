@@ -21,3 +21,7 @@ Cargo.lock
 # OS
 .DS_Store
 Thumbs.db
+
+# AI CLI
+./.ai-cli/
+.ai-cli/
