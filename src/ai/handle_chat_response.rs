@@ -63,6 +63,7 @@ impl Ai
                     {
                         if Ai::check_access( &self.access_write, "u" )
                         {
+
                             let file_path = self
                             .write_translation
                             .get( id.as_str() )
@@ -71,9 +72,9 @@ impl Ai
                             if let Some( file_path ) = file_path
                             {
                                 if let Err( e )
-                                = core::ensure_directory(&file_path)
+                                = core::ensure_directory( &file_path )
                                 {
-                                    self.mnemo("^!w");
+                                    self.mnemo( "^!w" );
                                     self.app.get_log_mut()
                                     .error("Failed to create directory")
                                     .prm("path", &file_path)
@@ -81,6 +82,11 @@ impl Ai
                                 }
                                 else
                                 {
+                                    if Path::new( &file_path ).exists()
+                                    {
+                                        self.backup_file( &file_path );
+                                    }
+
                                     match std::fs::write( &file_path, &body )
                                     {
                                         Ok(_) =>
@@ -599,7 +605,7 @@ impl Ai
             self.mnemo( "!E" );
         }
 
-        if self.get_config_bool( &[ "out-status" ], false )
+        if self.get_config_bool( &[ "status" ], true )
         {
             let full_status = self.status.join
             (

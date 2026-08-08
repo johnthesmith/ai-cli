@@ -190,11 +190,14 @@ impl Ai
                 /* Session control */
                 "--no-prompt",
                 "--no-command",
+                "--color",
+                "--status",
                 "--set",
 
                 /* Files */
                 "--read",
                 "--write",
+                "--restore",
 
                 /* Profile & provider & model & chat (temporary) */
                 "--profile",
@@ -274,7 +277,7 @@ impl Ai
     {
         let values = match key
         {
-            "--read" | "--write" =>
+            "--read" | "--write" | "--restore" =>
             {
                 self.get_files( val )
             }
@@ -312,7 +315,7 @@ impl Ai
 
             "--prompt" | "--bind-prompt"  =>
             {
-                let chat = self.extract_chat_from_line(comp_line);
+                let chat = self.extract_chat_from_line( comp_line );
                 self.get_prompts( &chat )
             }
 
@@ -327,6 +330,12 @@ impl Ai
             {
                 self.storage.get_id_list()
             }
+
+            "--color" | "--status" =>
+            {
+                return vec![ "true".to_string(), "false".to_string() ];
+            }
+
             _ =>
             {
                 return vec![];

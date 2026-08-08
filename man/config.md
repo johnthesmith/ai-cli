@@ -1,6 +1,6 @@
 # Configuration
 
-1. Configuration of ai-cli can change the following paths:
+1. Configuration of ai-cli can change the following:
     1. [Config file](#config-file)
     2. [cli](#cli)
 
@@ -16,7 +16,7 @@
 
 ## cli
 
-1. You can override all config arguments from the CLI, using the
+1. You can override root config arguments from the CLI, using the
 notation `--key=value`.
 
 

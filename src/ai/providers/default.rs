@@ -8,6 +8,9 @@
 use regex::Regex;
 use reqwest::blocking::Response;
 
+use serde_json::json;
+
+
 use crate::Ai;
 use super::api::{ get_api_url, get_token };
 use super::Provider;
@@ -17,13 +20,13 @@ use core::SerdeExt;
 
 /*
     Default Provider for OpenAI-compatible APIs.
-    Supports: github, openai, deepseek, groq, together.
+    Supports: deepseek, openai, groq, together.
 */
 pub struct OpenAICompatibleProvider <'a>
 {
     /* Shared reference to AI instance (config, token, logs) */
     ai: &'a mut Ai,
-    /* Provider name (github, openai, deepseek, groq, together) */
+    /* Provider name ( deepseek, openai, ... ) */
     name: String,
 }
 
@@ -477,15 +480,28 @@ impl<'a> Provider for OpenAICompatibleProvider<'a>
                     else
                     {
                         /* Error response from API */
-                        let message = if error.is_empty()
-                        {
-                            content
-                        }
-                        else
-                        {
-                            format!( "{}\n{}", error, content )
-                        };
-                        println!( "{}", message );
+                        self
+                        .ai
+                        .app
+                        .state
+                        .set_state
+                        (
+                            "api-request-error",
+                            json!
+                            (
+                                {
+                                    "provider": provider_name,
+                                    "model-name": model_name,
+                                    "model": model,
+                                    "proxy": self.ai.read_proxy(),
+                                    "responce":
+                                    {
+                                        "code": error,
+                                        "content": content
+                                    }
+                                }
+                            )
+                        );
                     }
                 }
 

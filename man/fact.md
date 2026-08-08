@@ -3,10 +3,7 @@
 Facts are the foundation of the ai-cli and prompts operation. A fact is a
 record in a text file.
 
-Each fact begins with a single-line header:
-```text
-#FACT|<domain>|<actor>|<id>
-```
+Each fact begins with a single-line header: `#FACT|<domain>|<actor>|<id>`
 
 1. The first field is the delimiter #FACT.
 2. The second field is the fact domain:
@@ -34,7 +31,7 @@ You can view any used fact with the command
 ```
 
 For example:
-```bash
+```
 ai --select-fact=protocol
 ```
 
@@ -42,3 +39,23 @@ You are free to add, modify, and delete facts following the specified format.
 The [automnemomorph](automnemomor.md) can also perform all the listed
 operations based on the permissions granted to it. You can find the
 automnemomorph instructions in the `automnemomorf` fact.
+
+
+
+# Why facts
+
+For real work, it is necessary to break large text blocks into smaller ones to
+facilitate LLM work and control results.
+
+The fact format proved to be the most suitable for maintaining the state of
+dialogue between LLM and the user.
+
+
+
+# Why multipart plaintext not JSON
+
+We were forced to abandon the use of JSON when exchanging with the LLM,
+because development involves passing many repeatedly nested structures
+including YAML, JSON, and others. We had to make the exchange protocol as safe
+as possible from destruction of the JSON structure by the LLM during
+generation.

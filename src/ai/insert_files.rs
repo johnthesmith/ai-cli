@@ -16,26 +16,8 @@ impl Ai
     )
     -> &mut Self
     {
-        let files: Vec<String> =
-        match &self.app.config[type_operation]
-        {
-            serde_json::Value::Array( arr ) =>
-            {
-                arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            }
-            serde_json::Value::String(s) =>
-            {
-                vec![s.to_string()]
-            }
-            _ =>
-            {
-                Vec::new()
-            }
-        };
-
+        let files = &self.app.config[ type_operation ]
+        .get_string_list( Vec::new() );
         for file in files
         {
             let content = if std::fs::metadata( &file ).is_ok()

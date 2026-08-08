@@ -108,7 +108,7 @@ impl Ai
             }
         }
 
-        "github".to_string()
+        "deepseek".to_string()
     }
 
 
@@ -187,7 +187,7 @@ impl Ai
         &mut self,
         /* Raw response text from LLM */
         response: &str,
-        /* Provider name (e.g., "github", "openai", "deepseek" ) */
+        /* Provider name ( "deepseek", "openai", ... ) */
         provider: &str,
         /* Model identifier used for the request */
         model: &str,

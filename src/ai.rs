@@ -6,7 +6,6 @@
 /*
     Main AI module
 */
-
 mod providers;
 mod storage;
 
@@ -70,7 +69,10 @@ pub struct Ai
     no_history: bool,
     no_memory: bool,
 
-    /* id fact: file path */
+    /*
+        File write resolving table by fact
+        id fact: file path
+    */
     write_translation: BTreeMap < String, String >,
 
     /* Colorize */
@@ -106,6 +108,7 @@ include!( "ai/profile_section.rs" );
 include!( "ai/chat_section.rs" );
 include!( "ai/commands.rs" );
 include!( "ai/history_section.rs" );
+include!( "ai/backup_section.rs" );
 
 include!( "ai/mnemo.rs" );
 include!( "ai/token.rs" );

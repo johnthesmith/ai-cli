@@ -222,7 +222,7 @@ impl Ai
     ) -> &mut Self
     {
         let config = &self.app.config;
-        let facts = &config[ "prompts" ][ template ];
+        let facts = &config[ "prompts" ][ template ][ "facts" ];
 
         if facts.is_null()
         {

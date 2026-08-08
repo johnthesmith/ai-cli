@@ -7,24 +7,24 @@
 
 
 
-## GitHub
-
-1. Go to: https://github.com/settings/personal-access-tokens
-0. Click **Fine-grained token**
-0. Click **Generate new token**
-0. Fill:
-   - **Token name**: `ai-cli`
-   - **Expiration**: 90 days
-   - **Resource owner**: your account
-0. **Repository access**: `Public Repositories (read-only)`
-0. Click **Permissions** → **Models** → `Read-only`
-0. Click **Generate token**
-0. **Copy token immediately** (shown only once)
-0. Put your github token here `~/.config/local/ai/default/token.txt`
-
-
-
-## Deepseek
+# Deepseek
 
 1. Go to: https://platform.deepseek.com/api_keys
 
+
+
+# Tokens and profiles
+
+You can put the token for each profile, for example `deepseek` profile for 
+`alice`:
+```
+~/.config/ai/app/cli/alice/tokens/deepseek.txt
+```
+
+or you can change `token` path in [config](./config.md) for example
+
+```
+~/.config/ai/app/cli/tokens/%provider%.txt
+```
+
+or other.

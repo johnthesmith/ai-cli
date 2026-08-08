@@ -26,23 +26,23 @@ model-file: "%profile-path%/chats/%chat%/models/%provider%.txt"
 prompt-file-id: "%chat-path%/prompt.txt"
 
 # File with current prompt
-# Placeholders: %profile-path% %profile% %caht% %provider% %model%
+# Placeholders: %profile-path% %profile% %chat% %provider% %model%
 prompt-file: "%profile-path%/chats/%chat%/prompts/%prompt%.txt"
 
 # History file
-# Placeholders: %profile-path% %profile% %caht% %provider% %model%
+# Placeholders: %profile-path% %profile% %chat% %provider% %model%
 history: "%profile-path%/chats/%chat%/history.txt"
 
 # Memory for current chat
-# Placeholders: %profile-path% %profile% %caht% %provider% %model%
+# Placeholders: %profile-path% %profile% %chat% %provider% %model%
 memory-of-chat-file: "%profile-path%/chats/%chat%/memory.txt"
 
 # Memory file
-# Placeholders: %profile-path% %profile% %caht% %provider% %model%
+# Placeholders: %profile-path% %profile% %chat% %provider% %model%
 memory-file: "%profile-path%/memory/%memory-id%.txt"
 
 # Token file
-# Placeholders: %profile-path% %profile% %caht% %provider% %model%
+# Placeholders: %profile-path% %profile% %chat% %provider% %model%
 token: ~/.config/ai/app/cli/%profile%/tokens/%provider%.txt
 
 # Shell binary for command execution (default: /bin/bash)
@@ -67,74 +67,147 @@ request-timeout-ms: 1200000
 # Connection timeout in milliseconds (time to establish connection)
 connect-timeout-ms: 10000
 
-# Access control for AI operations
-# Each string consists of letters:
-#   insert, select, update, delete
-# Modes for promt:
-#   default: "i" - AI can only add, not modify or delete
-#   automnemomorph : "iud" - AI can create, update, delete (full control)
-access-access: "s"
-access-history: "siud"
-access-memory: "siud"
-access-prompt: "siud"
-access-clipboard: "i"
-access-shell: "i"
-access-read: "s"
-access-write: "su"
-
-# You can compile your prompt from facts
-# ai --compile-prompt=default|amm|extractor or other
+# You can build your prompt from facts
+# ai --build-prompt=default or other...
 prompts:
+  # This is standart prompt.
   default:
-  - protocol
-  - answer
-  - automnemomorf
-  - history-add
-  - history-change
-  - history-remove
-  - history-pack
-  - memory-add
-  - memory-change
-  - memory-remove
-  - prompt-add
-  - prompt-change
-  - prompt-remove
-  - shell-add
-  - clipboard-add
-  - read
-  - write
-  - file-context
-  - epl
-  - domain-permissions
-  - user-env
+    facts:
+      - protocol
+      - answer-protocol
+      - answer-rules
+      - history-add
+      - history-change
+      - history-remove
+      - history-pack
+      - memory-add
+      - shell-add
+      - clipboard-add
+      - read
+      - write
+      - file-context
+      - domain-permissions
+      - user-env
+    # Access control for AI
+    # Each string consists of letters: [i]nsert, [s]elect, [u]pdate, [d]elete
+    # For empty rights use "."
+    access:
+      access: "s"
+      history: "siud"
+      memory: "si"
+      prompt: "s"
+      clipboard: "i"
+      shell: "i"
+      read: "s"
+      write: "su"
+  # This is experimental automnemomorph prompt.
+  # It needed to advanced model
+  amm:
+    facts:
+      - protocol
+      - answer-protocol
+      - answer-rules
+      - automnemomorf
+      - history-add
+      - history-change
+      - history-remove
+      - history-pack
+      - memory-add
+      - memory-change
+      - memory-remove
+      - prompt-add
+      - prompt-change
+      - prompt-remove
+      - shell-add
+      - clipboard-add
+      - read
+      - write
+      - file-context
+      - domain-permissions
+      - user-env
+    access:
+      access: "s"
+      history: "siud"
+      memory: "siud"
+      prompt: "siud"
+      clipboard: "i"
+      shell: "i"
+      read: "s"
+      write: "su"
+  # This is standart prompt with entity property link model
+  epl:
+    facts:
+      - protocol
+      - answer-protocol
+      - answer-rules
+      - history-add
+      - history-pack
+      - memory-add
+      - shell-add
+      - clipboard-add
+      - read
+      - write
+      - file-context
+      - epl
+      - domain-permissions
+      - user-env
+    access:
+      access: "s"
+      history: "siud"
+      memory: "siud"
+      prompt: "siud"
+      clipboard: "i"
+      shell: "i"
+      read: "s"
+      write: "su"
+  # This simple prompt like webchat on fact protocol
   simple:
-  - protocol
-  - answer
-  - history-add
-  - read
-  - write
-  - clipboard-add
-  - shell-add
-  - domain-permissions
-  - user-env
+    facts:
+      - protocol
+      - answer-protocol
+      - history-add
+      - memory-add
+      - domain-permissions
+      - user-env
+    access:
+      access: "s"
+      history: "si"
+      memory: "si"
+      prompt: "."
+      clipboard: "."
+      shell: "."
+      read: "."
+      write: "."
+  # This is the content extractor, return content only from html document
   extractor:
-  - extract
+    facts:
+      - extract
+  # This is the experimental text game promp
   game:
-  - protocol
-  - answer
-  - history-change
-  - history-remove
-  - history-pack
-  - memory-add
-  - memory-change
-  - memory-remove
-  - game-master
-  - game-instruction
-  - game-memory
-  - game-start
-  - game-inventory
-  - domain-permissions
-
+    facts:
+      - protocol
+      - answer-protocol
+      - history-change
+      - history-remove
+      - history-pack
+      - memory-add
+      - memory-change
+      - memory-remove
+      - game-master
+      - game-instruction
+      - game-memory
+      - game-start
+      - game-inventory
+      - domain-permissions
+    access:
+      access: "s"
+      history: "siud"
+      memory: "siud"
+      prompt: "siud"
+      clipboard: "."
+      shell: "."
+      read: "."
+      write: "."
 
 # Output destinations
 destination:
@@ -146,7 +219,6 @@ destination:
   message: "cat && echo"
   clipboard: "xclip -selection clipboard"
 
-# AI util config file
 application:
 
   # Log settings
@@ -174,6 +246,12 @@ application:
     # AI providers configuration
     providers:
 
+      deepseek:
+        api: https://api.deepseek.com/v1/chat/completions
+        models:
+          default: deepseek-v4-flash
+          pro: deepseek-v4-pro
+
       local:
         api: http://localhost:11434/api/generate
         proxy: ""
@@ -181,57 +259,10 @@ application:
           default: llama3
           gemma: gemma3:1b1
 
-      github:
-        api: https://models.github.ai/inference/chat/completions
-        models:
-          default: openai/gpt-4.1
-          mini: openai/gpt-4.1-mini
-          nano: openai/gpt-4.1-nano
-          4o: openai/gpt-4o
-          4o-mini: openai/gpt-4o-mini
-          gpt5: openai/gpt-5
-          gpt5chat: openai/gpt-5-chat
-          gpt5mini: openai/gpt-5-mini
-          gpt5nano: openai/gpt-5-nano
-          o1: openai/o1
-          o1mini: openai/o1-mini
-          o1preview: openai/o1-preview
-          o3: openai/o3
-          o3mini: openai/o3-mini
-          o4mini: openai/o4-mini
-          3large: openai/text-embedding-3-large
-          3small: openai/text-embedding-3-small
-          cohere-a: cohere/cohere-command-a
-          deepseek-r1: deepseek/deepseek-r1
-          deepseek-r1-0528: deepseek/deepseek-r1-0528
-          deepseek-v3-0324: deepseek/deepseek-v3-0324
-          llama-3.2-11b-vision-instruct: meta/llama-3.2-11b-vision-instruct
-          llama-3.2-90b-vision-instruct: meta/llama-3.2-90b-vision-instruct
-          llama-3.3-70b-instruct: meta/llama-3.3-70b-instruct
-          llama-4-maverick-17b-128e-instruct-fp8: meta/llama-4-maverick-17b-128e-instruct-fp8
-          llama-4-scout-17b-16e-instruct: meta/llama-4-scout-17b-16e-instruct
-          llama-3.1-405b-instruct: meta/meta-llama-3.1-405b-instruct
-          llama-3.1-8b-instruct: meta/meta-llama-3.1-8b-instruct
-          mistral-ai-codestral-2501: mistral-ai/codestral-2501
-          mistral-ai-ministral-3b: mistral-ai/ministral-3b
-          mistral-ai-mistral-medium-2505: mistral-ai/mistral-medium-2505
-          mistral-ai-mistral-small-2503: mistral-ai/mistral-small-2503
-          phi-4: microsoft/phi-4
-          phi-4-mini-instruct: microsoft/phi-4-mini-instruct
-          phi-4-mini-reasoning: microsoft/phi-4-mini-reasoning
-          phi-4-multimodal-instruct: microsoft/phi-4-multimodal-instruct
-          phi-4-reasoning: microsoft/phi-4-reasoning
-
       openai:
         api: https://api.openai.com/v1/chat/completions
         models:
           default: gpt-4.1
-
-      deepseek:
-        api: https://api.deepseek.com/v1/chat/completions
-        models:
-          default: deepseek-v4-flash
-          pro: deepseek-v4-pro
 
       groq:
         api: https://api.groq.com/openai/v1/chat/completions
@@ -256,18 +287,13 @@ application:
         models:
           default: claude-3-5-sonnet-20241022
 
-      sh:
-        api: https://ollama-platform-ai.docdoc.pro/api/chat
-        models:
-          default: "qwen3:30b-a3b-instruct-2507-q8_0"
-
     # Specific request contract
     rules:
     -
       # Deepseek rules for each model
       provider: "deepseek"
       model: "*"
-      # Request pathes
+      # Request scheme
       request:
         model: "%model-name%"
         messages:
@@ -276,7 +302,7 @@ application:
           role: user
         thinking:
           type: disabled
-      # answer pathes
+      # Answer scheme
       answer: [ choices, 0, message, content ]
       tokens_in: [ usage, prompt_tokens ]
       tokens_out: [ usage, completion_tokens ]

@@ -2,15 +2,16 @@
 
 1. ai-cli utility designed for embedding LLM into bash pipelines.
 0. Usage:
-    1. `echo "who are you?" | ai` - pipeline;
-    0. `ai create hello-world folder` - direct query to AI;
-    0. `ai` - interactive query input;
+    1. `echo "who are you?" | 1` - pipeline;
+    0. `1 create hello-world folder` - direct query to AI;
+    0. `1` - interactive query input;
 0. See other [examples and cases](./man/cases.md).
 
 ---
 
 * [Philosophy](#philosophy)
 * [How it works](#how-it-works)
+* [Who Is It For](#who-is-it-for)
 * [Why ai-cli](#why-ai-cli)
 * [Supported AI Providers](#supported-ai-providers)
 * [Liability](#liability)
@@ -25,9 +26,14 @@
 
 
 
+
 # Philosophy
 
-Cooperation over replacement. LLMs assist. Humans decide.
+```
+Cooperation over replacement.
+LLMs assist under finger.
+Humans decide.
+```
 
 
 
@@ -35,40 +41,36 @@ Cooperation over replacement. LLMs assist. Humans decide.
 
 1. You provide input: text, files, or commands
 2. AI advises: responds, suggests, or transforms
-3. You decide: type, copy, write to file, or execute
-
-```mermaid
-flowchart LR
-    keyboard[ keyboard \n input ]
-    clipboard{{clipboard}}
-    stdout{{stdout}}
-    stdin{{stdin}}
-    files[(files)]
-    memory[(memory)]
-    ai[ai-cli]
-    bash{{run bash \n command}}
-    user((users \n 'ENTER'))
-
-    keyboard --> user --> bash
-    stdin --> ai --> keyboard & memory & files & clipboard & stdout
-```
+3. You decide: type, copy, write to file, or execute it
 
 ```
 user@comp:~$ ai hello
 Hello! How can I assist you today?
+
 user@comp:~$ ai show me files in current directory
 Here are the files and directories in the current directory:
+
 user@comp:~$ ls -la
 ```
 
 Would you press Enter?
 
 ```
-echo who are you | ai --provider=deepseek it was deepseek
+echo who are you | 1 --provider=deepseek | 1 --provider=groq it was deepseek
 ```
 
 It is pipeline.
 
+You can find more information in the [manual](./man/index.md).
+
+
+
+# Who Is It For
+
+1. For developers using Bash in interactive mode.
+2. For devops automating LLM interaction in pipeline-based services.
+3. For LLM engineers during experimentation — the tool facilitates rapid
+prototyping and testing of prompts, models, and configurations.
 
 
 
@@ -91,25 +93,19 @@ clipboard, TTY, or any custom command. You decide where AI output goes.
 hidden state.
 
 
+
 ## Compare
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — can run shell
-commands automatically (with "auto mode")
-- [Codex CLI](https://github.com/openai/openai-codex) — has Auto/Read-only/Full
-Access modes, can execute without confirmation
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — has "Yolo mode"
-that bypasses confirmations
-- [Shell-GPT](https://github.com/TheR1D/shell_gpt) — can execute commands with
-`--execute` flag
-- [aichat](https://github.com/sigoden/aichat) — can execute commands with
-`--execute` flag
-- [Aider](https://github.com/paul-gauthier/aider) — autonomous agent that writes
-and executes code
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+- [Codex CLI](https://github.com/openai/openai-codex)
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- [Shell-GPT](https://github.com/TheR1D/shell_gpt)
+- [aichat](https://github.com/sigoden/aichat)
+- [Aider](https://github.com/paul-gauthier/aider)
 
 
 
-
-## Supported AI Providers
+# Supported AI Providers
 
 1. Currently `ai` works with the following providers:
 
@@ -225,6 +221,8 @@ AI-generated commands (security: prevents auto-execution)
 ai-cli works as [automnemomorph](./man/automnemomorph.md) by default. See for
 the full concept and philosophical background.
 
+
+
 # Fact Protocol
 
 The AI assistant must exchange strict [fact](./man/fact.md) structure. The full
@@ -234,6 +232,7 @@ format description and rules are in the
 Both user requests and AI responses follow the same fact block structure. This
 creates a uniform way to represent all information. You can absolutely free to
 change all facts in the text file.
+
 
 
 ## How LLM Operates
@@ -252,55 +251,6 @@ and [memory](./man/memory.md).
 3. LLM naturally manipulates facts
 4. Full automnemomorph behavior
 
-
-
-# Architecture
-
-```mermaid
-flowchart LR
-    subgraph UserSide["User Side"]
-        subgraph filesystem
-            memory_in[("memory")]
-            memory_out[("memory")]
-            history_out[("Chat \n history")]
-            history_in[("Chat \n history")]
-            prompt[("User \n prompt")]
-            files[("files")]
-            log[("Log")]
-        end
-
-        clipboard["Clipboard"]
-        stdin{{"User stdin"}}
-        param{{"User CLI param"}}
-        command{{"bash"}}
-        stdout{{"User stdout"}}
-
-        req["Request"]
-        resp["Response"]
-    end
-
-    subgraph World["External"]
-        llm["LLM"]
-    end
-
-    resp --> |all| log
-
-    llm --> |HTTP \n responce| resp
-    req -->|HTTP \n request| llm
-
-    resp -->|data| memory_out
-    resp -->|data| history_out
-    resp -->|data| stdout
-    resp -->|data| file
-    resp -->|command| command
-    resp -->|data| clipboard
-
-    memory_in --> |txt| req
-    prompt --> |txt| req
-    stdin --> req
-    param --> req
-    history_in --> |txt| req
-```
 
 
 # Authors

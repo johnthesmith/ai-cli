@@ -21,7 +21,7 @@ use crate::Ai;
 pub trait Provider
 {
     /*
-        Return provider name identifier (e.g., "github", "openai").
+        Return provider name identifier (e.g., "deepseek", "openai" ).
     */
     fn get_name( &self ) -> &str;
 
@@ -45,7 +45,7 @@ pub trait Provider
 */
 pub fn create_provider<'a>
 (
-    /* Provider name: "github", "openai", "deepseek", etc. */
+    /* Provider name: deepseek, openai, etc. */
     name: &str,
     /**/
     /* AI application instance (shared ownership) */
@@ -56,7 +56,6 @@ pub fn create_provider<'a>
 {
     /* Type of api */
     let api_type = "openai";
-    
     match api_type
     {
         /* OpenAI-compatible providers (same API format) */

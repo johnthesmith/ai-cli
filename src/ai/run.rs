@@ -26,6 +26,9 @@ impl Ai
         /* No request mode */
         let mut no_request = self.app.config[ "no-request" ].get_bool( false );
 
+            /* Help request */
+        self.colorize = self.app.config[ "color" ].get_bool( false );
+
         /* Standalone mode */
         let mut is_standalone = false;
 
@@ -36,7 +39,8 @@ impl Ai
         if !is_completion
         {
             /* Version request */
-            if                self.app.config[ "version" ].get_bool( false ) ||
+            if
+                self.app.config[ "version" ].get_bool( false ) ||
                 self.app.config[ "v" ].get_bool( false )
             {
                 println!( "{}", self.get_version() );
@@ -83,7 +87,6 @@ impl Ai
                 is_standalone = true;
             }
         }
-
 
         /* Retrive init flag */
         let mut is_init = !self.get_profiles_path().is_empty();
@@ -178,8 +181,6 @@ impl Ai
                 self.app.dump_config();
             }
 
-
-
             /*
                 Processing wave 1
             */
@@ -255,7 +256,6 @@ impl Ai
                     }
                 );
 
-
                 /* Compile prompt */
                 let prompt_template = self.app.config[ "build-prompt" ]
                 .get_str( "" );
@@ -264,7 +264,6 @@ impl Ai
                     self.build_prompt( &prompt_template );
                 }
             }
-
 
             /* Processint wave 2 */
             if self.app.state.is_ok()
@@ -296,6 +295,7 @@ impl Ai
                         "tiocsti" => ( true, true ),
                         "comp-line" => ( true, true ),
                         "build-prompt" => ( true, true ),
+                        "bind-profile" => ( true, true ),
                         "bind-provider" => ( true, true ),
                         "bind-prompt" => ( true, true ),
                         "bind-model" => ( true, true ),
@@ -376,7 +376,24 @@ impl Ai
                 }
             }
 
-
+            if self.app.state.is_ok()
+            {
+                /* Restore backup file */
+                let restore_files
+                = self.app.config[ "restore" ].get_string_list( Vec::new() );
+                restore_files.iter().for_each
+                (
+                    | restore_file |
+                    {
+                        if !restore_file.is_empty()
+                        {
+                            self.backup_restore( &restore_file );
+                            no_prompt = true;
+                            no_request = true;
+                        }
+                    }
+                );
+            }
 
             if is_completion
             {
@@ -404,23 +421,21 @@ impl Ai
                         false
                     );
 
+                    let prompt = self.get_prompt_id();
+                    let access = &self.app.config
+                    [ "prompts" ]
+                    [ prompt ]
+                    [ "access" ];
+
                     /* Set access rights */
-                    self.access_access
-                    = self.get_config_str( &[ "access-access" ], "s" );
-                    self.access_history
-                    = self.get_config_str( &[ "access-history" ], "si" );
-                    self.access_memory
-                    = self.get_config_str( &[ "access-memory" ], "si" );
-                    self.access_prompt
-                    = self.get_config_str( &[ "access-prompt" ], "s" );
-                    self.access_shell
-                    = self.get_config_str( &[ "access-shell" ], "i" );
-                    self.access_clipboard
-                    = self.get_config_str( &[ "access-clipboard" ], "i" );
-                    self.access_read
-                    = self.get_config_str( &[ "access-read" ], "s" );
-                    self.access_write
-                    = self.get_config_str( &[ "access-write" ], "su" );
+                    self.access_access = access[ "access" ].get_str( "s" );
+                    self.access_history = access[ "history" ].get_str( "si" );
+                    self.access_memory = access[ "memory" ].get_str( "si" );
+                    self.access_prompt = access[ "prompt" ].get_str( "s" );
+                    self.access_shell = access[ "shell" ].get_str( "i" );
+                    self.access_clipboard = access[ "clipboard" ].get_str( "i" );
+                    self.access_read = access[ "read" ].get_str( "s" );
+                    self.access_write = access[ "write" ].get_str( "su" );
 
                     /* Open prompt */
                     self.ensure_prompt_file();
@@ -504,6 +519,7 @@ impl Ai
                 if self.app.state.is_ok()
                 {
                     let prompt = self.storage.to_string()
+
                     .replace
                     (
                         "%shell%",
@@ -697,10 +713,9 @@ impl Ai
         {
             if !self.app.state.is_ok()
             {
-                self.app.state.dump( "txt" );
+                self.app.state.dump( "txt", self.colorize );
             }
         }
-
         self
     }
 }
