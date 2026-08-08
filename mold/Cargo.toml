@@ -3,7 +3,7 @@ name = "ai"
 version = "%version%"
 edition = "2021"
 license = "MIT"
-authors = ["Still Swamp <still@itserv.ru>"]
+authors = ["Still Swamp <still@catlair.net>"]
 description = "CLI utility for embedding AI into bash pipelines"
 repository = "https://github.com/johnthesmith/ai-cli"
 
