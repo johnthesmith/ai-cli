@@ -266,6 +266,9 @@ impl Ai
 
 
 
+    /*
+        Return list of values for key
+    */
     pub fn find_values
     (
         &mut self,
@@ -403,7 +406,8 @@ impl Ai
     (
         &self,
         comp_line: &str
-    ) -> String
+    )
+    -> String
     {
         let patterns =
         [

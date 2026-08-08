@@ -1,4 +1,7 @@
-# Documentation Index
+# Documentation
+
+The section contains brief information about [ai-cli](../README.md).
+
 
 - [profile](profile.md)
 - [memory](memory.md)

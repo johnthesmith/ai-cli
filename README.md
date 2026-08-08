@@ -1,3 +1,5 @@
+[man](./man/index.html)
+---
 # AI CLI Assistant
 
 1. ai-cli utility designed for embedding LLM into bash pipelines.
@@ -74,7 +76,7 @@ prototyping and testing of prompts, models, and configurations.
 
 
 
-# Why `ai-cli`
+# Why ai-cli
 
 We needed the simple tool for each day working on "smart-iron".
 
@@ -109,7 +111,6 @@ hidden state.
 
 1. Currently `ai` works with the following providers:
 
-- `github` — implemented (default)
 - `deepseek` — implemented
 - `openai` — testing
 - `groq` — testing
@@ -157,6 +158,7 @@ curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh
 ```bash
 ai --init
 ```
+
 After init, all files and config will be created in `./.ai-cli/`.
 
 ```bash

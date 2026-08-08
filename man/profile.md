@@ -1,12 +1,13 @@
 # Profile
 
-AI CLI supports many profiles for each instance. The default profile is
+AI CLI supports many profiles. The default profile is
 created after the `--init` command in the `./.ai-cli/profiles/<profile>`
 folder. It contains the following entities:
 - [chats](chats.md)
 - [history](history.md)
-- [memory](memory.md)
 - [prompts](prompts.md)
+- [memory](memory.md)
+- [tokens](token.md)
 
 You can create or bind other profiles with `--bind-profile=<profile-id>` for
 example:
@@ -23,5 +24,3 @@ Read specific information about
 
 The current profile is stored in `./.ai-cli/profile.txt`.
 To remove a profile, use the `rm -rf` command.
-
-
