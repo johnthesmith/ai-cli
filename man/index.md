@@ -15,7 +15,7 @@ The section contains brief information about [ai-cli](../README.md).
     0. [models](models.md)
     0. [token](token.md)
 0. Add
-    0. [build ai-cli](build.md)
+    1. [build ai-cli](build.md)
     0. [cases](cases.md)
     0. [automnenmomorph](automnenmomorph.md)
 
