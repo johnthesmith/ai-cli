@@ -1,4 +1,4 @@
-[man](./man/index.html)
+[man](./man/index.md)
 
 ---
 
@@ -46,6 +46,7 @@ into your workflow without leaving the shell.
 
 The model can read any file and request any data, but all actions go through
 you. Only you can execute.
+
 
 
 # How it works
