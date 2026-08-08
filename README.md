@@ -30,15 +30,22 @@
 
 
 
-
 # Philosophy
 
-```
-Cooperation over replacement.
-LLMs assist under finger.
-Humans decide.
-```
+**Cooperation over replacement**
 
+AI proposes, you decide. The model assists your work, but the final judgment
+always stays with you.
+
+**LLM under finger**
+
+Сontext stays in the terminal. You can feed any information and weave the model
+into your workflow without leaving the shell.
+
+**Full LLM access for LLM without access**
+
+The model can read any file and request any data, but all actions go through
+you. Only you can execute.
 
 
 # How it works
