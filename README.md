@@ -19,7 +19,6 @@
 * [Why ai-cli](#why-ai-cli)
 * [Supported AI Providers](#supported-ai-providers)
 * [Liability](#liability)
-* [Build](#build)
 * [Configuration](#configuration)
 * [Run](#run)
 * [Security](#security)
