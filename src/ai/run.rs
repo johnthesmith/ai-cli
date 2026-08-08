@@ -26,9 +26,6 @@ impl Ai
         /* No request mode */
         let mut no_request = self.app.config[ "no-request" ].get_bool( false );
 
-            /* Help request */
-        self.colorize = self.app.config[ "color" ].get_bool( false );
-
         /* Standalone mode */
         let mut is_standalone = false;
 
@@ -175,6 +172,8 @@ impl Ai
 
             if self.app.state.is_ok()
             {
+                /* Help request */
+                self.colorize = self.app.config[ "color" ].get_bool( false );
                 /* First log message */
                 self.app.get_log_mut().begin( "=== Ai started ===" );
                 /* Dump configuration */

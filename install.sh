@@ -62,13 +62,35 @@ chmod +x "$BIN_DIR/ai"
 # Create symbolic link 1 -> ai
 ln -sf "$BIN_DIR/ai" "$BIN_DIR/1"
 
+# Create autocompletion directory for bash linux
+mkdir -p ~/.local/share/bash-completion/completions
+
+
+
+# Write autocompletion
+cat > ~/.local/share/bash-completion/completions/ai << 'EOF'
+_ai_completion() {
+    mapfile -t COMPREPLY < <(ai --comp-line="$COMP_LINE" --comp-point="$COMP_POINT")
+}
+complete -o nospace -F _ai_completion ai
+complete -o nospace -F _ai_completion 1
+EOF
+
+cp \
+~/.local/share/bash-completion/completions/ai \
+~/.local/share/bash-completion/completions/1
+
+
+
 info "Installation complete."
 echo ""
-echo "Use for shell completion"
-echo "    ai --completion=bash >> ~/.bashrc"
-echo "    ai --completion=zsh >> ~/.zshrc"
-echo "    ai --completion=fish >> ~/.config/fish/config.fish"
-echo "Set tokens: $CONFIG_DIR/tokens/<provider>.txt"
-echo "Test: 1 --help"
+echo "Set your tokens: $CONFIG_DIR/tokens/<provider>.txt"
+echo ""
+echo "Test:"
+echo "1 --init"
+echo "1 who are you"
+
+
 
 exit 0
+

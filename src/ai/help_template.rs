@@ -68,9 +68,6 @@ Storage operations:
     --build-prompt=<id>             Build prompt file from config `prompts`
                                     New prompt will be placed to current prompt
                                     --bind-prompt or --prompt
-Chat opertions:
-
-    --rename-chat=<new-id>          Rename current chat
 
 Fact opertions:
 

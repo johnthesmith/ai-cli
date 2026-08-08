@@ -67,6 +67,9 @@ request-timeout-ms: 1200000
 # Connection timeout in milliseconds (time to establish connection)
 connect-timeout-ms: 10000
 
+# Color support or --color=true
+color: true
+
 # You can build your prompt from facts
 # ai --build-prompt=default or other...
 prompts:

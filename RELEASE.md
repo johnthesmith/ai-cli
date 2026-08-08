@@ -1,3 +1,21 @@
+# Release V1.1.0
+
+1. Major changes:
+    1. added cli crud operations for facts
+    0. added --build-prompt
+    0. added --set for presets arguments
+    0. сhanged configuration storage location and applied --init to start in
+    the current directory.
+    0. changd fact format
+    0. moved access control in to prompt
+    0. changed autocompletion over --comp-line & --comp-point
+    0. removed github
+    0. removed shot keys: -bh -bm etc...
+0. Fixed bugs.
+0. **Important:** Remove old configs prompts memory and history before
+update (`rm -rf ~/.config/ai/app/cli`).
+
+
 # Release v1.0.17
 
 1. Fixed bugs.

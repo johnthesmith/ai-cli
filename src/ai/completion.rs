@@ -19,7 +19,7 @@ impl Ai
     )
     {
         /* Retrieve cursor point */
-        let comp_point = self.app.config["comp-point"].get_int(0) as usize;
+        let comp_point = self.app.config[ "comp-point" ].get_int( 0 ) as usize;
 
         /* Cut line at cursor point */
         let end =
@@ -331,6 +331,7 @@ impl Ai
 
             "--update-fact" | "--delete-fact" | "--select-fact" =>
             {
+                self.compile_prompt( "", "" );
                 self.storage.get_id_list()
             }
 
