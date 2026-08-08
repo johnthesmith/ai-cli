@@ -28,6 +28,7 @@ info "Downloading ai binary..."
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
+
 # Check if running in Termux (Android)
 if [[ -d "/data/data/com.termux/files/usr" ]]; then
     OS="termux"
@@ -59,14 +60,15 @@ TAG=$(curl -s "https://api.github.com/repos/johnthesmith/ai-cli/releases/latest"
 curl -L "https://github.com/johnthesmith/ai-cli/releases/download/$TAG/$FILE" -o "$BIN_DIR/ai"
 chmod +x "$BIN_DIR/ai"
 
+
+
 # Create symbolic link 1 -> ai
 ln -sf "$BIN_DIR/ai" "$BIN_DIR/1"
 
+
+
 # Create autocompletion directory for bash linux
 mkdir -p ~/.local/share/bash-completion/completions
-
-
-
 # Write autocompletion
 cat > ~/.local/share/bash-completion/completions/ai << 'EOF'
 _ai_completion() {
@@ -81,15 +83,13 @@ cp \
 ~/.local/share/bash-completion/completions/1
 
 
-
-info "Installation complete."
+info "Installation complete"
 echo ""
-echo "Set your tokens: $CONFIG_DIR/tokens/<provider>.txt"
+echo "Set your tokens to $CONFIG_DIR/tokens/<provider>.txt"
 echo ""
 echo "Test:"
 echo "1 --init"
 echo "1 who are you"
-
 
 
 exit 0
