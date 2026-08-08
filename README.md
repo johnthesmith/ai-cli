@@ -1,5 +1,7 @@
 [man](./man/index.html)
+
 ---
+
 # AI CLI Assistant
 
 1. ai-cli utility designed for embedding LLM into bash pipelines.
