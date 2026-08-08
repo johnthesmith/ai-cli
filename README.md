@@ -46,10 +46,10 @@ Humans decide.
 3. You decide: type, copy, write to file, or execute it
 
 ```
-user@comp:~$ ai hello
+user@comp:~$ 1 hello
 Hello! How can I assist you today?
 
-user@comp:~$ ai show me files in current directory
+user@comp:~$ 1 show me files in current directory
 Here are the files and directories in the current directory:
 
 user@comp:~$ ls -la
@@ -109,7 +109,7 @@ hidden state.
 
 # Supported AI Providers
 
-1. Currently `ai` works with the following providers:
+1. Currently `ai-cli` works with the following providers:
 
 - `deepseek` — implemented
 - `openai` — testing
@@ -156,13 +156,13 @@ curl -fsSL https://raw.githubusercontent.com/johnthesmith/ai-cli/main/install.sh
 # Init and run
 
 ```bash
-ai --init
+1 --init
 ```
 
 After init, all files and config will be created in `./.ai-cli/`.
 
 ```bash
-ai who are you?
+1 who are you?
 ```
 
 You are able to switch fluently between chats, memory, prompts for each session
@@ -170,7 +170,7 @@ or pipeline.
 
 Get help:
 ```
-ai --help
+1 --help
 ```
 
 
@@ -195,7 +195,7 @@ commands without your approval** — AI never presses Enter for you.
 `--write=<file>`.
 2. For example you could use:
 ```
-ai --read=./README.md --write=./README.ch.md translate readme to chinese
+1 --read=./README.md --write=./README.ch.md translate readme to chinese
 ```
 3. File operations can be actively used for analyzing and developing code
 without agent functions on your device.
@@ -220,21 +220,22 @@ AI-generated commands (security: prevents auto-execution)
 
 # Automnemomorph
 
-ai-cli works as [automnemomorph](./man/automnemomorph.md) by default. See for
+`ai-cli` works as [automnemomorph](./man/automnemomorph.md) by default. See for
 the full concept and philosophical background.
 
 
 
 # Fact Protocol
 
-The AI assistant must exchange strict [fact](./man/fact.md) structure. The full
+The `ai-cli` must exchange strict [fact](./man/fact.md) structure. The full
 format description and rules are in the
-`./.ai-cli/chats/<current-chat>/prompts/<current-prompt>.txt`
+```
+./.ai-cli/chats/<current-chat>/prompts/<current-prompt>.txt
+```
 
-Both user requests and AI responses follow the same fact block structure. This
-creates a uniform way to represent all information. You can absolutely free to
-change all facts in the text file.
-
+Both user requests and `ai-cli` responses follow the same fact block structure.
+This creates a uniform way to represent all information. You can absolutely
+free to change all facts in the text file.
 
 
 ## How LLM Operates
@@ -243,15 +244,14 @@ change all facts in the text file.
 and [memory](./man/memory.md).
 3. LLM can add, remove, or change any fact
 4. Returns facts in same format
-5. ai-cli tool process the facts and stores it.
+5. `ai-cli` process the facts and stores it.
 
 
 
 ## Benefits
 
-1. User and AI speak same language over cli
-3. LLM naturally manipulates facts
-4. Full automnemomorph behavior
+1. User and `ai-cli` speak same language over cli
+2. LLM naturally manipulates facts
 
 
 
